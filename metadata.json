@@ -1,0 +1,6 @@
+{
+  "name": "Arboris - Sistema de Árvores & Fichas Virtuais",
+  "description": "Sistema de jogo gratuito baseado em árvores de 15 posições e fichas virtuais, projetado com máxima eficiência e integridade transacional para VPS de 512 MB.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

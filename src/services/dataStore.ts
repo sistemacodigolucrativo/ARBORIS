@@ -9,13 +9,19 @@ import {
   AuditLogEntry
 } from '../types/game';
 import {
-  createParticipant,
-  strengthenTronco,
   validateReferral,
   TOPOLOGY
 } from './gameEngine';
 
 const STORAGE_KEY = 'arboris_game_state_v1';
+const REPOSITORY = 'sistemacodigolucrativo/ARBORIS';
+const ISSUE_URL = `https://github.com/${REPOSITORY}/issues/new`;
+
+type OnlineActionPayload = {
+  action: 'register_participant' | 'strengthen_tronco';
+  params: Record<string, unknown>;
+  idempotencyKey: string;
+};
 
 class DataStoreService {
   private state: GameDatabaseState | null = null;
@@ -117,6 +123,32 @@ class DataStoreService {
     }
   }
 
+  private createIdempotencyKey(prefix: string): string {
+    const random = Math.random().toString(36).slice(2, 10);
+    return `${prefix}_${Date.now()}_${random}`;
+  }
+
+  private createGameActionIssueUrl(payload: OnlineActionPayload): string {
+    const title = `[ARBORIS_ACTION] ${payload.action} ${payload.idempotencyKey}`;
+    const body = [
+      'Solicitacao automatica de movimentacao do jogo ARBORIS.',
+      '',
+      'Nao edite o bloco JSON abaixo. O GitHub Actions usara estes dados para validar e gravar nos arquivos JSON.',
+      '',
+      '```json',
+      JSON.stringify(payload, null, 2),
+      '```'
+    ].join('\n');
+
+    const params = new URLSearchParams({
+      title,
+      body,
+      labels: 'game-action'
+    });
+
+    return `${ISSUE_URL}?${params.toString()}`;
+  }
+
   /**
    * Validates referral token or username for Lock Screen.
    */
@@ -158,28 +190,28 @@ class DataStoreService {
     const fullName = `${params.firstName.trim()} ${params.lastName.trim()}`.trim();
     const username = `${params.firstName.trim().toLowerCase()}_${params.lastName.trim().toLowerCase()}`.replace(/[^a-z0-9_]/g, '');
 
-    const res = createParticipant(this.state!, {
-      username,
-      name: fullName,
-      indicadorUsername: params.indicadorUsername
-    });
-
-    if (!res.success) {
-      return { success: false, error: res.error };
+    if (!username || username.length < 3) {
+      return { success: false, error: 'Nome de usuário inválido. Use nome e sobrenome com pelo menos 3 caracteres no total.' };
     }
 
-    this.state = res.state;
-    this.saveToStorage();
-    this.notify();
+    const payload: OnlineActionPayload = {
+      action: 'register_participant',
+      params: {
+        username,
+        name: fullName,
+        indicadorUsername: params.indicadorUsername
+      },
+      idempotencyKey: this.createIdempotencyKey(`register_${username}`)
+    };
 
+    const requestUrl = this.createGameActionIssueUrl(payload);
     return {
       success: true,
       result: {
-        user_id: res.result!.user.id,
-        username: res.result!.user.username,
-        full_name: res.result!.user.name,
-        tokens_granted: res.result!.tokensGranted,
-        tree_id: res.result!.treeId
+        username,
+        full_name: fullName,
+        request_url: requestUrl,
+        idempotency_key: payload.idempotencyKey
       }
     };
   }
@@ -189,22 +221,23 @@ class DataStoreService {
    */
   async strengthenTroncoAction(userId: number, treeId: number) {
     if (!this.state) await this.loadState();
-    const res = strengthenTronco(this.state!, { userId, treeId });
+    const user = this.state!.users.find(u => u.id === userId);
+    const tree = this.state!.trees.find(t => t.id === treeId);
+    if (!user) return { success: false, error: 'Usuário não encontrado.' };
+    if (!tree) return { success: false, error: 'Árvore não encontrada.' };
 
-    if (!res.success) {
-      return { success: false, error: res.error };
-    }
+    const payload: OnlineActionPayload = {
+      action: 'strengthen_tronco',
+      params: { userId, treeId },
+      idempotencyKey: this.createIdempotencyKey(`strengthen_${userId}_tree_${treeId}`)
+    };
 
-    this.state = res.state;
-    this.saveToStorage();
-    this.notify();
-
+    const requestUrl = this.createGameActionIssueUrl(payload);
     return {
       success: true,
       result: {
-        position_index: res.result!.positionIndex,
-        bifurcated: res.result!.bifurcated,
-        new_trees: res.result!.newTrees
+        request_url: requestUrl,
+        idempotency_key: payload.idempotencyKey
       }
     };
   }

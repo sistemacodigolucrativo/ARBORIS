@@ -1,5 +1,6 @@
 name: Deploy to GitHub Pages
 
+# Triggered after UI completion fixes so GitHub Pages publishes the latest main commit.
 on:
   push:
     branches:

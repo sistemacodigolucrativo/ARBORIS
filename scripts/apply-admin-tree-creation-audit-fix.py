@@ -1,122 +1,184 @@
 from pathlib import Path
 import re
+import textwrap
 
 ROOT = Path(__file__).resolve().parents[1]
-APP = ROOT / "src" / "App.tsx"
-DATA_STORE = ROOT / "src" / "services" / "dataStore.ts"
+APP = ROOT / 'src' / 'App.tsx'
+DATA_STORE = ROOT / 'src' / 'services' / 'dataStore.ts'
 
-app = APP.read_text()
 
-if "Ação bloqueada: o coordenador não deve fortalecer tronco" not in app:
-    old = "  const handleStrengthenTronco = async (userId: number, treeId: number) => {\n    setActivatingTronco(true);"
-    new = "  const handleStrengthenTronco = async (userId: number, treeId: number) => {\n    if (currentUser?.role === 'admin') {\n      showToast('Ação bloqueada: o coordenador não deve fortalecer tronco pelo painel de membro. Use Organização > Árvores > Nova Árvore.');\n      return;\n    }\n\n    setActivatingTronco(true);"
-    if old not in app:
-        raise SystemExit("Pattern not found: strengthen handler")
-    app = app.replace(old, new, 1)
+def replace_once(text: str, old: str, new: str, label: str) -> str:
+    if old not in text:
+        raise SystemExit(f'Pattern not found: {label}')
+    return text.replace(old, new, 1)
 
-if "currentUser.role !== 'admin' && !isUserPositioned" not in app:
-    old = "                  {!isUserPositioned && currentUser.balance >= 25 && ("
-    new = "                  {currentUser.role !== 'admin' && !isUserPositioned && currentUser.balance >= 25 && ("
-    if old not in app:
-        raise SystemExit("Pattern not found: strengthen card condition")
-    app = app.replace(old, new, 1)
 
-new_handle_create_tree = """  const handleCreateTree = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (currentUser?.role !== 'admin') {
-      showToast('Erro: somente o coordenador pode criar árvore pelo painel administrativo.');
-      return;
-    }
-    if (currentView !== 'admin' || adminTab !== 'global_trees') {
-      showToast('Erro: a criação de árvore deve ser feita em Organização > Árvores.');
-      return;
-    }
+def replace_between(text: str, start: str, end: str, replacement: str, label: str) -> str:
+    i = text.find(start)
+    if i == -1:
+        raise SystemExit(f'Start pattern not found: {label}')
+    j = text.find(end, i)
+    if j == -1:
+        raise SystemExit(f'End pattern not found: {label}')
+    return text[:i] + textwrap.dedent(replacement).rstrip() + '\n\n' + text[j:]
 
-    setAdminActionMessage(null);
-    try {
-      const res = await dataStore.createTreeAction(newTreeCatId, newTreeTroncoId);
-      if (res.success && res.result?.request_url) {
-        openActionRequest(res.result.request_url);
-        setShowCreateTreeModal(false);
-        setAdminActionMessage('Solicitação de criação de árvore aberta no GitHub. Envie a issue para a Action validar e gravar nos JSONs.');
-        showToast('Solicitação de criação de árvore aberta no GitHub. Envie a issue para gravar a árvore verdadeira nos JSONs.');
-      } else {
-        showToast('Erro: ' + (res.error || 'Não foi possível criar a solicitação da árvore.'));
-      }
-    } catch (e: any) {
-      showToast('Erro: ' + e.message);
-    }
-  };
-"""
+store = DATA_STORE.read_text(encoding='utf-8')
+if 'replaceState(nextState: GameDatabaseState)' not in store:
+    store = replace_once(
+        store,
+        "  getState(): GameDatabaseState | null {\n    return this.state;\n  }\n",
+        "  getState(): GameDatabaseState | null {\n    return this.state;\n  }\n\n  replaceState(nextState: GameDatabaseState): GameDatabaseState {\n    this.state = nextState;\n    this.saveToStorage();\n    this.notify();\n    return this.state;\n  }\n",
+        'dataStore.replaceState'
+    )
+DATA_STORE.write_text(store, encoding='utf-8')
 
-app, count = re.subn(
-    r"  const handleCreateTree = async \(e: React\.FormEvent\) => \{.*?\n  \};\n\n  const openAdminOnlineAction",
-    new_handle_create_tree + "\n  const openAdminOnlineAction",
+app = APP.read_text(encoding='utf-8')
+if "./services/directAdminActions" not in app:
+    app = replace_once(
+        app,
+        "import { dataStore } from './services/dataStore';\n",
+        "import { dataStore } from './services/dataStore';\nimport {\n  archiveTreeDirect,\n  assignPositionDirect,\n  clearPositionDirect,\n  createTreeDirect,\n  createUserDirect\n} from './services/directAdminActions';\n",
+        'direct action imports'
+    )
+
+if 'const applyDirectAdminState = async (res: any)' not in app:
+    app = replace_once(
+        app,
+        "  const openActionRequest = (url: string) => {\n    const opened = window.open(url, '_blank', 'noopener,noreferrer');\n    if (!opened) {\n      window.location.assign(url);\n    }\n  };\n",
+        "  const openActionRequest = (url: string) => {\n    const opened = window.open(url, '_blank', 'noopener,noreferrer');\n    if (!opened) {\n      window.location.assign(url);\n    }\n  };\n\n  const applyDirectAdminState = async (res: any) => {\n    if (res?.state) {\n      dataStore.replaceState(res.state);\n      const stateView = dataStore.getSystemStateView();\n      if (stateView) {\n        setSystemState(stateView);\n        if (currentUser) {\n          const fresh = stateView.users.find((u: User) => u.id === currentUser.id);\n          if (fresh) setCurrentUser(fresh);\n        }\n      }\n      return;\n    }\n\n    await fetchState(true);\n  };\n",
+        'applyDirectAdminState'
+    )
+
+app = replace_between(
     app,
-    count=1,
-    flags=re.S,
+    "  const handleAdminCreateUser = async (e: React.FormEvent) => {",
+    "  // ATOMIC POSITION CLAIM & STRENGTHENING:",
+    r'''
+      const handleAdminCreateUser = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!adminValidatedIndicadorData) {
+          setAdminCreateUserError('Valide o indicador antes de criar o usuário.');
+          return;
+        }
+        if (!adminCreateFirstName.trim() || !adminCreateLastName.trim()) {
+          setAdminCreateUserError('Preencha nome e sobrenome do novo usuário.');
+          return;
+        }
+        if (currentUser?.role !== 'admin') {
+          setAdminCreateUserError('Somente o coordenador pode criar usuário pelo painel administrativo.');
+          return;
+        }
+
+        setAdminCreateUserLoading(true);
+        setAdminCreateUserError(null);
+        try {
+          const res = await createUserDirect({
+            indicadorUsername: adminValidatedIndicadorData.username,
+            firstName: adminCreateFirstName.trim(),
+            lastName: adminCreateLastName.trim(),
+            actorUserId: currentUser.id,
+            actorUsername: currentUser.username
+          });
+
+          if (res.success) {
+            await applyDirectAdminState(res);
+            showToast('Usuário criado e salvo nos JSONs do repositório.');
+            setAdminCreateUserError(null);
+            setAdminCreateFirstName('');
+            setAdminCreateLastName('');
+            setAdminValidatedIndicadorData(null);
+          } else {
+            setAdminCreateUserError(res.error || 'Falha ao criar usuário pelo painel administrativo.');
+          }
+        } catch (err: any) {
+          setAdminCreateUserError('Erro ao criar usuário: ' + err.message);
+        } finally {
+          setAdminCreateUserLoading(false);
+        }
+      };
+    ''',
+    'handleAdminCreateUser'
 )
-if count != 1:
-    raise SystemExit("Pattern not found: handleCreateTree block")
 
-APP.write_text(app)
+app = replace_between(
+    app,
+    "  const handleCreateTree = async (e: React.FormEvent) => {",
+    "  const handleArchiveSelectedTree = async () => {",
+    r'''
+      const handleCreateTree = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (currentUser?.role !== 'admin') {
+          showToast('Erro: somente o coordenador pode criar árvore pelo painel administrativo.');
+          return;
+        }
+        if (currentView !== 'admin' || adminTab !== 'global_trees') {
+          showToast('Erro: a criação de árvore deve ser feita em Organização > Árvores.');
+          return;
+        }
 
-store = DATA_STORE.read_text()
+        setAdminActionLoading(true);
+        setAdminActionMessage(null);
+        try {
+          const res = await createTreeDirect({
+            categoryId: newTreeCatId,
+            troncoUserId: newTreeTroncoId,
+            actorUserId: currentUser.id,
+            actorUsername: currentUser.username
+          });
 
-if "Coordenador não pode fortalecer tronco pelo fluxo de membro" not in store:
-    old = "    if (!user) return { success: false, error: 'Usuário não encontrado.' };\n    if (!tree) return { success: false, error: 'Árvore não encontrada.' };"
-    new = "    if (!user) return { success: false, error: 'Usuário não encontrado.' };\n    if (user.role === 'admin') {\n      return { success: false, error: 'Coordenador não pode fortalecer tronco pelo fluxo de membro. Use Organização > Árvores > Nova Árvore.' };\n    }\n    if (!tree) return { success: false, error: 'Árvore não encontrada.' };"
-    if old not in store:
-        raise SystemExit("Pattern not found: strengthen action validation")
-    store = store.replace(old, new, 1)
+          if (res.success) {
+            await applyDirectAdminState(res);
+            const treeId = (res.result as any)?.tree?.id;
+            if (treeId) setSelectedAdminTreeId(treeId);
+            setShowCreateTreeModal(false);
+            setAdminActionMessage('Árvore criada e salva nos JSONs do repositório.');
+            showToast('Árvore criada e salva nos JSONs do repositório.');
+          } else {
+            const error = res.error || 'Não foi possível criar a árvore nos JSONs do repositório.';
+            setAdminActionMessage(error);
+            showToast('Erro: ' + error);
+          }
+        } catch (e: any) {
+          setAdminActionMessage('Erro ao criar árvore: ' + e.message);
+          showToast('Erro: ' + e.message);
+        } finally {
+          setAdminActionLoading(false);
+        }
+      };
 
-new_create_tree_action = """  /**
-   * Admin: creates a new tree through the online JSON workflow.
-   */
-  async createTreeAction(categoryId: number, troncoUserId: number) {
-    if (!this.state) await this.loadState();
-    const tronco = this.state!.users.find(u => u.id === troncoUserId && u.status === 'active');
-    if (!tronco) return { success: false, error: 'Tronco não encontrado ou inativo.' };
-    if (tronco.role === 'admin') return { success: false, error: 'O coordenador não pode ser usado como tronco inicial de uma nova árvore.' };
-    const category = this.state!.config.categories.find(c => c.id === categoryId && c.isActive);
-    if (!category) return { success: false, error: 'Categoria não encontrada ou inativa.' };
-    const payload: OnlineActionPayload = {
-      action: 'create_tree',
-      params: { categoryId, troncoUserId },
-      idempotencyKey: this.createIdempotencyKey(`admin_create_tree_${categoryId}_${troncoUserId}`)
-    };
-    return {
-      success: true,
-      result: {
-        request_url: this.createGameActionIssueUrl(payload),
-        idempotency_key: payload.idempotencyKey
-      }
-    };
-  }
+      const openAdminOnlineAction = async (res: any, successMessage: string) => {
+        if (res.success) {
+          await applyDirectAdminState(res);
+          setAdminActionMessage(successMessage);
+          showToast(successMessage);
+          return;
+        }
 
-"""
-
-store, count = re.subn(
-    r"  /\*\*\n   \* Admin: creates a new tree.*?\n  async createTreeAction\(categoryId: number, troncoUserId: number\) \{.*?\n  \}\n\n  async archiveTreeAction",
-    new_create_tree_action + "  async archiveTreeAction",
-    store,
-    count=1,
-    flags=re.S,
+        const error = res.error || 'Não foi possível salvar a ação administrativa nos JSONs do repositório.';
+        setAdminActionMessage(error);
+        showToast('Erro: ' + error);
+      };
+    ''',
+    'handleCreateTree and admin result helper'
 )
-if count != 1:
-    raise SystemExit("Pattern not found: createTreeAction block")
 
-DATA_STORE.write_text(store)
-
-for cleanup in [
-    ".github/workflows/apply-admin-tree-creation-audit-fix.yml",
-    "scripts/apply-admin-tree-creation-audit-fix.py",
-    ".github/workflows/apply-pending-ui-fixes.yml",
-    "scripts/apply-pending-ui-fixes.py",
-]:
-    path = ROOT / cleanup
-    if path.exists():
-        path.unlink()
-        print(f"removed temporary patch helper: {cleanup}")
-
-print('Admin tree creation restored to create_tree GitHub issue flow; admin strengthen_tronco is blocked.')
+app = replace_once(
+    app,
+    "      const res = await dataStore.archiveTreeAction(adminTree.id, 'Arquivamento administrativo pelo painel');\n      openAdminOnlineAction(res, 'Solicitação de arquivamento aberta.');",
+    "      const res = await archiveTreeDirect({\n        treeId: adminTree.id,\n        reason: 'Arquivamento administrativo pelo painel',\n        actorUserId: currentUser?.id,\n        actorUsername: currentUser?.username\n      });\n      await openAdminOnlineAction(res, 'Árvore arquivada e salva nos JSONs do repositório.');",
+    'archive direct call'
+)
+app = replace_once(
+    app,
+    "      const res = await dataStore.assignTreePositionAction(adminTree.id, selectedNode.position_index, adminSelectedUserId);\n      openAdminOnlineAction(res, `Solicitação para atribuir/mover membro à posição #${selectedNode.position_index} aberta.`);",
+    "      const res = await assignPositionDirect({\n        treeId: adminTree.id,\n        positionIndex: selectedNode.position_index,\n        userId: adminSelectedUserId,\n        actorUserId: currentUser?.id,\n        actorUsername: currentUser?.username\n      });\n      await openAdminOnlineAction(res, `Membro atribuído à posição #${selectedNode.position_index} e salvo nos JSONs do repositório.`);",
+    'assign direct call'
+)
+app = replace_once(
+    app,
+    "      const res = await dataStore.clearTreePositionAction(adminTree.id, selectedNode.position_index);\n      openAdminOnlineAction(res, `Solicitação para liberar a posição #${selectedNode.position_index} aberta.`);",
+    "      const res = await clearPositionDirect({\n        treeId: adminTree.id,\n        positionIndex: selectedNode.position_index,\n        actorUserId: currentUser?.id,\n        actorUsername: currentUser?.username\n      });\n      await openAdminOnlineAction(res, `Posição #${selectedNode.position_index} liberada e salva nos JSONs do repositório.`);",
+    'clear direct call'
+)
+APP.write_text(app, encoding='utf-8')
+print('Direct admin GitHub JSON wiring applied.')

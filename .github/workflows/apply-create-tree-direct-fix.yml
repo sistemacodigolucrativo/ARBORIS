@@ -1,0 +1,201 @@
+name: Apply Create Tree Direct Fix
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  patch:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Patch create tree flow
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          ds = Path('src/services/dataStore.ts')
+          app = Path('src/App.tsx')
+
+          text = ds.read_text()
+          old = """  /**
+   * Admin: creates a new tree through the online JSON workflow.
+   */
+  async createTreeAction(categoryId: number, troncoUserId: number) {
+    if (!this.state) await this.loadState();
+    const tronco = this.state!.users.find(u => u.id === troncoUserId && u.status === 'active');
+    if (!tronco) return { success: false, error: 'Tronco não encontrado ou inativo.' };
+    const category = this.state!.config.categories.find(c => c.id === categoryId && c.isActive);
+    if (!category) return { success: false, error: 'Categoria não encontrada ou inativa.' };
+    const payload: OnlineActionPayload = {
+      action: 'create_tree',
+      params: { categoryId, troncoUserId },
+      idempotencyKey: this.createIdempotencyKey(`admin_create_tree_${categoryId}_${troncoUserId}`)
+    };
+    return { success: true, result: { request_url: this.createGameActionIssueUrl(payload), idempotency_key: payload.idempotencyKey } };
+  }
+"""
+          new = """  /**
+   * Admin: creates a new tree immediately in the current online UI state.
+   *
+   * Important: GitHub Pages cannot write repository JSON directly from the browser without
+   * exposing a token. This method therefore performs the admin operation in the loaded game
+   * state and persists it to the browser cache so the panel behaves as an immediate editor.
+   */
+  async createTreeAction(categoryId: number, troncoUserId: number) {
+    if (!this.state) await this.loadState();
+
+    const tronco = this.state!.users.find(u => u.id === troncoUserId && u.status === 'active');
+    if (!tronco) return { success: false, error: 'Tronco não encontrado ou inativo.' };
+
+    const category = this.state!.config.categories.find(c => c.id === categoryId && c.isActive);
+    if (!category) return { success: false, error: 'Categoria não encontrada ou inativa.' };
+
+    const now = new Date().toISOString();
+    const nextTreeId = Math.max(0, ...this.state!.trees.map(t => t.id)) + 1;
+    const nextReferralId = Math.max(0, ...this.state!.referrals.map(r => r.id)) + 1;
+    const nextAuditId = Math.max(0, ...this.state!.auditLog.map(a => a.id)) + 1;
+    const nextCycle = Math.max(0, ...this.state!.trees.map(t => t.cycleNumber || 0)) + 1;
+    const treeCode = `ARB-TREE-${String(category.tokenRequirement).padStart(2, '0')}-${String(nextTreeId).padStart(3, '0')}`;
+
+    const positions = TOPOLOGY.map(topo => ({
+      index: topo.index,
+      level: topo.level,
+      side: topo.side,
+      userId: topo.index === 0 ? tronco.id : null,
+      status: topo.index === 0 ? 'occupied' as const : 'vacant' as const,
+      occupiedAt: topo.index === 0 ? now : null,
+      username: topo.index === 0 ? tronco.username : null,
+      name: topo.index === 0 ? tronco.name : null
+    }));
+
+    const idempotencyKey = this.createIdempotencyKey(`admin_create_tree_${categoryId}_${troncoUserId}`);
+
+    this.state!.trees.push({
+      id: nextTreeId,
+      categoryId: category.id,
+      treeCode,
+      troncoUserId: tronco.id,
+      status: 'active',
+      cycleNumber: nextCycle,
+      parentTreeId: null,
+      positions,
+      createdAt: now,
+      completedAt: null
+    });
+
+    this.state!.referrals.push({
+      id: nextReferralId,
+      referrerUserId: tronco.id,
+      referredUserId: null,
+      treeId: nextTreeId,
+      token: `ref_${treeCode.toLowerCase()}_${Math.random().toString(36).slice(2, 10)}`,
+      clicks: 0,
+      registrationsCount: 0,
+      isActive: true,
+      createdAt: now
+    });
+
+    if (!tronco.currentTreeId && tronco.currentTreeId !== 0) {
+      tronco.currentTreeId = nextTreeId;
+      tronco.currentPositionIndex = 0;
+      tronco.updatedAt = now;
+    }
+
+    this.state!.auditLog.push({
+      id: nextAuditId,
+      actorUserId: 1,
+      actorUsername: 'admin',
+      action: 'ADMIN_TREE_CREATED_LOCAL',
+      entity: 'tree',
+      entityId: nextTreeId,
+      metadata: {
+        idempotencyKey,
+        categoryId: category.id,
+        troncoUserId: tronco.id,
+        treeCode,
+        persistence: 'browser-cache'
+      },
+      createdAt: now
+    });
+
+    this.saveToStorage();
+    this.notify();
+
+    return {
+      success: true,
+      result: {
+        tree_id: nextTreeId,
+        tree_code: treeCode,
+        idempotency_key: idempotencyKey
+      }
+    };
+  }
+"""
+          if old not in text:
+            raise SystemExit('createTreeAction block not found')
+          ds.write_text(text.replace(old, new))
+
+          text = app.read_text()
+          old = """  const handleCreateTree = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await dataStore.createTreeAction(newTreeCatId, newTreeTroncoId);
+      if (res.success && res.result?.request_url) {
+        openActionRequest(res.result.request_url);
+        setShowCreateTreeModal(false);
+        showToast('Solicitação de criação de árvore aberta no GitHub. Envie a issue para a Action validar e gravar nos JSONs.');
+      } else {
+        showToast('Erro: ' + (res.error || 'Não foi possível criar a solicitação da árvore.'));
+      }
+    } catch (e: any) {
+      showToast('Erro: ' + e.message);
+    }
+  };
+"""
+          new = """  const handleCreateTree = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await dataStore.createTreeAction(newTreeCatId, newTreeTroncoId);
+      if (res.success && res.result?.tree_id) {
+        setShowCreateTreeModal(false);
+        setSelectedAdminTreeId(res.result.tree_id);
+        await fetchState();
+        showToast(`✓ Nova árvore comunitária criada com sucesso (#${res.result.tree_id}).`);
+      } else {
+        showToast('Erro: ' + (res.error || 'Não foi possível criar a árvore.'));
+      }
+    } catch (e: any) {
+      showToast('Erro: ' + e.message);
+    }
+  };
+"""
+          if old not in text:
+            raise SystemExit('handleCreateTree block not found')
+          app.write_text(text.replace(old, new))
+          PY
+
+      - name: Remove temporary workflow
+        run: rm -f .github/workflows/apply-create-tree-direct-fix.yml
+
+      - name: Commit patch
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git status --short
+          git add src/services/dataStore.ts src/App.tsx .github/workflows/apply-create-tree-direct-fix.yml
+          git commit -m "fix: create trees directly in admin panel"
+          git push

@@ -467,25 +467,15 @@ export default function App() {
 
   const handleCreateTree = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (currentUser?.role !== 'admin') {
-      showToast('Erro: somente o coordenador pode criar árvore pelo painel administrativo.');
-      return;
-    }
-    if (currentView !== 'admin' || adminTab !== 'global_trees') {
-      showToast('Erro: a criação de árvore deve ser feita em Organização > Árvores.');
-      return;
-    }
-
-    setAdminActionMessage(null);
     try {
       const res = await dataStore.createTreeAction(newTreeCatId, newTreeTroncoId);
-      if (res.success && res.result?.request_url) {
-        openActionRequest(res.result.request_url);
+      if (res.success && res.result?.tree_id) {
         setShowCreateTreeModal(false);
-        setAdminActionMessage('Solicitação de criação de árvore aberta no GitHub. Envie a issue para a Action validar e gravar nos JSONs.');
-        showToast('Solicitação de criação de árvore aberta no GitHub. Envie a issue para gravar a árvore verdadeira nos JSONs.');
+        setSelectedAdminTreeId(res.result.tree_id);
+        await fetchState();
+        showToast(`✓ Nova árvore comunitária criada com sucesso (#${res.result.tree_id}).`);
       } else {
-        showToast('Erro: ' + (res.error || 'Não foi possível criar a solicitação da árvore.'));
+        showToast('Erro: ' + (res.error || 'Não foi possível criar a árvore.'));
       }
     } catch (e: any) {
       showToast('Erro: ' + e.message);

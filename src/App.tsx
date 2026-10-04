@@ -444,6 +444,11 @@ export default function App() {
   // "Transferir 25 Sementes para fortalecer o tronco"
   // The member enters and appears in the tree ONLY AFTER clicking this button!
   const handleStrengthenTronco = async (userId: number, treeId: number) => {
+    if (currentUser?.role === 'admin') {
+      showToast('Ação bloqueada: o coordenador não deve fortalecer tronco pelo painel de membro. Use Organização > Árvores > Nova Árvore.');
+      return;
+    }
+
     setActivatingTronco(true);
     try {
       const res = await dataStore.strengthenTroncoAction(userId, treeId);
@@ -462,15 +467,25 @@ export default function App() {
 
   const handleCreateTree = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (currentUser?.role !== 'admin') {
+      showToast('Erro: somente o coordenador pode criar árvore pelo painel administrativo.');
+      return;
+    }
+    if (currentView !== 'admin' || adminTab !== 'global_trees') {
+      showToast('Erro: a criação de árvore deve ser feita em Organização > Árvores.');
+      return;
+    }
+
+    setAdminActionMessage(null);
     try {
       const res = await dataStore.createTreeAction(newTreeCatId, newTreeTroncoId);
-      if (res.success && res.result?.tree_id) {
+      if (res.success && res.result?.request_url) {
+        openActionRequest(res.result.request_url);
         setShowCreateTreeModal(false);
-        setSelectedAdminTreeId(res.result.tree_id);
-        await fetchState();
-        showToast(`✓ Nova árvore comunitária criada com sucesso (#${res.result.tree_id}).`);
+        setAdminActionMessage('Solicitação de criação de árvore aberta no GitHub. Envie a issue para a Action validar e gravar nos JSONs.');
+        showToast('Solicitação de criação de árvore aberta no GitHub. Envie a issue para gravar a árvore verdadeira nos JSONs.');
       } else {
-        showToast('Erro: ' + (res.error || 'Não foi possível criar a árvore.'));
+        showToast('Erro: ' + (res.error || 'Não foi possível criar a solicitação da árvore.'));
       }
     } catch (e: any) {
       showToast('Erro: ' + e.message);
@@ -1849,7 +1864,7 @@ export default function App() {
                   {/* CRUCIAL GAME MECHANIC CARD:
                       A pessoa só entra, só aparece na ramificação depois que ela clicar no botão.
                       Enquanto ela não clicar ela está fora! Quem clicar antes fica numa posição muito melhor! */}
-                  {!isUserPositioned && currentUser.balance >= 25 && (
+                  {currentUser.role !== 'admin' && !isUserPositioned && currentUser.balance >= 25 && (
                     <div className="bg-gradient-to-br from-amber-950/70 via-slate-900 to-emerald-950/60 border-2 border-amber-400 rounded-2xl p-4 space-y-3 shadow-2xl relative overflow-hidden animate-in fade-in">
                       <div className="flex items-center gap-2 text-amber-300 font-bold text-xs">
                         <Zap className="w-4 h-4 text-amber-400 animate-pulse shrink-0" />

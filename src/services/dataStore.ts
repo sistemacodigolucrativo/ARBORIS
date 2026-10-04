@@ -112,6 +112,13 @@ class DataStoreService {
     return this.state;
   }
 
+  replaceState(nextState: GameDatabaseState): GameDatabaseState {
+    this.state = nextState;
+    this.saveToStorage();
+    this.notify();
+    return this.state;
+  }
+
   subscribe(listener: () => void): () => void {
     this.listeners.push(listener);
     return () => {

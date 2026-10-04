@@ -39,6 +39,13 @@ import {
   RotateCcw
 } from 'lucide-react';
 import { dataStore } from './services/dataStore';
+import {
+  archiveTreeDirect,
+  assignPositionDirect,
+  clearPositionDirect,
+  createTreeDirect,
+  createUserDirect
+} from './services/directAdminActions';
 import { PublicLandingPage } from './components/PublicLandingPage';
 
 interface Position {
@@ -246,6 +253,23 @@ export default function App() {
     }
   };
 
+  const applyDirectAdminState = async (res: any) => {
+    if (res?.state) {
+      dataStore.replaceState(res.state);
+      const stateView = dataStore.getSystemStateView();
+      if (stateView) {
+        setSystemState(stateView);
+        if (currentUser) {
+          const fresh = stateView.users.find((u: User) => u.id === currentUser.id);
+          if (fresh) setCurrentUser(fresh);
+        }
+      }
+      return;
+    }
+
+    await fetchState(true);
+  };
+
   const fetchState = async (forceReloadFromJson = false) => {
     try {
       setLoading(true);
@@ -404,41 +428,49 @@ export default function App() {
     }
   };
 
-  const handleAdminCreateUser = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!adminValidatedIndicadorData) {
-      setAdminCreateUserError('Valide o indicador antes de criar o usuário.');
-      return;
-    }
-    if (!adminCreateFirstName.trim() || !adminCreateLastName.trim()) {
-      setAdminCreateUserError('Preencha nome e sobrenome do novo usuário.');
-      return;
-    }
 
-    setAdminCreateUserLoading(true);
-    setAdminCreateUserError(null);
-    try {
-      const res = await dataStore.registerParticipant({
-        indicadorUsername: adminValidatedIndicadorData.username,
-        firstName: adminCreateFirstName.trim(),
-        lastName: adminCreateLastName.trim()
-      });
+const handleAdminCreateUser = async (e: React.FormEvent) => {
+  e.preventDefault();
+  if (!adminValidatedIndicadorData) {
+    setAdminCreateUserError('Valide o indicador antes de criar o usuário.');
+    return;
+  }
+  if (!adminCreateFirstName.trim() || !adminCreateLastName.trim()) {
+    setAdminCreateUserError('Preencha nome e sobrenome do novo usuário.');
+    return;
+  }
+  if (currentUser?.role !== 'admin') {
+    setAdminCreateUserError('Somente o coordenador pode criar usuário pelo painel administrativo.');
+    return;
+  }
 
-      if (res.success && res.result) {
-        openActionRequest(res.result.request_url);
-        showToast(`Solicitação de criação aberta para ${res.result.full_name}.`);
-        setAdminCreateUserError('Solicitação online aberta no GitHub. Envie a issue para a Action validar e gravar o cadastro nos JSONs.');
-        setAdminCreateFirstName('');
-        setAdminCreateLastName('');
-      } else {
-        setAdminCreateUserError(res.error || 'Falha ao criar usuário pelo painel administrativo.');
-      }
-    } catch (err: any) {
-      setAdminCreateUserError('Erro ao criar usuário: ' + err.message);
-    } finally {
-      setAdminCreateUserLoading(false);
+  setAdminCreateUserLoading(true);
+  setAdminCreateUserError(null);
+  try {
+    const res = await createUserDirect({
+      indicadorUsername: adminValidatedIndicadorData.username,
+      firstName: adminCreateFirstName.trim(),
+      lastName: adminCreateLastName.trim(),
+      actorUserId: currentUser.id,
+      actorUsername: currentUser.username
+    });
+
+    if (res.success) {
+      await applyDirectAdminState(res);
+      showToast('Usuário criado e salvo nos JSONs do repositório.');
+      setAdminCreateUserError(null);
+      setAdminCreateFirstName('');
+      setAdminCreateLastName('');
+      setAdminValidatedIndicadorData(null);
+    } else {
+      setAdminCreateUserError(res.error || 'Falha ao criar usuário pelo painel administrativo.');
     }
-  };
+  } catch (err: any) {
+    setAdminCreateUserError('Erro ao criar usuário: ' + err.message);
+  } finally {
+    setAdminCreateUserLoading(false);
+  }
+};
 
   // ATOMIC POSITION CLAIM & STRENGTHENING:
   // "Transferir 25 Sementes para fortalecer o tronco"
@@ -465,44 +497,60 @@ export default function App() {
     }
   };
 
-  const handleCreateTree = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (currentUser?.role !== 'admin') {
-      showToast('Erro: somente o coordenador pode criar árvore pelo painel administrativo.');
-      return;
-    }
-    if (currentView !== 'admin' || adminTab !== 'global_trees') {
-      showToast('Erro: a criação de árvore deve ser feita em Organização > Árvores.');
-      return;
-    }
 
-    setAdminActionMessage(null);
-    try {
-      const res = await dataStore.createTreeAction(newTreeCatId, newTreeTroncoId);
-      if (res.success && res.result?.dispatched) {
-        setShowCreateTreeModal(false);
-        setAdminActionMessage('Workflow automático disparado. Aguarde a Action gravar os JSONs e o GitHub Pages publicar a atualização. Depois use Recarregar JSON.');
-        showToast('Workflow automático iniciado para criar a árvore.');
-      } else {
-        showToast('Erro: ' + (res.error || 'Não foi possível disparar o workflow de criação da árvore.'));
-      }
-    } catch (e: any) {
-      showToast('Erro: ' + e.message);
-    }
-  };
+const handleCreateTree = async (e: React.FormEvent) => {
+  e.preventDefault();
+  if (currentUser?.role !== 'admin') {
+    showToast('Erro: somente o coordenador pode criar árvore pelo painel administrativo.');
+    return;
+  }
+  if (currentView !== 'admin' || adminTab !== 'global_trees') {
+    showToast('Erro: a criação de árvore deve ser feita em Organização > Árvores.');
+    return;
+  }
 
-  const openAdminOnlineAction = (res: any, successMessage: string) => {
-    if (res.success && res.result?.request_url) {
-      openActionRequest(res.result.request_url);
-      setAdminActionMessage('Solicitação online aberta no GitHub. Envie a issue para a Action validar e gravar a alteração nos JSONs.');
-      showToast(successMessage);
-      return;
-    }
+  setAdminActionLoading(true);
+  setAdminActionMessage(null);
+  try {
+    const res = await createTreeDirect({
+      categoryId: newTreeCatId,
+      troncoUserId: newTreeTroncoId,
+      actorUserId: currentUser.id,
+      actorUsername: currentUser.username
+    });
 
-    const error = res.error || 'Não foi possível criar a solicitação administrativa.';
-    setAdminActionMessage(error);
-    showToast('Erro: ' + error);
-  };
+    if (res.success) {
+      await applyDirectAdminState(res);
+      const treeId = (res.result as any)?.tree?.id;
+      if (treeId) setSelectedAdminTreeId(treeId);
+      setShowCreateTreeModal(false);
+      setAdminActionMessage('Árvore criada e salva nos JSONs do repositório.');
+      showToast('Árvore criada e salva nos JSONs do repositório.');
+    } else {
+      const error = res.error || 'Não foi possível criar a árvore nos JSONs do repositório.';
+      setAdminActionMessage(error);
+      showToast('Erro: ' + error);
+    }
+  } catch (e: any) {
+    setAdminActionMessage('Erro ao criar árvore: ' + e.message);
+    showToast('Erro: ' + e.message);
+  } finally {
+    setAdminActionLoading(false);
+  }
+};
+
+const openAdminOnlineAction = async (res: any, successMessage: string) => {
+  if (res.success) {
+    await applyDirectAdminState(res);
+    setAdminActionMessage(successMessage);
+    showToast(successMessage);
+    return;
+  }
+
+  const error = res.error || 'Não foi possível salvar a ação administrativa nos JSONs do repositório.';
+  setAdminActionMessage(error);
+  showToast('Erro: ' + error);
+};
 
   const handleArchiveSelectedTree = async () => {
     if (!adminTree) return;
@@ -515,8 +563,13 @@ export default function App() {
     setAdminActionLoading(true);
     setAdminActionMessage(null);
     try {
-      const res = await dataStore.archiveTreeAction(adminTree.id, 'Arquivamento administrativo pelo painel');
-      openAdminOnlineAction(res, 'Solicitação de arquivamento aberta.');
+      const res = await archiveTreeDirect({
+        treeId: adminTree.id,
+        reason: 'Arquivamento administrativo pelo painel',
+        actorUserId: currentUser?.id,
+        actorUsername: currentUser?.username
+      });
+      await openAdminOnlineAction(res, 'Árvore arquivada e salva nos JSONs do repositório.');
     } catch (e: any) {
       setAdminActionMessage('Erro ao arquivar árvore: ' + e.message);
       showToast('Erro: ' + e.message);
@@ -535,8 +588,14 @@ export default function App() {
     setAdminActionLoading(true);
     setAdminActionMessage(null);
     try {
-      const res = await dataStore.assignTreePositionAction(adminTree.id, selectedNode.position_index, adminSelectedUserId);
-      openAdminOnlineAction(res, `Solicitação para atribuir/mover membro à posição #${selectedNode.position_index} aberta.`);
+      const res = await assignPositionDirect({
+        treeId: adminTree.id,
+        positionIndex: selectedNode.position_index,
+        userId: adminSelectedUserId,
+        actorUserId: currentUser?.id,
+        actorUsername: currentUser?.username
+      });
+      await openAdminOnlineAction(res, `Membro atribuído à posição #${selectedNode.position_index} e salvo nos JSONs do repositório.`);
     } catch (e: any) {
       setAdminActionMessage('Erro ao atribuir membro: ' + e.message);
       showToast('Erro: ' + e.message);
@@ -560,8 +619,13 @@ export default function App() {
     setAdminActionLoading(true);
     setAdminActionMessage(null);
     try {
-      const res = await dataStore.clearTreePositionAction(adminTree.id, selectedNode.position_index);
-      openAdminOnlineAction(res, `Solicitação para liberar a posição #${selectedNode.position_index} aberta.`);
+      const res = await clearPositionDirect({
+        treeId: adminTree.id,
+        positionIndex: selectedNode.position_index,
+        actorUserId: currentUser?.id,
+        actorUsername: currentUser?.username
+      });
+      await openAdminOnlineAction(res, `Posição #${selectedNode.position_index} liberada e salva nos JSONs do repositório.`);
     } catch (e: any) {
       setAdminActionMessage('Erro ao liberar posição: ' + e.message);
       showToast('Erro: ' + e.message);

@@ -209,3 +209,41 @@ Nao reestruturar o projeto antes de publicar a versao estatica. O caminho mais s
 1. Ativar Pages.
 2. Validar deploy e carregamento dos JSONs.
 3. Somente depois decidir se o app fica demo ou se sera criada persistencia real.
+
+---
+
+## 10. Atualizacao - Banco JSON online MVP
+
+Foi implementado o modelo sem VPS e sem banco pago usando GitHub Issues como fila de escrita e GitHub Actions como processador seguro.
+
+Arquivos principais:
+
+- `.github/workflows/process-game-issue.yml`
+- `scripts/process-game-action.ts`
+- `src/services/dataStore.ts`
+- `src/services/gameEngine.ts`
+- `src/types/game.ts`
+- `docs/JSON_DATABASE_MVP.md`
+
+Fluxo atual:
+
+1. O site le os JSONs publicados.
+2. Cadastro e fortalecimento geram uma issue `[ARBORIS_ACTION]`.
+3. A Action extrai o JSON da issue.
+4. O motor valida a regra.
+5. A Action atualiza `data/*.json` e `public/data/*.json`.
+6. A Action commita as alteracoes.
+7. O Pages republica o site/dados.
+
+Validado localmente:
+
+- `npm run lint`
+- `npm run build`
+- `npm run test:game`
+
+Pendente de validacao no GitHub:
+
+- Abrir uma solicitacao real pelo site publicado.
+- Confirmar execucao do workflow `Process Game Issue`.
+- Confirmar commit automatico dos JSONs.
+- Confirmar novo deploy do Pages com os dados atualizados.

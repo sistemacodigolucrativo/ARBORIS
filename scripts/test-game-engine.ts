@@ -15,10 +15,15 @@ import {
   strengthenTronco,
   validateReferral,
   transferSeeds,
-  splitTreeIfComplete,
   validateIdempotency,
   recalculateWallet
 } from '../src/services/gameEngine';
+import {
+  archiveTreeByAdmin,
+  assignTreePositionByAdmin,
+  clearTreePositionByAdmin,
+  createTreeByAdmin
+} from '../src/services/adminGameEngine';
 
 function loadJsonState(): GameDatabaseState {
   const dataDir = path.resolve(process.cwd(), 'data');
@@ -58,6 +63,8 @@ assert(initialState.trees.length >= 1, 'trees.json carregado com árvore ativa')
 assert(initialState.wallets.length >= 8, 'wallets.json carregado com carteiras');
 assert(initialState.config.transferAmount === 25, 'config.json define valor de 25 sementes');
 assert(initialState.referrals.length >= 1, 'referrals.json possui link de indicação');
+assert(validateIdempotency(initialState, 'nova_chave_idempotente') === true, 'Chave idempotente nova é aceita');
+assert(recalculateWallet(initialState, 2) >= 0, 'Recalculo de carteira executa sem erro');
 
 // TEST 5: Validação de indicação e cadastro fictício
 console.log('\nTEST 5: Validação de indicação e cadastro fictício');
@@ -87,7 +94,7 @@ assert(initialLedger?.type === 'CONCESSAO_INICIAL_SEMENTES', 'Registro de conces
 console.log('\nTEST 7: Transferência de sementes');
 const txRes = transferSeeds(stateAfterReg, {
   fromUserId: regRes.result!.user.id,
-  toUserId: 2, // Maria
+  toUserId: 2,
   treeId: 1,
   amount: 25,
   reason: 'Transferência teste',
@@ -120,16 +127,81 @@ console.log('\nTEST 9: Prevenção de operação duplicada (Idempotency)');
 const duplicateStrengthen = strengthenTronco(strengthen1.state, {
   userId: entrant1.result!.user.id,
   treeId: 1,
-  idempotencyKey: 'strengthen_entrant_7' // Mesma chave!
+  idempotencyKey: 'strengthen_entrant_7'
 });
 assert(duplicateStrengthen.success === false, 'Operação com chave repetida rejeitada');
 assert(duplicateStrengthen.error?.includes('já') === true, 'Mensagem clara de duplicidade');
 
-// TEST 10 & 11: Simulação de árvore completa (15/15) e Bifurcação 1-2-4-8
-console.log('\nTEST 10 & 11: Preenchimento completo (15/15) e Bifurcação em 2 árvores filhas');
+// TEST 10: Gestão administrativa de árvores
+console.log('\nTEST 10: Gestão administrativa de árvores');
+const adminActor = { actorUserId: 1, actorUsername: 'admin', githubActor: null };
+const troncoCandidate = createParticipant(initialState, {
+  username: 'tronco_admin_teste',
+  name: 'Tronco Admin Teste',
+  indicadorUsername: 'maria',
+  idempotencyKey: 'reg_tronco_admin_teste'
+});
+const adminCreateTree = createTreeByAdmin(troncoCandidate.state, {
+  categoryId: 1,
+  troncoUserId: troncoCandidate.result!.user.id,
+  actor: adminActor,
+  idempotencyKey: 'admin_create_tree_1'
+});
+assert(adminCreateTree.success === true, 'Admin cria árvore nova com tronco validado');
+assert(adminCreateTree.result?.tree.positions.find(p => p.index === 0)?.userId === troncoCandidate.result!.user.id, 'Novo tronco ocupa posição #0');
+assert(adminCreateTree.result?.referral.treeId === adminCreateTree.result?.tree.id, 'Link de indicação da nova árvore foi criado');
+
+const memberCandidate = createParticipant(adminCreateTree.state, {
+  username: 'membro_admin_teste',
+  name: 'Membro Admin Teste',
+  indicadorUsername: 'maria',
+  idempotencyKey: 'reg_membro_admin_teste'
+});
+const adminAssign = assignTreePositionByAdmin(memberCandidate.state, {
+  treeId: adminCreateTree.result!.tree.id,
+  positionIndex: 7,
+  userId: memberCandidate.result!.user.id,
+  actor: adminActor,
+  idempotencyKey: 'admin_assign_pos_7'
+});
+assert(adminAssign.success === true, 'Admin atribui membro a posição específica');
+assert(adminAssign.state.trees.find(t => t.id === adminCreateTree.result!.tree.id)?.positions.find(p => p.index === 7)?.userId === memberCandidate.result!.user.id, 'Posição #7 recebeu o membro correto');
+
+const adminMove = assignTreePositionByAdmin(adminAssign.state, {
+  treeId: adminCreateTree.result!.tree.id,
+  positionIndex: 8,
+  userId: memberCandidate.result!.user.id,
+  actor: adminActor,
+  idempotencyKey: 'admin_move_pos_8'
+});
+assert(adminMove.success === true, 'Admin move membro dentro da mesma árvore');
+assert(adminMove.state.trees.find(t => t.id === adminCreateTree.result!.tree.id)?.positions.find(p => p.index === 7)?.status === 'vacant', 'Posição antiga foi liberada após movimento');
+assert(adminMove.state.trees.find(t => t.id === adminCreateTree.result!.tree.id)?.positions.find(p => p.index === 8)?.userId === memberCandidate.result!.user.id, 'Nova posição recebeu o membro movido');
+
+const adminClear = clearTreePositionByAdmin(adminMove.state, {
+  treeId: adminCreateTree.result!.tree.id,
+  positionIndex: 8,
+  actor: adminActor,
+  idempotencyKey: 'admin_clear_pos_8'
+});
+assert(adminClear.success === true, 'Admin libera posição ocupada');
+assert(adminClear.state.trees.find(t => t.id === adminCreateTree.result!.tree.id)?.positions.find(p => p.index === 8)?.status === 'vacant', 'Posição liberada ficou vaga');
+
+const adminArchive = archiveTreeByAdmin(adminClear.state, {
+  treeId: adminCreateTree.result!.tree.id,
+  reason: 'Teste automatizado',
+  actor: adminActor,
+  idempotencyKey: 'admin_archive_tree_1'
+});
+assert(adminArchive.success === true, 'Admin arquiva árvore sem excluir histórico');
+assert(adminArchive.state.trees.find(t => t.id === adminCreateTree.result!.tree.id)?.status === 'archived', 'Árvore arquivada mantém registro com status archived');
+assert(adminArchive.state.referrals.find(r => r.treeId === adminCreateTree.result!.tree.id)?.isActive === false, 'Links da árvore arquivada foram desativados');
+assert(adminArchive.state.auditLog.some(a => a.action === 'ADMIN_TREE_ARCHIVED'), 'Auditoria registrou arquivamento administrativo');
+
+// TEST 11 & 12: Simulação de árvore completa (15/15) e Bifurcação 1-2-4-8
+console.log('\nTEST 11 & 12: Preenchimento completo (15/15) e Bifurcação em 2 árvores filhas');
 let currState = strengthen1.state;
 
-// Posições 8 a 14 (7 posições restantes para completar 15)
 for (let i = 8; i <= 14; i++) {
   const ent = createParticipant(currState, {
     username: `entrant_pos${i}`,
@@ -146,7 +218,6 @@ for (let i = 8; i <= 14; i++) {
   if (i < 14) {
     assert(st.result?.bifurcated === false, `Posição #${i} ocupada, árvore permanece ativa`);
   } else {
-    // 8º entrante externo (Posição 14 completa 15/15)
     assert(st.success === true, 'Transferência do 8º entrante executada com sucesso');
     assert(st.result?.bifurcated === true, 'Árvore atingiu 15/15 e disparou bifurcação');
     assert(st.result?.newTrees?.length === 2, 'Exatamente duas novas árvores filhas criadas');
@@ -154,11 +225,10 @@ for (let i = 8; i <= 14; i++) {
   currState = st.state;
 }
 
-// Validar estado pós-bifurcação
 const motherTree = currState.trees.find(t => t.id === 1);
 assert(motherTree?.status === 'completed', 'Árvore mãe marcada como "completed"');
 
-const oldTroncoUser = currState.users.find(u => u.id === 2); // Maria
+const oldTroncoUser = currState.users.find(u => u.id === 2);
 assert(oldTroncoUser?.currentTreeId === null, 'Antigo tronco desocupou o tabuleiro da árvore mãe');
 assert(currState.wallets.find(w => w.userId === 2)?.balance === 225, 'Tronco recebeu as 8 contribuições de 25 sementes (25 inicial + 200 = 225)');
 
@@ -167,17 +237,14 @@ const rightChild = currState.trees.find(t => t.treeCode === 'ARB-TREE-25-001-R')
 assert(leftChild !== undefined && rightChild !== undefined, 'Árvores ARB-TREE-25-001-L e ARB-TREE-25-001-R existem');
 assert(leftChild?.status === 'active' && rightChild?.status === 'active', 'Ambas as filhas estão ativas');
 
-// Validar novos Troncos das filhas (antigos pos 1 e pos 2)
 assert(leftChild?.troncoUserId === 3, 'Novo Tronco da Filha Esquerda é João Silva (antiga pos 1)');
 assert(rightChild?.troncoUserId === 4, 'Novo Tronco da Filha Direita é Ana Souza (antiga pos 2)');
 
-// Validar vagas externas nas filhas (posições 7 a 14 devem estar vagas)
 const vacantCountLeft = leftChild!.positions.filter(p => p.index >= 7 && p.status === 'vacant').length;
 const vacantCountRight = rightChild!.positions.filter(p => p.index >= 7 && p.status === 'vacant').length;
 assert(vacantCountLeft === 8, 'Filha Esquerda possui exatamente 8 vagas abertas na base');
 assert(vacantCountRight === 8, 'Filha Direita possui exatamente 8 vagas abertas na base');
 
-// Validar links criados para os novos troncos
 const leftRef = currState.referrals.find(r => r.treeId === leftChild!.id);
 const rightRef = currState.referrals.find(r => r.treeId === rightChild!.id);
 assert(leftRef !== undefined && rightRef !== undefined, 'Novos links gerados para ambas as árvores filhas');

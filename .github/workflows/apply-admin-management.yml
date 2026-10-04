@@ -1,0 +1,36 @@
+name: Apply Admin Management Patch
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    if: github.actor == github.repository_owner
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Apply patch scripts
+        run: |
+          python3 scripts/apply-admin-management-step-a.py
+          if [ -f scripts/apply-admin-management-step-b.py ]; then python3 scripts/apply-admin-management-step-b.py; fi
+          if [ -f scripts/apply-admin-management-step-c.py ]; then python3 scripts/apply-admin-management-step-c.py; fi
+      - name: Commit patch
+        run: |
+          git config --global user.name "Arboris Bot"
+          git config --global user.email "bot@arboris.local"
+          git add .
+          if git diff --staged --quiet; then
+            echo "No patch changes"
+          else
+            git commit -m "feat: add admin tree management"
+            git push origin HEAD
+          fi

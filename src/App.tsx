@@ -479,13 +479,12 @@ export default function App() {
     setAdminActionMessage(null);
     try {
       const res = await dataStore.createTreeAction(newTreeCatId, newTreeTroncoId);
-      if (res.success && res.result?.request_url) {
-        openActionRequest(res.result.request_url);
+      if (res.success && res.result?.dispatched) {
         setShowCreateTreeModal(false);
-        setAdminActionMessage('Solicitação de criação de árvore aberta no GitHub. Envie a issue para a Action validar e gravar nos JSONs.');
-        showToast('Solicitação de criação de árvore aberta no GitHub. Envie a issue para gravar a árvore verdadeira nos JSONs.');
+        setAdminActionMessage('Workflow automático disparado. Aguarde a Action gravar os JSONs e o GitHub Pages publicar a atualização. Depois use Recarregar JSON.');
+        showToast('Workflow automático iniciado para criar a árvore.');
       } else {
-        showToast('Erro: ' + (res.error || 'Não foi possível criar a solicitação da árvore.'));
+        showToast('Erro: ' + (res.error || 'Não foi possível disparar o workflow de criação da árvore.'));
       }
     } catch (e: any) {
       showToast('Erro: ' + e.message);

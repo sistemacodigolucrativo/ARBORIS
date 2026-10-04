@@ -16,6 +16,8 @@ import {
 const STORAGE_KEY = 'arboris_game_state_v1';
 const REPOSITORY = 'sistemacodigolucrativo/ARBORIS';
 const ISSUE_URL = `https://github.com/${REPOSITORY}/issues/new`;
+const ACTION_DISPATCHER_URL = (import.meta.env.VITE_ARBORIS_ACTION_DISPATCHER_URL || '').trim();
+const ADMIN_EXECUTION_KEY_STORAGE = 'arboris_admin_execution_key_v1';
 
 type OnlineActionPayload = {
   action: 'register_participant' | 'strengthen_tronco' | 'create_tree' | 'archive_tree' | 'assign_tree_position' | 'clear_tree_position';
@@ -126,6 +128,81 @@ class DataStoreService {
   private createIdempotencyKey(prefix: string): string {
     const random = Math.random().toString(36).slice(2, 10);
     return `${prefix}_${Date.now()}_${random}`;
+  }
+
+  private getAdminExecutionKey(): string | null {
+    if (typeof window === 'undefined') return null;
+
+    const cached = window.localStorage.getItem(ADMIN_EXECUTION_KEY_STORAGE);
+    if (cached) return cached;
+
+    const typed = window.prompt('Digite a chave de execução administrativa do Arboris para disparar o workflow automaticamente.');
+    const key = typed?.trim();
+    if (!key) return null;
+
+    window.localStorage.setItem(ADMIN_EXECUTION_KEY_STORAGE, key);
+    return key;
+  }
+
+  private async dispatchActionThroughWorkflow(payload: OnlineActionPayload) {
+    if (!ACTION_DISPATCHER_URL) {
+      return {
+        success: false,
+        error: 'Executor automático não configurado. Configure VITE_ARBORIS_ACTION_DISPATCHER_URL com um proxy seguro; o GitHub Pages não pode disparar workflow com token direto no navegador.'
+      };
+    }
+
+    const adminKey = this.getAdminExecutionKey();
+    if (!adminKey) {
+      return {
+        success: false,
+        error: 'Chave de execução administrativa não informada.'
+      };
+    }
+
+    try {
+      const response = await fetch(ACTION_DISPATCHER_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Arboris-Admin-Key': adminKey
+        },
+        body: JSON.stringify({ payload })
+      });
+
+      const text = await response.text();
+      let data: any = {};
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        data = { message: text };
+      }
+
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          window.localStorage.removeItem(ADMIN_EXECUTION_KEY_STORAGE);
+        }
+        return {
+          success: false,
+          error: data.error || data.message || `Executor automático recusou a ação (${response.status}).`
+        };
+      }
+
+      return {
+        success: true,
+        result: {
+          dispatched: true,
+          run_url: data.run_url || data.html_url || null,
+          idempotency_key: payload.idempotencyKey,
+          message: data.message || 'Workflow automático disparado.'
+        }
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        error: `Falha ao acionar executor automático: ${error.message}`
+      };
+    }
   }
 
   private createGameActionIssueUrl(payload: OnlineActionPayload): string {
@@ -246,7 +323,7 @@ class DataStoreService {
   }
 
   /**
-   * Admin: creates a new tree through the online JSON workflow.
+   * Admin: creates a new tree through the automatic workflow dispatcher.
    */
   async createTreeAction(categoryId: number, troncoUserId: number) {
     if (!this.state) await this.loadState();
@@ -260,13 +337,8 @@ class DataStoreService {
       params: { categoryId, troncoUserId },
       idempotencyKey: this.createIdempotencyKey(`admin_create_tree_${categoryId}_${troncoUserId}`)
     };
-    return {
-      success: true,
-      result: {
-        request_url: this.createGameActionIssueUrl(payload),
-        idempotency_key: payload.idempotencyKey
-      }
-    };
+
+    return this.dispatchActionThroughWorkflow(payload);
   }
 
   async archiveTreeAction(treeId: number, reason: string) {

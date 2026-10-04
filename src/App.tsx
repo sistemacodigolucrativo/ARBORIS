@@ -464,12 +464,13 @@ export default function App() {
     e.preventDefault();
     try {
       const res = await dataStore.createTreeAction(newTreeCatId, newTreeTroncoId);
-      if (res.success && res.result?.request_url) {
-        openActionRequest(res.result.request_url);
+      if (res.success && res.result?.tree_id) {
         setShowCreateTreeModal(false);
-        showToast('Solicitação de criação de árvore aberta no GitHub. Envie a issue para a Action validar e gravar nos JSONs.');
+        setSelectedAdminTreeId(res.result.tree_id);
+        await fetchState();
+        showToast(`✓ Nova árvore comunitária criada com sucesso (#${res.result.tree_id}).`);
       } else {
-        showToast('Erro: ' + (res.error || 'Não foi possível criar a solicitação da árvore.'));
+        showToast('Erro: ' + (res.error || 'Não foi possível criar a árvore.'));
       }
     } catch (e: any) {
       showToast('Erro: ' + e.message);

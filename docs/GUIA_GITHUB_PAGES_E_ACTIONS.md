@@ -1,66 +1,137 @@
 # Guia Operacional — GitHub Pages e GitHub Actions
 
-Este documento descreve como configurar, testar e publicar o projeto **Arboris Reflorestamento** no GitHub Pages com suporte a GitHub Actions.
+Este documento registra o estado real do projeto **Arboris Reflorestamento** para publicacao no GitHub Pages e deixa claro o que ja esta pronto, o que depende de configuracao manual da conta e quais limites existem no modelo estatico com JSON.
 
 ---
 
-## 1. Como Rodar Localmente
+## 1. Estado atual verificado
 
-### Pré-requisitos:
-- Node.js (versão 18 ou superior)
-- npm
+- Repositorio: `sistemacodigolucrativo/ARBORIS`.
+- Branch principal: `main`.
+- Stack atual: React, TypeScript, Vite e Tailwind.
+- Build de producao: `npm run build`.
+- Pasta publicada: `dist/`.
+- Workflow de deploy: `.github/workflows/deploy-pages.yml`.
+- Base path real em `vite.config.ts`: `base: '/ARBORIS/'`.
+- URL esperada no GitHub Pages: `https://sistemacodigolucrativo.github.io/ARBORIS/`.
 
-### Passos:
+Observacao: o repositorio ainda precisa ter GitHub Pages ativado em **Settings > Pages**. Enquanto isso nao for feito, o site nao fica online mesmo que o workflow exista.
+
+---
+
+## 2. Como rodar localmente
+
+### Pre-requisitos
+
+- Node.js 18 ou superior. O workflow usa Node.js 22.
+- npm.
+
+### Comandos
+
 ```bash
-# 1. Instalar dependências
 npm install
-
-# 2. Executar a suíte de testes do motor do jogo (39 testes automatizados)
 npm run test:game
-
-# 3. Iniciar o servidor de desenvolvimento estático
-npm run dev
-
-# 4. Para gerar a build de produção estática
 npm run build
-
-# 5. Para testar a build localmente em modo preview
+npm run dev
 npm run preview
 ```
 
----
-
-## 2. Configuração do GitHub Pages
-
-1. No repositório no GitHub, acesse **Settings** > **Pages**.
-2. Na seção **Build and deployment**:
-   - **Source:** Selecione `GitHub Actions`.
-3. O repositório já inclui o arquivo `.github/workflows/deploy-pages.yml`. A cada commit na branch `main` ou `master`, o GitHub Pages será construído e publicado automaticamente.
-4. **Base Path:** O arquivo `vite.config.ts` está configurado com `base: './'`, permitindo que a aplicação funcione em domínios customizados ou em subpastas de usuários do GitHub (ex: `https://usuario.github.io/repositorio/`).
+`npm run test:game` executa a suite do motor do jogo antes da publicacao.
 
 ---
 
-## 3. GitHub Secrets e Gravação via GitHub Actions
+## 3. Configuracao manual obrigatoria no GitHub
 
-### Princípio de Segurança:
-- O frontend **NUNCA** recebe tokens de escrita do GitHub.
-- Todas as gravações no repositório ocorrem no ambiente isolado do GitHub Actions usando segredos protegidos.
+Estas etapas exigem acesso visual/administrativo da conta GitHub e normalmente precisam ser feitas pelo dono da conta:
 
-### Secrets Necessários no Repositório (Settings > Secrets and variables > Actions):
-| Nome da Secret | Descrição | Obrigatório? |
-| :--- | :--- | :--- |
-| `GITHUB_TOKEN` | Token nativo injetado automaticamente pelo GitHub com permissão `contents: write` | Automático |
-| `GAME_DISPATCH_TOKEN` | (Opcional) Personal Access Token (PAT) caso queira disparar ações a partir de webhooks externos | Opcional |
+1. Abrir o repositorio `sistemacodigolucrativo/ARBORIS`.
+2. Entrar em **Settings > Pages**.
+3. Em **Build and deployment**, configurar:
+   - **Source:** `GitHub Actions`.
+4. Salvar.
+5. Entrar em **Actions**.
+6. Rodar manualmente o workflow **Deploy to GitHub Pages** ou fazer um novo commit na branch `main`.
+7. Confirmar se o deploy terminou com sucesso.
 
-### Permissões do Workflow:
-Em **Settings** > **Actions** > **General** > **Workflow permissions**:
-- Marque: **"Read and write permissions"** (necessário para o commit automático dos JSONs em `.github/workflows/update-game-data.yml`).
+Importante: o repositorio e privado. GitHub Pages em repositorio privado depende do plano da conta. Se o plano nao permitir Pages privado, sera necessario tornar o repositorio publico ou usar outro provedor de hospedagem.
 
 ---
 
-## 4. Workflows Disponíveis
+## 4. Workflow de deploy existente
 
-1. `.github/workflows/deploy-pages.yml`:
-   - Responsável por instalar dependências, compilar o React com Vite e publicar a pasta `dist/` no GitHub Pages.
-2. `.github/workflows/update-game-data.yml`:
-   - Responsável por receber requisições de alteração de jogo, executar a validação via `scripts/process-game-action.ts`, atualizar os arquivos JSON em `/data` e `/public/data` e realizar commit atômico com concorrência travada.
+Arquivo: `.github/workflows/deploy-pages.yml`.
+
+Fluxo atual:
+
+1. Faz checkout do repositorio.
+2. Configura Node.js 22.
+3. Instala dependencias com `npm install`.
+4. Executa `npm run test:game`.
+5. Executa `npm run build`.
+6. Configura GitHub Pages.
+7. Envia `dist/` como artifact.
+8. Publica com `actions/deploy-pages@v4`.
+
+Esse fluxo e adequado para publicar app Vite no GitHub Pages usando GitHub Actions.
+
+---
+
+## 5. Modelo de dados JSON
+
+O projeto possui dados versionados em JSON:
+
+- `data/config.json`
+- `data/users.json`
+- `data/wallets.json`
+- `data/trees.json`
+- `data/referrals.json`
+- `data/ledger.json`
+- `data/audit-log.json`
+
+Tambem existe copia em `public/data/`, usada pelo frontend publicado no Pages.
+
+No GitHub Pages, o frontend consegue **ler** esses JSONs como arquivos estaticos. Isso e suficiente para demonstracao, visualizacao e prototipo publico.
+
+---
+
+## 6. Limite importante: persistencia real
+
+O frontend atual registra mudancas no navegador usando `localStorage`. Isso significa:
+
+- cadastro feito por um visitante fica local naquele navegador;
+- fortalecimento de tronco feito no site nao atualiza automaticamente o repositorio;
+- criacao de arvore e alteracoes admin nao viram dados oficiais compartilhados;
+- ao limpar navegador ou usar outro aparelho, o estado local pode desaparecer.
+
+Existe o workflow `.github/workflows/update-game-data.yml`, que consegue atualizar JSONs via GitHub Actions, mas o frontend ainda nao possui uma ponte segura de producao para disparar esse workflow sem expor token.
+
+Conclusao operacional: hoje o projeto pode ir para GitHub Pages como app estatico/demo. Para uso real multiusuario, ainda precisa de uma camada segura de escrita.
+
+---
+
+## 7. Proximo passo tecnico recomendado
+
+Para transformar o projeto em operacao real com dados compartilhados:
+
+1. Manter GitHub Pages apenas como frontend.
+2. Criar um backend minimo seguro ou serverless function.
+3. Esse backend recebe a acao do usuario, valida autenticacao e regra de negocio.
+4. O backend dispara `workflow_dispatch` ou grava os JSONs com token protegido.
+5. O workflow valida novamente as regras no `scripts/process-game-action.ts`.
+6. Apos commit dos JSONs, o Pages republica os dados atualizados.
+
+Nao colocar token GitHub no frontend.
+
+---
+
+## 8. Checklist rapido de publicacao
+
+- [ ] Confirmar se a conta permite Pages em repositorio privado.
+- [ ] Ativar **Settings > Pages > Source: GitHub Actions**.
+- [ ] Rodar workflow **Deploy to GitHub Pages**.
+- [ ] Verificar se `npm run test:game` passou.
+- [ ] Verificar se `npm run build` passou.
+- [ ] Abrir `https://sistemacodigolucrativo.github.io/ARBORIS/`.
+- [ ] Testar se `/ARBORIS/data/config.json` carrega.
+- [ ] Testar entrada por `?ref=`.
+- [ ] Decidir se o site sera apenas demonstracao ou se tera persistencia real multiusuario.

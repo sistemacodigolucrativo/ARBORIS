@@ -65,6 +65,7 @@ async function main() {
 
   console.log(`[GitHub Actions Game Processor] Processando ação: ${payload.action}`);
   const state = loadState();
+  const requestActor = process.env.GITHUB_REQUEST_ACTOR || process.env.GITHUB_ACTOR || null;
 
   let resultState: GameDatabaseState;
   let commitMessage = '';
@@ -75,6 +76,7 @@ async function main() {
         username: payload.params.username,
         name: payload.params.name,
         indicadorUsername: payload.params.indicadorUsername,
+        githubActor: requestActor,
         idempotencyKey: payload.idempotencyKey
       });
       if (!res.success) {
@@ -87,6 +89,12 @@ async function main() {
     }
 
     case 'strengthen_tronco': {
+      const targetUser = state.users.find(user => user.id === Number(payload.params.userId));
+      if (targetUser?.githubActor && requestActor && targetUser.githubActor !== requestActor) {
+        console.error(`ERRO: A conta GitHub @${requestActor} não pode movimentar o usuário @${targetUser.username}.`);
+        process.exit(1);
+      }
+
       const res = strengthenTronco(state, {
         userId: Number(payload.params.userId),
         treeId: Number(payload.params.treeId),

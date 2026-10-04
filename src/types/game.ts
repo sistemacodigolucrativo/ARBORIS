@@ -24,6 +24,7 @@ export interface User {
   id: number;
   username: string;
   name: string;
+  githubActor?: string | null;
   role: UserRole;
   status: UserStatus;
   createdAt: string;

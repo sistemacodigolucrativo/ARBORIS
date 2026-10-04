@@ -46,3 +46,4 @@ store = replace_once(
 DATA_STORE.write_text(store)
 
 print('Admin tree creation audit fix applied.')
+# touch: trigger workflow after creation

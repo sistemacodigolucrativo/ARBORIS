@@ -140,6 +140,7 @@ export function createParticipant(
     username: string;
     name: string;
     indicadorUsername: string;
+    githubActor?: string | null;
     idempotencyKey?: string;
   }
 ): ActionResult<{ user: User; tokensGranted: number; treeId: number }> {
@@ -174,6 +175,7 @@ export function createParticipant(
     id: nextUserId,
     username: cleanUsername,
     name: params.name.trim(),
+    githubActor: params.githubActor || null,
     role: 'participant',
     status: 'active',
     currentTreeId: targetTree.id,
@@ -218,6 +220,7 @@ export function createParticipant(
     entityId: nextUserId,
     metadata: {
       username: cleanUsername,
+      githubActor: params.githubActor || null,
       indicador: params.indicadorUsername,
       treeId: targetTree.id,
       initialSeeds: initialGrant

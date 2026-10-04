@@ -1,8 +1,15 @@
 {
-  "name": "Remix Remix EcoTree Game",
-  "description": "Lightweight web game using PHP, SQLite, and Vanilla JS, optimized for performance on minimal 512MB RAM Linux servers.",
+  "name": "Arboris Reflorestamento",
+  "description": "Aplicacao estatica React, TypeScript e Vite para jogo comunitario recreativo de reflorestamento, preparada para GitHub Pages com dados JSON versionados.",
   "requestFramePermissions": [],
   "majorCapabilities": [
-    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
-  ]
+    "STATIC_GITHUB_PAGES_APP",
+    "VERSIONED_JSON_DATA"
+  ],
+  "deployment": {
+    "target": "GitHub Pages",
+    "expectedUrl": "https://sistemacodigolucrativo.github.io/ARBORIS/",
+    "buildCommand": "npm run build",
+    "outputDirectory": "dist"
+  }
 }

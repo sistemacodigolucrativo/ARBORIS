@@ -186,6 +186,13 @@ export default function App() {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
+  const openActionRequest = (url: string) => {
+    const opened = window.open(url, '_blank', 'noopener,noreferrer');
+    if (!opened) {
+      window.location.assign(url);
+    }
+  };
+
   const fetchState = async (forceReloadFromJson = false) => {
     try {
       setLoading(true);
@@ -292,33 +299,9 @@ export default function App() {
         lastName: formLastName.trim()
       });
       if (res.success && res.result) {
-        await fetchState();
-        showToast(`✓ Acesso liberado! Bem-vindo, ${res.result.full_name}! Você recebeu 25 sementes virtuais gratuitas.`);
-
-        // Unlock screen and login as new member
-        const newUser: User = {
-          id: res.result.user_id,
-          username: res.result.username,
-          full_name: res.result.full_name,
-          email: `${res.result.username}@participante.local`,
-          role: 'user',
-          status: 'active',
-          balance: res.result.tokens_granted,
-          current_tree_id: res.result.tree_id,
-          current_position_index: null // Outside tree until clicking the button!
-        };
-
-        setCurrentUser(newUser);
-        setIsLocked(false);
-        setCurrentView('member');
-        setMemberTab('my_tree');
-        setSelectedTreeModel(1); // Model 1 Árvore Radial
-
-        // Clear lock screen form
-        setIndicadorInput('');
-        setValidatedIndicadorData(null);
-        setFormFirstName('');
-        setFormLastName('');
+        openActionRequest(res.result.request_url);
+        setLockError('Solicitação online aberta no GitHub. Envie a issue para a Action validar e gravar o cadastro nos JSONs.');
+        showToast(`Solicitação de cadastro criada para ${res.result.full_name}.`);
       } else {
         setLockError(res.error || 'Falha ao registrar novo participante.');
       }
@@ -337,12 +320,8 @@ export default function App() {
     try {
       const res = await dataStore.strengthenTroncoAction(userId, treeId);
       if (res.success && res.result) {
-        if (res.result.bifurcated) {
-          showToast(`🌟 Árvore atingiu 15/15! Suas 25 sementes completaram o ciclo e a árvore foi bifurcada em 2 novas árvores filhas!`);
-        } else {
-          showToast(`✓ Suas 25 sementes fortaleceram o tronco! Você conquistou a posição #${res.result.position_index}!`);
-        }
-        await fetchState();
+        openActionRequest(res.result.request_url);
+        showToast('Solicitação de fortalecimento aberta no GitHub. Envie a issue para gravar nos JSONs.');
       } else {
         showToast('Falha: ' + (res.error || 'Não foi possível completar o fortalecimento.'));
       }

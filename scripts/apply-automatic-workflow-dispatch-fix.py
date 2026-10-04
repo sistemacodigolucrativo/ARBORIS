@@ -294,3 +294,4 @@ Nunca coloque `GITHUB_TOKEN` dentro do frontend React/Vite.
 """)
 
 print('Automatic workflow dispatcher fix applied.')
+# trigger: 2026-10-04 automatic workflow dispatch fix

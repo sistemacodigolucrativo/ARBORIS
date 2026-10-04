@@ -33,11 +33,13 @@ import {
   Network,
   Compass,
   CheckCircle2,
-  Phone,
   User as UserIcon,
   AlertCircle,
-  Zap
+  Zap,
+  RotateCcw
 } from 'lucide-react';
+import { dataStore } from './services/dataStore';
+import { PublicLandingPage } from './components/PublicLandingPage';
 
 interface Position {
   id: number;
@@ -55,10 +57,9 @@ interface User {
   id: number;
   username: string;
   email: string;
-  role: 'admin' | 'user';
-  status: 'active' | 'suspended';
+  role: 'admin' | 'user' | 'participant';
+  status: 'active' | 'suspended' | 'blocked';
   full_name: string;
-  phone?: string;
   balance: number;
   current_tree_id?: number | null;
   current_position_index?: number | null;
@@ -127,8 +128,9 @@ interface Setting {
 }
 
 export default function App() {
-  // Lock Screen: When user accesses, they immediately hit the Lock Screen as requested!
-  const [isLocked, setIsLocked] = useState<boolean>(true);
+  // Public landing page is the default entry point!
+  const [showLandingPage, setShowLandingPage] = useState<boolean>(true);
+  const [isLocked, setIsLocked] = useState<boolean>(false);
   
   // Lock Screen state
   const [indicadorInput, setIndicadorInput] = useState<string>('');
@@ -139,16 +141,15 @@ export default function App() {
   // Lock Screen registration fields
   const [formFirstName, setFormFirstName] = useState<string>('');
   const [formLastName, setFormLastName] = useState<string>('');
-  const [formPhone, setFormPhone] = useState<string>('');
   const [submittingAccess, setSubmittingAccess] = useState<boolean>(false);
 
   // Activation & Strengthening Loading state
   const [activatingTronco, setActivatingTronco] = useState<boolean>(false);
 
-  // Navigation: member, public, admin, preview
-  const [currentView, setCurrentView] = useState<'member' | 'public' | 'admin' | 'preview'>('member');
+  // Navigation: member, public, admin
+  const [currentView, setCurrentView] = useState<'member' | 'public' | 'admin'>('member');
   
-  // Selected tree visual model: Default is Model 1 (Mandala Radial Orgânica)
+  // Selected tree visual model: Default is Model 1 (Árvore Radial Orgânica)
   const [selectedTreeModel, setSelectedTreeModel] = useState<number>(1);
 
   // Member sub-tabs: tree, marketing, wallet
@@ -174,6 +175,7 @@ export default function App() {
   const [selectedAdminTreeId, setSelectedAdminTreeId] = useState<number>(1);
   const [showCreateTreeModal, setShowCreateTreeModal] = useState<boolean>(false);
   const [showDirectLoginModal, setShowDirectLoginModal] = useState<boolean>(false);
+  const [showRulesModal, setShowRulesModal] = useState<boolean>(false);
 
   // Create tree form (organizador)
   const [newTreeCatId, setNewTreeCatId] = useState<number>(1);
@@ -184,28 +186,15 @@ export default function App() {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  // Format phone number dynamically as (XX) XXXXX-XXXX
-  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value.replace(/\D/g, '').slice(0, 11);
-    let formatted = raw;
-    if (raw.length > 2) {
-      formatted = `(${raw.slice(0, 2)}) ${raw.slice(2)}`;
-    }
-    if (raw.length > 7) {
-      formatted = `(${raw.slice(0, 2)}) ${raw.slice(2, 7)}-${raw.slice(7)}`;
-    }
-    setFormPhone(formatted);
-  };
-
-  const fetchState = async () => {
+  const fetchState = async (forceReloadFromJson = false) => {
     try {
       setLoading(true);
-      const res = await fetch('/api/system-state');
-      const json = await res.json();
-      if (json.success) {
-        setSystemState(json.data);
+      await dataStore.loadState(forceReloadFromJson);
+      const stateView = dataStore.getSystemStateView();
+      if (stateView) {
+        setSystemState(stateView);
         if (currentUser) {
-          const fresh = json.data.users.find((u: User) => u.id === currentUser.id);
+          const fresh = stateView.users.find((u: User) => u.id === currentUser.id);
           if (fresh) setCurrentUser(fresh);
         }
       }
@@ -221,22 +210,17 @@ export default function App() {
 
     // Check if user accessed via referral link (query param ?ref=... or /ref/...)
     const urlParams = new URLSearchParams(window.location.search);
-    const refParam = urlParams.get('ref') || (window.location.pathname.startsWith('/ref/') ? window.location.pathname.split('/ref/')[1] : null);
+    const refParam = urlParams.get('ref') || (window.location.pathname.includes('/ref/') ? window.location.pathname.split('/ref/')[1] : null);
     if (refParam) {
-      fetch('/api/validate-referral-token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: refParam })
-      })
-        .then(r => r.json())
-        .then(res => {
-          if (res.success && res.data) {
-            setValidatedIndicadorData(res.data);
-            setIsLocked(true); // Direct to step 2 (fill in data)
-            showToast(`✓ Link de indicação aceito! Preencha seus dados para entrar.`);
-          }
-        })
-        .catch(() => {});
+      dataStore.loadState().then(() => {
+        const val = dataStore.validateIndicador(refParam);
+        if (val.success && val.data) {
+          setValidatedIndicadorData(val.data);
+          setShowLandingPage(false);
+          setIsLocked(true); // Direct to step 2 (fill in data)
+          showToast(`✓ Link de indicação aceito! Preencha seus dados para entrar.`);
+        }
+      });
     }
   }, []);
 
@@ -246,20 +230,15 @@ export default function App() {
     setValidatingIndicador(true);
     setLockError(null);
     try {
-      const res = await fetch('/api/validate-referral-token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token })
-      });
-      const data = await res.json();
-      if (data.success) {
-        setValidatedIndicadorData(data.data);
+      const val = dataStore.validateIndicador(token);
+      if (val.success && val.data) {
+        setValidatedIndicadorData(val.data);
         showToast(`✓ Link de indicação validado! Preencha seus dados.`);
       } else {
-        setLockError(data.error || 'Link de indicação inválido.');
+        setLockError(val.error || 'Link de indicação inválido.');
       }
     } catch (err: any) {
-      setLockError('Erro de conexão: ' + err.message);
+      setLockError('Erro ao validar indicador: ' + err.message);
     } finally {
       setValidatingIndicador(false);
     }
@@ -269,28 +248,23 @@ export default function App() {
   const handleValidateIndicador = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!indicadorInput.trim()) {
-      setLockError('Por favor, informe o usuário do seu indicador.');
+      setLockError('Por favor, informe o usuário de referência da árvore (pessoa no centro/tronco da árvore).');
       return;
     }
 
     setValidatingIndicador(true);
     setLockError(null);
     try {
-      const res = await fetch('/api/validate-indicador', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: indicadorInput.trim() })
-      });
-      const data = await res.json();
-      if (data.success) {
-        setValidatedIndicadorData(data.data);
+      const val = dataStore.validateIndicador(indicadorInput.trim());
+      if (val.success && val.data) {
+        setValidatedIndicadorData(val.data);
         setLockError(null);
       } else {
         setValidatedIndicadorData(null);
-        setLockError(data.error || 'Indicador inválido.');
+        setLockError(val.error || 'Indicador inválido.');
       }
     } catch (err: any) {
-      setLockError('Erro de conexão ao validar indicador: ' + err.message);
+      setLockError('Erro ao validar indicador: ' + err.message);
     } finally {
       setValidatingIndicador(false);
     }
@@ -304,40 +278,33 @@ export default function App() {
       setLockError('Por favor, valide o indicador primeiro.');
       return;
     }
-    if (!formFirstName.trim() || !formLastName.trim() || !formPhone.trim()) {
-      setLockError('Preencha seu nome, sobrenome e número de telefone.');
+    if (!formFirstName.trim() || !formLastName.trim()) {
+      setLockError('Preencha seu nome e sobrenome.');
       return;
     }
 
     setSubmittingAccess(true);
     setLockError(null);
     try {
-      const res = await fetch('/api/register-by-indicador', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          indicadorUsername: validatedIndicadorData.username,
-          firstName: formFirstName.trim(),
-          lastName: formLastName.trim(),
-          phone: formPhone.trim()
-        })
+      const res = await dataStore.registerParticipant({
+        indicadorUsername: validatedIndicadorData.username,
+        firstName: formFirstName.trim(),
+        lastName: formLastName.trim()
       });
-      const data = await res.json();
-      if (data.success) {
+      if (res.success && res.result) {
         await fetchState();
-        showToast(`✓ Acesso liberado! Bem-vindo, ${data.result.full_name}! Você recebeu 25 sementes gratuitas.`);
-        
+        showToast(`✓ Acesso liberado! Bem-vindo, ${res.result.full_name}! Você recebeu 25 sementes virtuais gratuitas.`);
+
         // Unlock screen and login as new member
         const newUser: User = {
-          id: data.result.user_id,
-          username: data.result.username,
-          full_name: data.result.full_name,
-          email: `${data.result.username}@participante.local`,
-          phone: data.result.phone,
+          id: res.result.user_id,
+          username: res.result.username,
+          full_name: res.result.full_name,
+          email: `${res.result.username}@participante.local`,
           role: 'user',
           status: 'active',
-          balance: data.result.tokens_granted,
-          current_tree_id: data.result.tree_id,
+          balance: res.result.tokens_granted,
+          current_tree_id: res.result.tree_id,
           current_position_index: null // Outside tree until clicking the button!
         };
 
@@ -345,19 +312,18 @@ export default function App() {
         setIsLocked(false);
         setCurrentView('member');
         setMemberTab('my_tree');
-        setSelectedTreeModel(1); // Model 1 Mandala
+        setSelectedTreeModel(1); // Model 1 Árvore Radial
 
         // Clear lock screen form
         setIndicadorInput('');
         setValidatedIndicadorData(null);
         setFormFirstName('');
         setFormLastName('');
-        setFormPhone('');
       } else {
-        setLockError(data.error || 'Falha ao registrar novo participante.');
+        setLockError(res.error || 'Falha ao registrar novo participante.');
       }
     } catch (err: any) {
-      setLockError('Erro de conexão: ' + err.message);
+      setLockError('Erro ao registrar: ' + err.message);
     } finally {
       setSubmittingAccess(false);
     }
@@ -369,20 +335,16 @@ export default function App() {
   const handleStrengthenTronco = async (userId: number, treeId: number) => {
     setActivatingTronco(true);
     try {
-      const res = await fetch('/api/strengthen-tronco', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId,
-          treeId
-        })
-      });
-      const data = await res.json();
-      if (data.success) {
-        showToast(`✓ Suas 25 sementes fortaleceram o tronco! Você conquistou a posição #${data.result.position_index}!`);
+      const res = await dataStore.strengthenTroncoAction(userId, treeId);
+      if (res.success && res.result) {
+        if (res.result.bifurcated) {
+          showToast(`🌟 Árvore atingiu 15/15! Suas 25 sementes completaram o ciclo e a árvore foi bifurcada em 2 novas árvores filhas!`);
+        } else {
+          showToast(`✓ Suas 25 sementes fortaleceram o tronco! Você conquistou a posição #${res.result.position_index}!`);
+        }
         await fetchState();
       } else {
-        showToast('Falha: ' + (data.error || 'Não foi possível completar o fortalecimento.'));
+        showToast('Falha: ' + (res.error || 'Não foi possível completar o fortalecimento.'));
       }
     } catch (e: any) {
       showToast('Erro: ' + e.message);
@@ -394,21 +356,13 @@ export default function App() {
   const handleCreateTree = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch('/api/create-tree', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          categoryId: newTreeCatId,
-          troncoUserId: newTreeTroncoId
-        })
-      });
-      const data = await res.json();
-      if (data.success) {
-        showToast(`✓ Nova árvore comunitária criada com sucesso (#${data.treeId})!`);
+      const res = await dataStore.createTreeAction(newTreeCatId, newTreeTroncoId);
+      if (res.success) {
+        showToast(`✓ Nova árvore comunitária criada com sucesso (#${res.treeId})!`);
         setShowCreateTreeModal(false);
         await fetchState();
       } else {
-        showToast('Erro: ' + data.error);
+        showToast('Erro: ' + res.error);
       }
     } catch (e: any) {
       showToast('Erro: ' + e.message);
@@ -417,15 +371,12 @@ export default function App() {
 
   const handleToggleUserStatus = async (userId: number) => {
     try {
-      const res = await fetch('/api/toggle-user-status', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId })
-      });
-      const data = await res.json();
-      if (data.success) {
-        showToast(`✓ Status atualizado para: ${data.newStatus}`);
+      const res = await dataStore.toggleUserStatusAction(userId);
+      if (res.success) {
+        showToast(`✓ Status atualizado para: ${res.newStatus}`);
         await fetchState();
+      } else {
+        showToast('Erro: ' + res.error);
       }
     } catch (e: any) {
       showToast('Erro: ' + e.message);
@@ -444,9 +395,11 @@ export default function App() {
   const memberPositions = allPositions.filter(p => p.tree_id === memberTreeId);
 
   // Link for member's tree
-  const memberLink = allLinks.find(l => l.tree_id === memberTreeId && (l.user_id === currentUser?.id || l.user_id === memberTree?.tronco_user_id)) || allLinks[0];
+  const memberLink = allLinks.find(l => l.tree_id === memberTreeId && (l.user_id === currentUser?.id || l.user_id === memberTree?.tronco_user_id)) || allLinks.find(l => l.tree_id === memberTreeId) || allLinks[0];
   const activeReferralToken = memberLink?.token || 'eae2041e9f3ec6f413d57690a15be7219cf92c57198e5e8fe488250bb1b2bae6';
-  const referralUrl = `http://localhost:3000/ref/${activeReferralToken}`;
+  const referralUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}${window.location.pathname}?ref=${activeReferralToken}`
+    : `https://arboris.local/?ref=${activeReferralToken}`;
 
   // Marketing metrics
   const memberClicks = memberLink?.clicks ?? 0;
@@ -463,14 +416,14 @@ export default function App() {
   const adminTreePositions = allPositions.filter(p => p.tree_id === selectedAdminTreeId);
 
   // Pre-formatted copy pitch (Sementes)
-  const marketingPitch = `🌱 Olá! Estou participando do ecossistema comunitário independente Arboris!\n\n🌳 Nosso tabuleiro de 15 posições está no Ciclo #${memberTree?.cycle_number || 1} e restam apenas ${slotsRemaining} vagas para fecharmos a rodada.\n\n✨ É 100% GRATUITO: Você recebe 25 sementes logo no cadastro para semear e jogar conosco.\n❌ Sem dinheiro real e sem depósitos.\n\n👉 Acesse pelo meu link de convite exclusivo:\n${referralUrl}`;
+  const marketingPitch = `🌱 Olá! Estou participando do ecossistema comunitário independente Arboris!\n\n🌳 Nosso tabuleiro de 15 posições segue a dinâmica clássica 1–2–4–8 da Árvore:\n• 1 Tronco Central\n• 2 Guardiões Primários\n• 4 Sub-ramos\n• 8 Vagas Externas de Entrada (Nível 3)\n\nAtualmente estamos no Ciclo #${memberTree?.cycle_number || 1} e restam apenas ${slotsRemaining} vagas externas para fechar a árvore e gerar a bifurcação!\n\n✨ 100% GRATUITO: Você ganha 25 sementes virtuais logo no cadastro para fortalecer o tronco e entrar no jogo.\n❌ Sem dinheiro real, sem PIX e sem depósitos.\n\n👉 Acesse pelo meu link de convite exclusivo:\n${referralUrl}`;
 
   // ==========================================
   // TREE VISUALIZATION RENDERERS (MODELS 1 TO 4)
   // ==========================================
 
-  // MODEL 1: MANDALA RADIAL ORGÂNICA (Mind Map Circular 360°)
-  const renderModel1Mandala = (positionsToRender: Position[], currentUserId?: number) => {
+  // MODEL 1: ÁRVORE RADIAL ORGÂNICA (Mind Map Circular 360°)
+  const renderModel1Radial = (positionsToRender: Position[], currentUserId?: number) => {
     const tronco = positionsToRender.find(p => p.position_index === 0);
     const n1 = positionsToRender.filter(p => p.position_index >= 1 && p.position_index <= 2);
     const n2 = positionsToRender.filter(p => p.position_index >= 3 && p.position_index <= 6);
@@ -923,9 +876,328 @@ export default function App() {
         return renderModel4LotusOrbit(positionsToRender, currentUserId);
       case 1:
       default:
-        return renderModel1Mandala(positionsToRender, currentUserId);
+        return renderModel1Radial(positionsToRender, currentUserId);
     }
   };
+
+  // ==========================================
+  // RENDER: GUIA OFICIAL DE REGRAS & TOPOLOGIA 1-2-4-8
+  // ==========================================
+  const renderRulesContent = () => (
+    <div className="space-y-4 text-xs">
+      {/* Header Banner */}
+      <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950/60 border border-slate-800 rounded-2xl p-4 space-y-2">
+        <div className="flex items-center gap-2 text-emerald-400 font-bold uppercase tracking-wider text-[11px]">
+          <BookOpen className="w-4 h-4" />
+          <span>Manual Oficial da Comunidade</span>
+        </div>
+        <h2 className="text-base font-bold text-slate-100 text-balance">
+          Dinâmica Estrutural 1–2–4–8 da Árvore Arboris
+        </h2>
+        <p className="text-slate-300 leading-relaxed text-[11px] text-balance">
+          O Arboris é um ecossistema recreativo comunitário de rotação matemática em árvore binária de 15 posições, com progressão gerada exclusivamente por bifurcação e sustentada por sementes virtuais gratuitas.
+        </p>
+      </div>
+
+      {/* Identidade do Projeto & Nomenclatura */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
+        <div className="flex items-center gap-2 text-amber-400 font-bold">
+          <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+          <span className="uppercase tracking-wider text-[11px]">Nomenclatura e Princípios Oficiais</span>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2 text-center text-[10px]">
+          <div className="p-2.5 bg-slate-950 rounded-xl border border-slate-800">
+            <span className="text-slate-400 block">Comunidade</span>
+            <strong className="text-emerald-400 text-xs">Árvore</strong>
+          </div>
+          <div className="p-2.5 bg-slate-950 rounded-xl border border-slate-800">
+            <span className="text-slate-400 block">Centro</span>
+            <strong className="text-amber-400 text-xs">Tronco</strong>
+          </div>
+          <div className="p-2.5 bg-slate-950 rounded-xl border border-slate-800">
+            <span className="text-slate-400 block">Unidade Interna</span>
+            <strong className="text-teal-400 text-xs">Sementes</strong>
+          </div>
+        </div>
+
+        <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-2 text-[11px]">
+          <div className="flex items-start gap-2 text-emerald-300">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+            <span className="text-balance">
+              <strong>100% Gratuito & Recreativo:</strong> Todo participante recebe suas sementes gratuitamente no cadastro para participar das rodadas.
+            </span>
+          </div>
+          <div className="flex items-start gap-2 text-rose-300">
+            <span className="font-bold shrink-0">❌</span>
+            <span className="text-balance">
+              <strong>Sem dinheiro real:</strong> Não existem depósitos, transferências PIX, saques, mensalidades ou qualquer promessa de rendimento financeiro. As sementes são pontos virtuais internos.
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* A Geometria dos 4 Níveis (15 Vagas) */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="font-bold text-slate-200 flex items-center gap-1.5 text-xs">
+            <Layers className="w-4 h-4 text-emerald-400" />
+            <span>Topologia dos 4 Níveis (15 Posições Exatas)</span>
+          </span>
+          <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800">
+            1 – 2 – 4 – 8
+          </span>
+        </div>
+
+        {/* ASCII Diagram Card */}
+        <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 font-mono text-[10px] text-center text-slate-300 overflow-x-auto leading-tight select-none">
+          <div className="text-amber-400 font-bold">[0] TRONCO (Centro)</div>
+          <div className="text-slate-600">/ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; \</div>
+          <div className="text-sky-300 font-semibold">[1] &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; [2] (N1: 2 Guardiões)</div>
+          <div className="text-slate-600">/ &nbsp; \ &nbsp; &nbsp; &nbsp; &nbsp; / &nbsp; \</div>
+          <div className="text-indigo-300">[3] &nbsp; [4] &nbsp; &nbsp; [5] &nbsp; [6] (N2: 4 Ramos)</div>
+          <div className="text-slate-600">/ \ &nbsp; / \ &nbsp; &nbsp; / \ &nbsp; / \</div>
+          <div className="text-emerald-400 font-bold">[7][8] [9][10] [11][12] [13][14] (N3: 8 Entrantes)</div>
+        </div>
+
+        <div className="space-y-2">
+          <div className="p-2.5 bg-amber-950/40 border border-amber-500/40 rounded-xl flex items-start gap-2.5">
+            <div className="w-6 h-6 rounded-lg bg-amber-500 text-slate-950 font-bold text-xs flex items-center justify-center shrink-0">
+              0
+            </div>
+            <div>
+              <div className="font-bold text-amber-200 text-xs">Nível 0 · 1 Tronco Central (Posição 0)</div>
+              <div className="text-[11px] text-slate-300 mt-0.5 leading-relaxed text-balance">
+                O <em>Participante da Vez</em> que recebe as sementes da rodada. Ao completar as 8 vagas externas, conclui seu ciclo vitorioso.
+              </div>
+            </div>
+          </div>
+
+          <div className="p-2.5 bg-sky-950/40 border border-sky-500/40 rounded-xl flex items-start gap-2.5">
+            <div className="w-6 h-6 rounded-lg bg-sky-500 text-slate-950 font-bold text-xs flex items-center justify-center shrink-0">
+              2
+            </div>
+            <div>
+              <div className="font-bold text-sky-200 text-xs">Nível 1 · 2 Guardiões Primários (Posições 1 e 2)</div>
+              <div className="text-[11px] text-slate-300 mt-0.5 leading-relaxed text-balance">
+                Na divisão da árvore, a posição #1 torna-se o novo Tronco da filha esquerda e a posição #2 torna-se o novo Tronco da filha direita.
+              </div>
+            </div>
+          </div>
+
+          <div className="p-2.5 bg-indigo-950/40 border border-indigo-500/40 rounded-xl flex items-start gap-2.5">
+            <div className="w-6 h-6 rounded-lg bg-indigo-500 text-slate-950 font-bold text-xs flex items-center justify-center shrink-0">
+              4
+            </div>
+            <div>
+              <div className="font-bold text-indigo-200 text-xs">Nível 2 · 4 Sub-ramos (Posições 3, 4, 5 e 6)</div>
+              <div className="text-[11px] text-slate-300 mt-0.5 leading-relaxed text-balance">
+                Participantes em avanço que sobem para o Nível 1 (Guardiões) na próxima bifurcação da árvore.
+              </div>
+            </div>
+          </div>
+
+          <div className="p-2.5 bg-emerald-950/50 border border-emerald-500/50 rounded-xl flex items-start gap-2.5">
+            <div className="w-6 h-6 rounded-lg bg-emerald-500 text-slate-950 font-bold text-xs flex items-center justify-center shrink-0">
+              8
+            </div>
+            <div>
+              <div className="font-bold text-emerald-300 text-xs">Nível 3 · 8 Vagas Externas de Entrada (Posições 7 a 14)</div>
+              <div className="text-[11px] text-slate-300 mt-0.5 leading-relaxed text-balance">
+                <strong>O ponto de entrada exclusivo:</strong> Todas as pessoas recém-chegadas entram aqui ao transferir suas 25 sementes.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Regra de Ouro: Princípio Fundamental de Entrada */}
+      <div className="bg-gradient-to-br from-amber-950/60 via-slate-900 to-slate-900 border-2 border-amber-500/60 rounded-2xl p-4 space-y-2.5 shadow-xl">
+        <div className="flex items-center gap-2 text-amber-300 font-bold text-xs">
+          <Zap className="w-4 h-4 text-amber-400 shrink-0" />
+          <span className="uppercase tracking-wider">Regra Fundamental: Entrada Somente no Nível 3</span>
+        </div>
+        <p className="text-[11px] text-slate-300 leading-relaxed text-balance">
+          Uma árvore em ciclo normal <strong>NÃO recebe novos participantes nas posições 1 a 6</strong>.
+        </p>
+        <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 text-[11px] text-slate-300 space-y-1.5">
+          <p className="text-balance">
+            • <strong>Posições 1–6 são de PROGRESSÃO</strong> conquistadas exclusivamente através da divisão de árvores.
+          </p>
+          <p className="text-balance">
+            • Novos participantes entram <strong>EXCLUSIVAMENTE nas 8 posições externas: 7, 8, 9, 10, 11, 12, 13 e 14</strong>.
+          </p>
+          <p className="text-balance text-amber-300 font-medium">
+            • Quem confirma a transferência de sementes antes garante a menor vaga disponível (da esquerda para a direita).
+          </p>
+        </div>
+      </div>
+
+      {/* Fechamento do Ciclo e Mapeamento da Bifurcação */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="font-bold text-slate-200 flex items-center gap-1.5 text-xs">
+            <Network className="w-4 h-4 text-emerald-400" />
+            <span>Fechamento do Ciclo & Bifurcação em 2 Árvores</span>
+          </span>
+          <span className="text-[10px] text-slate-400 font-mono">Divisão Atômica</span>
+        </div>
+
+        <p className="text-[11px] text-slate-300 leading-relaxed text-balance">
+          Quando a 14ª vaga externa é ocupada (totalizando 15 participantes), o ciclo da árvore mãe termina imediatamente e ela <strong>bifurca em duas novas árvores completas</strong>:
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          {/* Filha Esquerda */}
+          <div className="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-2">
+            <div className="flex items-center justify-between text-xs pb-1 border-b border-slate-800">
+              <strong className="text-sky-300">Árvore Filha Esquerda</strong>
+              <span className="text-[9px] font-mono text-slate-500">7 Promovidos</span>
+            </div>
+            <ul className="text-[10px] space-y-1 text-slate-300">
+              <li>• <strong>Novo Tronco [0]:</strong> Antigo #1</li>
+              <li>• <strong>Novo Nível 1 [1, 2]:</strong> Antigos #3 e #4</li>
+              <li>• <strong>Novo Nível 2 [3..6]:</strong> Antigos #7, #8, #9 e #10</li>
+              <li className="text-emerald-400 font-bold">• <strong>Novas Posições 7..14:</strong> 100% VAZIAS</li>
+            </ul>
+          </div>
+
+          {/* Filha Direita */}
+          <div className="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-2">
+            <div className="flex items-center justify-between text-xs pb-1 border-b border-slate-800">
+              <strong className="text-emerald-300">Árvore Filha Direita</strong>
+              <span className="text-[9px] font-mono text-slate-500">7 Promovidos</span>
+            </div>
+            <ul className="text-[10px] space-y-1 text-slate-300">
+              <li>• <strong>Novo Tronco [0]:</strong> Antigo #2</li>
+              <li>• <strong>Novo Nível 1 [1, 2]:</strong> Antigos #5 e #6</li>
+              <li>• <strong>Novo Nível 2 [3..6]:</strong> Antigos #11, #12, #13 e #14</li>
+              <li className="text-emerald-400 font-bold">• <strong>Novas Posições 7..14:</strong> 100% VAZIAS</li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="p-2.5 bg-amber-950/30 border border-amber-500/30 rounded-xl text-[11px] text-amber-200 text-balance leading-relaxed">
+          👑 <strong>Conclusão do Tronco:</strong> O antigo Tronco (posição 0) conclui com louvor seu ciclo completo e não é inserido em nenhuma das duas filhas. A árvore original passa ao status de <em>concluída</em>.
+        </div>
+      </div>
+
+      {/* A Jornada de Progressão do Membro */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
+        <div className="flex items-center gap-1.5 text-xs font-bold text-slate-200">
+          <TrendingUp className="w-4 h-4 text-emerald-400" />
+          <span>A Jornada de Progressão (Passo a Passo)</span>
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center gap-3 p-2 bg-slate-950 rounded-xl border border-slate-800 text-[11px]">
+            <span className="w-6 h-6 rounded-full bg-emerald-600/30 text-emerald-400 font-bold flex items-center justify-center shrink-0">
+              1
+            </span>
+            <span className="text-slate-300 text-balance">
+              <strong>Entrada no Nível 3:</strong> Você entra numa das 8 vagas externas (7 a 14) e fortalece o tronco.
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3 p-2 bg-slate-950 rounded-xl border border-slate-800 text-[11px]">
+            <span className="w-6 h-6 rounded-full bg-indigo-600/30 text-indigo-400 font-bold flex items-center justify-center shrink-0">
+              2
+            </span>
+            <span className="text-slate-300 text-balance">
+              <strong>1ª Divisão da Árvore:</strong> Com a árvore cheia, ela bifurca e você sobe automaticamente para o <strong>Nível 2</strong>.
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3 p-2 bg-slate-950 rounded-xl border border-slate-800 text-[11px]">
+            <span className="w-6 h-6 rounded-full bg-sky-600/30 text-sky-400 font-bold flex items-center justify-center shrink-0">
+              3
+            </span>
+            <span className="text-slate-300 text-balance">
+              <strong>2ª Divisão da Árvore:</strong> A nova árvore atinge 15 e bifurca novamente; você sobe para o <strong>Nível 1 (Guardião)</strong>.
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3 p-2 bg-slate-950 rounded-xl border border-slate-800 text-[11px]">
+            <span className="w-6 h-6 rounded-full bg-amber-500/30 text-amber-400 font-bold flex items-center justify-center shrink-0">
+              4
+            </span>
+            <span className="text-slate-300 text-balance">
+              <strong>3ª Divisão da Árvore:</strong> Você assume o <strong>Tronco Central (posição 0)</strong> da sua própria árvore filha!
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3 p-2 bg-slate-950 rounded-xl border border-slate-800 text-[11px]">
+            <span className="w-6 h-6 rounded-full bg-emerald-500 text-slate-950 font-bold flex items-center justify-center shrink-0">
+              ✓
+            </span>
+            <span className="text-slate-300 text-balance">
+              <strong>Conclusão do Ciclo:</strong> Sua árvore como Tronco recebe as 8 contribuições externas e conclui o ciclo vitorioso!
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* FAQ Comunitário */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
+        <div className="flex items-center gap-1.5 text-xs font-bold text-slate-200">
+          <BookOpen className="w-4 h-4 text-emerald-400" />
+          <span>Perguntas Frequentes (FAQ)</span>
+        </div>
+
+        <div className="space-y-2 text-[11px]">
+          <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
+            <strong className="text-slate-100 block">Preciso pagar algum valor ou taxa?</strong>
+            <span className="text-slate-400 text-balance block leading-relaxed">
+              Não. O Arboris é um jogo comunitário e recreativo. Não aceita dinheiro, depósitos bancários, PIX ou saques. Todas as sementes são pontos virtuais internos.
+            </span>
+          </div>
+
+          <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
+            <strong className="text-slate-100 block">Como funciona o link de indicação?</strong>
+            <span className="text-slate-400 text-balance block leading-relaxed">
+              Cada participante possui um link criptográfico exclusivo. Ao convidar amigos, eles são direcionados para a mesma árvore ativa em que você estiver posicionado.
+            </span>
+          </div>
+
+          <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
+            <strong className="text-slate-100 block">O que acontece quando o Tronco conclui?</strong>
+            <span className="text-slate-400 text-balance block leading-relaxed">
+              O participante celebra a conclusão vitoriosa daquele ciclo. A árvore se divide em duas e ele pode, se desejar, iniciar um novo ciclo em outra árvore do sistema.
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // ==========================================
+  // 0. PÁGINA PÚBLICA PRINCIPAL (LANDING EXPLICATIVA)
+  // ==========================================
+  if (showLandingPage) {
+    return (
+      <PublicLandingPage
+        onOpenEntry={() => {
+          setShowLandingPage(false);
+          setIsLocked(true);
+        }}
+        onOpenDemoTree={() => {
+          setShowLandingPage(false);
+          setIsLocked(false);
+          setCurrentView('public');
+        }}
+        onOpenDirectLogin={() => {
+          setShowLandingPage(false);
+          setIsLocked(false);
+          setShowDirectLoginModal(true);
+        }}
+        referralData={validatedIndicadorData ? {
+          username: validatedIndicadorData.username,
+          full_name: validatedIndicadorData.full_name,
+          tree_code: validatedIndicadorData.tree_code
+        } : null}
+      />
+    );
+  }
 
   // ==========================================
   // 1. TELA DE BLOQUEIO DE ENTRADA (LOCK SCREEN)
@@ -948,6 +1220,17 @@ export default function App() {
 
             {/* Header / Brand */}
             <div className="text-center space-y-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowLandingPage(true);
+                  setIsLocked(false);
+                }}
+                className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-emerald-400 font-medium transition py-1 px-2.5 rounded-lg hover:bg-slate-800/60 mb-1"
+              >
+                ← Voltar para a Página Explicativa
+              </button>
+
               <div className="w-14 h-14 rounded-2xl bg-emerald-950/80 border border-emerald-500/40 flex items-center justify-center text-2xl mx-auto shadow-inner text-emerald-400">
                 🌲
               </div>
@@ -970,23 +1253,23 @@ export default function App() {
             {/* STEP 1: DIGITAR USUÁRIO DO INDICADOR (APENAS QUANDO AINDA NÃO TEM INDICADOR) */}
             {!validatedIndicadorData ? (
               <div className="space-y-4">
-                {/* Centered Instruction box */}
-                <div className="p-4 bg-slate-950/80 border border-slate-800 rounded-2xl text-center space-y-2">
-                  <div className="flex flex-col items-center justify-center gap-1.5 text-center">
-                    <Lock className="w-5 h-5 text-amber-400" />
-                    <span className="text-xs font-bold text-amber-300 text-center">
-                      Para continuar digite o usuário do seu indicador
-                    </span>
+                {/* Centered Responsive Instruction box */}
+                <div className="p-4 sm:p-5 bg-slate-950/80 border border-slate-800 rounded-2xl text-center space-y-2.5 w-full">
+                  <div className="flex flex-col items-center justify-center gap-2 text-center w-full">
+                    <Lock className="w-5 h-5 text-amber-400 shrink-0" />
+                    <p className="text-xs sm:text-sm font-bold text-amber-300 text-center leading-normal break-words max-w-full text-balance px-1">
+                      Para continuar digite o usuário que aparece no meio da árvore ao qual você faz parte lá no grupo.
+                    </p>
                   </div>
-                  <p className="text-[11px] text-slate-400 text-center leading-relaxed">
-                    (no caso o seu indicador é a pessoa que está no meio da árvore)
+                  <p className="text-[11px] sm:text-xs text-slate-400 text-center leading-relaxed break-words max-w-full text-balance px-1">
+                    (o indicador representa a árvore: digite o usuário da pessoa que está no centro da árvore ativa)
                   </p>
                 </div>
 
                 <form onSubmit={handleValidateIndicador} className="space-y-3">
                   <div>
                     <label className="block text-[11px] font-medium text-slate-300 mb-1">
-                      Usuário do Indicador (Pessoa no Centro da Árvore):
+                      Identificador da Árvore (Pessoa no Centro da Árvore):
                     </label>
                     <div className="relative">
                       <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 font-mono text-xs">
@@ -998,7 +1281,7 @@ export default function App() {
                         required
                         autoCapitalize="none"
                         autoComplete="off"
-                        placeholder="maria"
+                        placeholder="usuario"
                         value={indicadorInput}
                         onChange={(e) => setIndicadorInput(e.target.value)}
                         className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-8 pr-3 py-2.5 text-xs text-slate-100 font-mono focus:outline-none focus:border-amber-400 transition"
@@ -1018,26 +1301,25 @@ export default function App() {
                     )}
                     <span>{validatingIndicador ? 'Validando Indicador...' : 'Validar Indicador e Continuar'}</span>
                   </button>
-
-                  <div className="pt-1 text-center">
-                    <button
-                      type="button"
-                      onClick={() => handleEnterViaReferralLink()}
-                      className="text-[11px] text-emerald-400 hover:text-emerald-300 font-semibold underline transition block mx-auto text-balance"
-                    >
-                      🔗 Acessar com link de indicação (passa direto aos dados)
-                    </button>
-                  </div>
                 </form>
 
                 {/* Direct Login for already registered community members ONLY on Step 1 */}
-                <div className="pt-3 border-t border-slate-800 text-center">
+                <div className="pt-3 border-t border-slate-800 text-center space-y-2">
                   <button
                     type="button"
                     onClick={() => setShowDirectLoginModal(true)}
-                    className="text-[11px] text-slate-400 hover:text-emerald-400 transition text-balance"
+                    className="text-[11px] text-slate-400 hover:text-emerald-400 transition text-balance block w-full"
                   >
                     Já faz parte da comunidade? <strong className="underline text-slate-200">Clique para acessar sua conta</strong>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowRulesModal(true)}
+                    className="text-[11px] text-amber-400 hover:text-amber-300 font-medium transition flex items-center justify-center gap-1.5 mx-auto py-1"
+                  >
+                    <BookOpen className="w-3.5 h-3.5" />
+                    <span>Conhecer Regras e Dinâmica 1–2–4–8</span>
                   </button>
                 </div>
               </div>
@@ -1084,26 +1366,6 @@ export default function App() {
                       value={formLastName}
                       onChange={(e) => setFormLastName(e.target.value)}
                       className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 focus:outline-none focus:border-emerald-500"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-slate-300 mb-1 font-medium text-xs">
-                    Número de Telefone ou WhatsApp
-                  </label>
-                  <div className="relative">
-                    <Phone className="w-3.5 h-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
-                    <input
-                      type="tel"
-                      inputMode="numeric"
-                      autoComplete="tel"
-                      required
-                      maxLength={15}
-                      placeholder="(11) 98765-4321"
-                      value={formPhone}
-                      onChange={handlePhoneChange}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-100 font-mono focus:outline-none focus:border-emerald-500"
                     />
                   </div>
                 </div>
@@ -1166,11 +1428,36 @@ export default function App() {
                   >
                     <div>
                       <div className="font-bold text-slate-100">{u.full_name}</div>
-                      <div className="text-[10px] text-slate-400">@{u.username} · {u.phone || 'Sem telefone'}</div>
+                      <div className="text-[10px] text-slate-400">@{u.username}</div>
                     </div>
                     <span className="text-[10px] font-mono text-emerald-400 font-bold">{u.balance} sementes</span>
                   </button>
                 ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal: Regras e Como Funciona na Tela de Bloqueio */}
+        {showRulesModal && (
+          <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 animate-in fade-in">
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-lg w-full max-h-[88vh] flex flex-col shadow-2xl overflow-hidden">
+              <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/80 shrink-0">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs">
+                    📖
+                  </div>
+                  <h3 className="text-sm font-bold text-slate-100">Regras Oficiais & Dinâmica 1–2–4–8</h3>
+                </div>
+                <button
+                  onClick={() => setShowRulesModal(false)}
+                  className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="p-4 overflow-y-auto space-y-4">
+                {renderRulesContent()}
               </div>
             </div>
           </div>
@@ -1223,11 +1510,32 @@ export default function App() {
               </button>
 
               <button
-                onClick={fetchState}
+                onClick={() => fetchState(false)}
                 title="Recarregar dados"
                 className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+              </button>
+
+              <button
+                onClick={() => {
+                  fetchState(true);
+                  showToast('✓ Dados recarregados diretamente dos arquivos JSON estáticos!');
+                }}
+                title="Restaurar dados originais dos arquivos JSON do repositório"
+                className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-400 text-xs flex items-center gap-1 transition"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline text-[10px]">Reset JSON</span>
+              </button>
+
+              <button
+                onClick={() => setShowLandingPage(true)}
+                title="Página pública explicativa sobre as regras e dinâmica do jogo"
+                className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-teal-300 text-xs flex items-center gap-1 transition"
+              >
+                <BookOpen className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline text-[10px]">Como Funciona</span>
               </button>
             </div>
           </div>
@@ -1236,13 +1544,7 @@ export default function App() {
           <div className="flex items-center justify-between pt-1 border-t border-slate-800/80 text-[11px]">
             <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 w-full">
               <button
-                onClick={() => {
-                  setCurrentView('member');
-                  if (!currentUser || currentUser.role === 'admin') {
-                    const maria = allUsers.find(u => u.username === 'maria') || allUsers[1];
-                    setCurrentUser(maria);
-                  }
-                }}
+                onClick={() => setCurrentView('member')}
                 className={`flex-1 py-1 rounded-lg font-medium transition text-center flex items-center justify-center gap-1 ${
                   currentView === 'member'
                     ? 'bg-emerald-600 text-white shadow-sm'
@@ -1265,63 +1567,34 @@ export default function App() {
                 <span>Regras</span>
               </button>
 
-              <button
-                onClick={() => {
-                  setCurrentView('admin');
-                  const adminUser = allUsers.find(u => u.role === 'admin') || allUsers[0];
-                  setCurrentUser(adminUser);
-                }}
-                className={`flex-1 py-1 rounded-lg font-medium transition text-center flex items-center justify-center gap-1 ${
-                  currentView === 'admin'
-                    ? 'bg-amber-500 text-slate-950 font-bold shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <Shield className="w-3 h-3" />
-                <span>Organização</span>
-              </button>
-
-              <button
-                onClick={() => setCurrentView('preview')}
-                className={`py-1 px-2 rounded-lg font-medium transition text-center flex items-center justify-center gap-1 ${
-                  currentView === 'preview'
-                    ? 'bg-amber-500 text-slate-950 font-bold shadow-sm'
-                    : 'text-amber-400 hover:text-amber-200'
-                }`}
-              >
-                <Palette className="w-3 h-3" />
-                <span>Modelos</span>
-              </button>
+              {currentUser?.role === 'admin' && (
+                <button
+                  onClick={() => setCurrentView('admin')}
+                  className={`flex-1 py-1 rounded-lg font-medium transition text-center flex items-center justify-center gap-1 ${
+                    currentView === 'admin'
+                      ? 'bg-amber-500 text-slate-950 font-bold shadow-sm'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <Shield className="w-3 h-3" />
+                  <span>Organização</span>
+                </button>
+              )}
             </div>
           </div>
 
-          {/* Member Profile Switcher */}
+          {/* Member Profile Banner without dropdown */}
           {currentView === 'member' && currentUser && (
-            <div className="flex items-center justify-between bg-slate-950/80 px-2.5 py-1.5 rounded-xl border border-slate-800 text-[10px]">
+            <div className="flex items-center justify-between bg-slate-950/80 px-3 py-1.5 rounded-xl border border-slate-800 text-[10px]">
               <div className="flex items-center gap-1.5 truncate">
                 <span className="text-emerald-400 font-bold">Membro:</span>
                 <span className="text-slate-200 font-medium truncate">{currentUser.full_name || currentUser.username}</span>
                 <span className="text-slate-500">·</span>
                 <span className="text-emerald-400 font-mono font-bold flex items-center gap-0.5">
                   <Sprout className="w-3 h-3" />
-                  <span>{currentUser.balance}</span>
+                  <span>{currentUser.balance} sementes</span>
                 </span>
               </div>
-
-              <select
-                className="bg-slate-900 border border-slate-700 text-slate-200 rounded px-1.5 py-0.5 text-[9px] focus:outline-none"
-                value={currentUser.id}
-                onChange={(e) => {
-                  const selected = allUsers.find(u => u.id === parseInt(e.target.value));
-                  if (selected) setCurrentUser(selected);
-                }}
-              >
-                {allUsers.filter(u => u.id !== 1).map(u => (
-                  <option key={u.id} value={u.id}>
-                    {u.username === 'maria' ? 'Maria (Tronco)' : u.full_name} ({u.balance} sementes)
-                  </option>
-                ))}
-              </select>
             </div>
           )}
         </header>
@@ -1423,46 +1696,69 @@ export default function App() {
                     </div>
                   )}
 
-                  {/* Active Visual Model Indicator */}
-                  <div className="flex items-center justify-between bg-slate-900 border border-slate-800 p-2.5 rounded-2xl text-xs">
-                    <div className="flex items-center gap-2">
-                      <Palette className="w-4 h-4 text-amber-400" />
-                      <span className="text-slate-300 font-medium">Visualização:</span>
-                      <span className="font-bold text-amber-400 font-mono">
-                        {selectedTreeModel === 1 && 'Mandala Radial (Centro)'}
-                        {selectedTreeModel === 2 && 'Mapa Mental Bi-Lateral'}
-                        {selectedTreeModel === 3 && 'Árvore Botânica'}
-                        {selectedTreeModel === 4 && 'Flor Solar Radial'}
-                      </span>
-                    </div>
-
-                    <button
-                      onClick={() => setCurrentView('preview')}
-                      className="text-[11px] font-bold text-emerald-400 hover:underline flex items-center gap-1"
-                    >
-                      <span>Outros Modelos</span>
-                      <ArrowRight className="w-3 h-3" />
-                    </button>
-                  </div>
-
-                  {/* RENDER MODEL (Model 1 by default) */}
+                  {/* RENDER MODEL (Árvore Radial) */}
                   {renderActiveModel(memberPositions, currentUser.id)}
 
                   {/* If user is already positioned in tree */}
                   {isUserPositioned && (
-                    <div className="p-3 bg-emerald-950/40 border border-emerald-500/40 rounded-2xl flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-2">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                        <div>
-                          <span className="font-bold text-emerald-300">Posição Ativa na Árvore:</span>
-                          <span className="text-slate-300 ml-1">
-                            Você ocupa a <strong>vaga #{currentUser.current_position_index}</strong> da ramificação.
+                    <div className="space-y-2">
+                      <div className="p-3 bg-emerald-950/40 border border-emerald-500/40 rounded-2xl flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                          <div>
+                            <span className="font-bold text-emerald-300">Posição Ativa na Árvore:</span>
+                            <span className="text-slate-300 ml-1">
+                              Você ocupa a <strong>vaga #{currentUser.current_position_index}</strong> ({
+                                currentUser.current_position_index === 0
+                                  ? 'Nível 0 · Tronco'
+                                  : currentUser.current_position_index! <= 2
+                                  ? 'Nível 1 · Guardião'
+                                  : currentUser.current_position_index! <= 6
+                                  ? 'Nível 2 · Sub-ramo'
+                                  : 'Nível 3 · Folha Externa'
+                              }).
+                            </span>
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800 shrink-0">
+                          CONFIRMADO
+                        </span>
+                      </div>
+
+                      {/* Contextual Progression Card */}
+                      <div className="p-3 bg-slate-900 border border-slate-800 rounded-2xl space-y-1.5 text-xs">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-slate-200 flex items-center gap-1.5 text-[11px]">
+                            <TrendingUp className="w-3.5 h-3.5 text-amber-400" />
+                            <span>Sua Progressão na Dinâmica 1–2–4–8</span>
+                          </span>
+                          <span className="text-[10px] font-mono text-slate-400">
+                            Faltam {slotsRemaining} vagas externas
                           </span>
                         </div>
+                        <div className="text-[11px] text-slate-300 leading-relaxed">
+                          {currentUser.current_position_index === 0 && (
+                            <span>
+                              👑 <strong>Você é o Tronco da Vez:</strong> Quando todas as 8 vagas externas (7 a 14) forem preenchidas, você concluirá vitoriosamente seu ciclo e a árvore se dividirá em duas!
+                            </span>
+                          )}
+                          {(currentUser.current_position_index === 1 || currentUser.current_position_index === 2) && (
+                            <span>
+                              🛡️ <strong>Você está no Nível 1 (Guardião):</strong> Na próxima divisão desta árvore, você será promovido a <strong>TRONCO (Centro)</strong> da árvore filha {currentUser.current_position_index === 1 ? 'Esquerda' : 'Direita'}!
+                            </span>
+                          )}
+                          {currentUser.current_position_index! >= 3 && currentUser.current_position_index! <= 6 && (
+                            <span>
+                              🌱 <strong>Você está no Nível 2 (Sub-ramo):</strong> Na próxima divisão desta árvore, você subirá para o <strong>Nível 1 (Guardião)</strong> e ficará a um passo do Tronco!
+                            </span>
+                          )}
+                          {currentUser.current_position_index! >= 7 && currentUser.current_position_index! <= 14 && (
+                            <span>
+                              🍃 <strong>Você está no Nível 3 (Folha Externa):</strong> Na próxima divisão desta árvore quando as 8 vagas se completarem, você subirá para o <strong>Nível 2</strong>!
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800">
-                        CONFIRMADO
-                      </span>
                     </div>
                   )}
                 </div>
@@ -1496,7 +1792,7 @@ export default function App() {
                     </div>
 
                     <div className="p-2.5 bg-emerald-950/30 rounded-xl border border-emerald-900/40 text-[11px] text-emerald-300 leading-relaxed text-balance">
-                      💡 <strong>Objetivo Comunitário:</strong> Cada amigo indicado por você informa o seu indicador na tela de bloqueio e entra na base da <strong>sua árvore</strong>.
+                      💡 <strong>Objetivo Comunitário:</strong> Cada amigo convidado informa o identificador da árvore (a pessoa no centro) na tela de bloqueio e entra na base da <strong>sua árvore</strong>. O indicador pertence à árvore, não à pessoa individual.
                     </div>
                   </div>
 
@@ -1631,177 +1927,14 @@ export default function App() {
           {/* ======================================================== */}
           {currentView === 'public' && (
             <div className="space-y-4 animate-in fade-in duration-150">
-              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-2">
-                <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold uppercase tracking-wider">
-                  <BookOpen className="w-4 h-4" />
-                  <span>Guia Oficial do Jogo & Regras</span>
-                </div>
-                <h1 className="text-base font-bold text-slate-100 text-balance">
-                  Como Funciona o Jogo Comunitário Arboris?
-                </h1>
-                <p className="text-xs text-slate-400 leading-relaxed text-balance">
-                  Sistema comunitário independente baseado em árvores cooperativas de 15 posições e sementes virtuais gratuitas.
-                </p>
-              </div>
-
-              {/* Crucial Game Identity */}
-              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-2.5">
-                <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs">
-                  <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
-                  <span>100% RECREATIVO E COMUNITÁRIO (SEM DINHEIRO REAL)</span>
-                </div>
-                <p className="text-[11px] text-slate-300 leading-relaxed text-balance">
-                  O projeto utiliza princípios de mandalas circulares e mapas mentais de 15 posições, com uma distinção fundamental:
-                </p>
-                <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1.5 text-[11px]">
-                  <div className="flex items-start gap-2 text-rose-300">
-                    <span className="font-bold shrink-0">❌</span>
-                    <span className="text-balance"><strong>Sem dinheiro real:</strong> Não há depósitos, nem pagamentos bancários (PIX/TED), nem saques ou promessas de lucros financeiros.</span>
-                  </div>
-                  <div className="flex items-start gap-2 text-emerald-300">
-                    <span className="font-bold shrink-0">✅</span>
-                    <span className="text-balance"><strong>Sementes Virtuais Gratuitas:</strong> O participante recebe sementes sem custo algum para exercitar a lógica matemática de rotação e trabalho em equipe.</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* 4 Levels Anatomy */}
-              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-bold text-slate-200 flex items-center gap-1.5">
-                    <Layers className="w-4 h-4 text-emerald-400" />
-                    <span>A Estrutura dos 4 Níveis (15 Vagas)</span>
-                  </span>
-                  <span className="text-[10px] text-slate-500 font-mono">Tronco Central</span>
-                </div>
-
-                <div className="space-y-2 text-xs">
-                  <div className="p-2.5 bg-amber-950/40 border border-amber-500/50 rounded-xl flex items-start gap-2.5">
-                    <div className="w-7 h-7 rounded-lg bg-amber-500 text-slate-950 font-bold text-xs flex items-center justify-center shrink-0">
-                      👑
-                    </div>
-                    <div>
-                      <div className="font-bold text-amber-200">Nível 0 · O Tronco Central (1 Vaga)</div>
-                      <div className="text-[11px] text-slate-300 mt-0.5 leading-relaxed text-balance">
-                        É o <em>Participante da Vez</em> posicionado no coração da árvore. O objetivo de todos os jogadores é progredir até o Tronco para liderar a rodada.
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="p-2.5 bg-slate-950 border border-slate-800 rounded-xl flex items-start gap-2.5">
-                    <div className="w-7 h-7 rounded-lg bg-slate-800 text-slate-300 font-bold text-xs flex items-center justify-center shrink-0 font-mono">
-                      #1-2
-                    </div>
-                    <div>
-                      <div className="font-bold text-slate-200">Nível 1 · Ramos Primários (2 Vagas)</div>
-                      <div className="text-[11px] text-slate-400 mt-0.5 leading-relaxed text-balance">
-                        Os guardiões imediatos. Na divisão da árvore ao fim do ciclo, estes 2 participantes tornam-se os novos Troncos centrais das duas árvores!
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="p-2.5 bg-slate-950 border border-slate-800 rounded-xl flex items-start gap-2.5">
-                    <div className="w-7 h-7 rounded-lg bg-slate-800 text-slate-300 font-bold text-xs flex items-center justify-center shrink-0 font-mono">
-                      #3-6
-                    </div>
-                    <div>
-                      <div className="font-bold text-slate-200">Nível 2 · Sub-Ramos (4 Vagas)</div>
-                      <div className="text-[11px] text-slate-400 mt-0.5 leading-relaxed text-balance">
-                        Participantes intermediários que sobem para o Nível 1 na virada da rodada.
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="p-2.5 bg-slate-950 border border-slate-800 rounded-xl flex items-start gap-2.5">
-                    <div className="w-7 h-7 rounded-lg bg-emerald-950 border border-emerald-500/50 text-emerald-400 font-bold text-xs flex items-center justify-center shrink-0 font-mono">
-                      #7-14
-                    </div>
-                    <div>
-                      <div className="font-bold text-emerald-300">Nível 3 · Folhas da Base (8 Vagas)</div>
-                      <div className="text-[11px] text-slate-400 mt-0.5 leading-relaxed text-balance">
-                        Onde novos convidados entram através de indicação de quem está no meio da árvore e transferem suas 25 sementes para fortalecer o tronco.
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ======================================================== */}
-          {/* VIEW: PREVIEW DOS MODELOS */}
-          {/* ======================================================== */}
-          {currentView === 'preview' && (
-            <div className="space-y-4 animate-in fade-in duration-150">
-              <div className="bg-gradient-to-br from-amber-950/50 via-slate-900 to-amber-950/30 border border-amber-500/60 rounded-2xl p-4 space-y-2">
-                <div className="flex items-center gap-2 text-amber-400 text-xs font-bold uppercase tracking-wider">
-                  <Palette className="w-4 h-4" />
-                  <span>Galeria de Modelos de Visualização</span>
-                </div>
-                <h2 className="text-base font-bold text-slate-100 text-balance">
-                  Modelos de Exibição da Árvore
-                </h2>
-                <p className="text-xs text-slate-300 leading-relaxed text-balance">
-                  Todos os modelos mantêm o <strong>Tronco no CENTRO</strong> e as ramificações ao redor (estilo mandala / mapa mental).
-                </p>
-              </div>
-
-              {/* MODEL 1 */}
-              <div className={`space-y-2 p-3 rounded-2xl border transition ${
-                selectedTreeModel === 1 ? 'border-amber-500/80 bg-amber-950/10' : 'border-slate-800 bg-slate-900/50'
-              }`}>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-100 flex items-center gap-1.5">
-                    <span className="w-5 h-5 rounded-full bg-amber-500 text-slate-950 font-bold text-[10px] flex items-center justify-center font-mono">1</span>
-                    <span>Modelo 1: Mandala Radial Orgânica (Padrão Escolhido)</span>
-                  </span>
-                  <button
-                    onClick={() => {
-                      setSelectedTreeModel(1);
-                      showToast('✓ Modelo 1 (Mandala Radial) selecionado!');
-                      setCurrentView('member');
-                    }}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shrink-0 ${
-                      selectedTreeModel === 1 ? 'bg-emerald-600 text-white' : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
-                    }`}
-                  >
-                    {selectedTreeModel === 1 ? '✓ Ativo' : 'Escolher'}
-                  </button>
-                </div>
-                {renderModel1Mandala(memberPositions, currentUser?.id)}
-              </div>
-
-              {/* MODEL 2 */}
-              <div className={`space-y-2 p-3 rounded-2xl border transition ${
-                selectedTreeModel === 2 ? 'border-amber-500/80 bg-amber-950/10' : 'border-slate-800 bg-slate-900/50'
-              }`}>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-100 flex items-center gap-1.5">
-                    <span className="w-5 h-5 rounded-full bg-amber-500 text-slate-950 font-bold text-[10px] flex items-center justify-center font-mono">2</span>
-                    <span>Modelo 2: Mapa Mental Bi-Lateral</span>
-                  </span>
-                  <button
-                    onClick={() => {
-                      setSelectedTreeModel(2);
-                      showToast('✓ Modelo 2 selecionado!');
-                      setCurrentView('member');
-                    }}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shrink-0 ${
-                      selectedTreeModel === 2 ? 'bg-emerald-600 text-white' : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
-                    }`}
-                  >
-                    {selectedTreeModel === 2 ? '✓ Ativo' : 'Escolher'}
-                  </button>
-                </div>
-                {renderModel2MindMap(memberPositions, currentUser?.id)}
-              </div>
+              {renderRulesContent()}
             </div>
           )}
 
           {/* ======================================================== */}
           {/* VIEW: PAINEL DE ORGANIZAÇÃO (GESTÃO COMUNITÁRIA) */}
           {/* ======================================================== */}
-          {currentView === 'admin' && (
+          {currentView === 'admin' && currentUser?.role === 'admin' && (
             <div className="space-y-4 animate-in fade-in duration-150">
               <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 flex items-center justify-between text-xs">
                 <div>
@@ -1932,7 +2065,7 @@ export default function App() {
                         <div className="flex items-center justify-between">
                           <div>
                             <div className="font-bold text-slate-100">{user.full_name || user.username}</div>
-                            <div className="text-[10px] text-slate-400">@{user.username} · {user.phone || 'Sem telefone'}</div>
+                            <div className="text-[10px] text-slate-400">@{user.username}</div>
                           </div>
                           <div className="text-right font-mono">
                             <span className="font-bold text-emerald-400">{user.balance}</span>
@@ -2057,13 +2190,7 @@ export default function App() {
         {/* Persistent Bottom Bar */}
         <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-slate-900/95 backdrop-blur border-t border-slate-800 flex items-center justify-around py-2 px-1 z-40">
           <button
-            onClick={() => {
-              setCurrentView('member');
-              if (!currentUser || currentUser.role === 'admin') {
-                const maria = allUsers.find(u => u.username === 'maria') || allUsers[1];
-                setCurrentUser(maria);
-              }
-            }}
+            onClick={() => setCurrentView('member')}
             className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition ${
               currentView === 'member' ? 'text-emerald-400 font-bold' : 'text-slate-400 hover:text-slate-200'
             }`}
@@ -2082,29 +2209,17 @@ export default function App() {
             <span className="text-[10px]">Regras</span>
           </button>
 
-          <button
-            onClick={() => {
-              setCurrentView('admin');
-              const adminUser = allUsers.find(u => u.role === 'admin') || allUsers[0];
-              setCurrentUser(adminUser);
-            }}
-            className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition ${
-              currentView === 'admin' ? 'text-amber-400 font-bold' : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Shield className="w-5 h-5" />
-            <span className="text-[10px]">Organização</span>
-          </button>
-
-          <button
-            onClick={() => setCurrentView('preview')}
-            className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition ${
-              currentView === 'preview' ? 'text-amber-400 font-bold' : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Palette className="w-5 h-5" />
-            <span className="text-[10px]">Modelos</span>
-          </button>
+          {currentUser?.role === 'admin' && (
+            <button
+              onClick={() => setCurrentView('admin')}
+              className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition ${
+                currentView === 'admin' ? 'text-amber-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Shield className="w-5 h-5" />
+              <span className="text-[10px]">Organização</span>
+            </button>
+          )}
         </nav>
       </div>
 

@@ -1,6 +1,8 @@
 {
-  "name": "Arboris - Sistema de Árvores & Fichas Virtuais",
-  "description": "Sistema de jogo gratuito baseado em árvores de 15 posições e fichas virtuais, projetado com máxima eficiência e integridade transacional para VPS de 512 MB.",
+  "name": "Remix Remix EcoTree Game",
+  "description": "Lightweight web game using PHP, SQLite, and Vanilla JS, optimized for performance on minimal 512MB RAM Linux servers.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

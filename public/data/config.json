@@ -1,0 +1,33 @@
+{
+  "systemMode": "active",
+  "initialSeedsGrant": 25,
+  "transferAmount": 25,
+  "treeSplitPolicy": "tree_split_1_2_4_8",
+  "maxTreesPerUser": 1,
+  "categories": [
+    {
+      "id": 1,
+      "code": "cat_25",
+      "name": "Categoria 25 Sementes",
+      "tokenRequirement": 25,
+      "isActive": true,
+      "description": "Árvore comunitária recreativa com ciclo de 25 sementes"
+    },
+    {
+      "id": 2,
+      "code": "cat_50",
+      "name": "Categoria 50 Sementes",
+      "tokenRequirement": 50,
+      "isActive": true,
+      "description": "Árvore comunitária recreativa com ciclo de 50 sementes"
+    },
+    {
+      "id": 3,
+      "code": "cat_100",
+      "name": "Categoria 100 Sementes",
+      "tokenRequirement": 100,
+      "isActive": true,
+      "description": "Árvore comunitária recreativa com ciclo de 100 sementes"
+    }
+  ]
+}

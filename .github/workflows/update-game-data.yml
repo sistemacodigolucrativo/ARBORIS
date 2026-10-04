@@ -1,0 +1,62 @@
+name: Update Game Data
+
+on:
+  workflow_dispatch:
+    inputs:
+      action_payload:
+        description: 'JSON payload com a ação do jogo validada'
+        required: true
+        type: string
+
+# Previne gravações concorrentes em arquivos JSON simultâneos
+concurrency:
+  group: game-json-write
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  process-action:
+    name: Validar Regras e Gravar Dados do Jogo
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repositório
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 1
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Instalar Dependências
+        run: npm ci || npm install
+
+      - name: Executar Processador do Motor do Jogo
+        id: run_engine
+        env:
+          GAME_ACTION_PAYLOAD: ${{ github.event.inputs.action_payload }}
+        run: |
+          npx tsx scripts/process-game-action.ts
+
+      - name: Fazer Build Estático dos Dados para o GitHub Pages
+        run: |
+          npm run build
+
+      - name: Commit e Push das Alterações
+        run: |
+          git config --global user.name "Arboris Bot"
+          git config --global user.email "bot@arboris.local"
+          git add data/ public/data/
+          if git diff --staged --quiet; then
+            echo "Nenhuma alteração nos dados para commitar."
+          else
+            COMMIT_MSG="${{ steps.run_engine.outputs.commit_message || '[game-data] atualizar dados do jogo' }}"
+            git commit -m "$COMMIT_MSG"
+            git push origin HEAD
+          fi

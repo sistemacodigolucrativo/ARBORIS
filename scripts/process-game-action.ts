@@ -1,14 +1,27 @@
 import fs from 'fs';
 import path from 'path';
-import { GameDatabaseState } from '../src/types/game';
+import { GameDatabaseState, User } from '../src/types/game';
 import {
   createParticipant,
   strengthenTronco,
   transferSeeds
 } from '../src/services/gameEngine';
+import {
+  archiveTreeByAdmin,
+  assignTreePositionByAdmin,
+  clearTreePositionByAdmin,
+  createTreeByAdmin
+} from '../src/services/adminGameEngine';
 
 interface ActionPayload {
-  action: 'register_participant' | 'strengthen_tronco' | 'transfer_seeds';
+  action:
+    | 'register_participant'
+    | 'strengthen_tronco'
+    | 'transfer_seeds'
+    | 'create_tree'
+    | 'archive_tree'
+    | 'assign_tree_position'
+    | 'clear_tree_position';
   params: any;
   idempotencyKey: string;
 }
@@ -48,6 +61,40 @@ function saveState(state: GameDatabaseState) {
   }
 }
 
+function parseAllowedAdminActors(): string[] {
+  return (process.env.ARBORIS_ADMIN_GITHUB_ACTORS || '')
+    .split(',')
+    .map(actor => actor.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function resolveAdminActor(state: GameDatabaseState, requestActor: string | null): User {
+  const allowedActors = parseAllowedAdminActors();
+  if (requestActor && allowedActors.length > 0 && !allowedActors.includes(requestActor.toLowerCase())) {
+    throw new Error(`Ator GitHub @${requestActor} não está autorizado para ações administrativas.`);
+  }
+
+  if (requestActor) {
+    const boundAdmin = state.users.find(user =>
+      user.role === 'admin'
+      && user.status === 'active'
+      && user.githubActor?.toLowerCase() === requestActor.toLowerCase()
+    );
+    if (boundAdmin) return boundAdmin;
+  }
+
+  const fallbackAdmin = state.users.find(user => user.role === 'admin' && user.status === 'active');
+  if (!fallbackAdmin) {
+    throw new Error('Nenhum admin ativo encontrado no JSON de usuários.');
+  }
+
+  if (requestActor && allowedActors.length === 0 && !fallbackAdmin.githubActor) {
+    throw new Error('Ações administrativas exigem ARBORIS_ADMIN_GITHUB_ACTORS ou githubActor vinculado ao usuário admin.');
+  }
+
+  return fallbackAdmin;
+}
+
 async function main() {
   const payloadRaw = process.env.GAME_ACTION_PAYLOAD || process.argv[2];
   if (!payloadRaw) {
@@ -60,6 +107,11 @@ async function main() {
     payload = JSON.parse(payloadRaw);
   } catch (err: any) {
     console.error('ERRO: JSON de payload inválido:', err.message);
+    process.exit(1);
+  }
+
+  if (!payload.idempotencyKey || typeof payload.idempotencyKey !== 'string') {
+    console.error('ERRO: idempotencyKey obrigatória.');
     process.exit(1);
   }
 
@@ -127,6 +179,75 @@ async function main() {
       break;
     }
 
+    case 'create_tree': {
+      const admin = resolveAdminActor(state, requestActor);
+      const res = createTreeByAdmin(state, {
+        categoryId: Number(payload.params.categoryId),
+        troncoUserId: Number(payload.params.troncoUserId),
+        actor: { actorUserId: admin.id, actorUsername: admin.username, githubActor: requestActor },
+        idempotencyKey: payload.idempotencyKey
+      });
+      if (!res.success) {
+        console.error(`ERRO: Criação administrativa de árvore rejeitada: ${res.error}`);
+        process.exit(1);
+      }
+      resultState = res.state;
+      commitMessage = `[game-data] admin criou árvore ${res.result!.tree.treeCode}`;
+      break;
+    }
+
+    case 'archive_tree': {
+      const admin = resolveAdminActor(state, requestActor);
+      const res = archiveTreeByAdmin(state, {
+        treeId: Number(payload.params.treeId),
+        reason: payload.params.reason,
+        actor: { actorUserId: admin.id, actorUsername: admin.username, githubActor: requestActor },
+        idempotencyKey: payload.idempotencyKey
+      });
+      if (!res.success) {
+        console.error(`ERRO: Arquivamento administrativo rejeitado: ${res.error}`);
+        process.exit(1);
+      }
+      resultState = res.state;
+      commitMessage = `[game-data] admin arquivou árvore #${payload.params.treeId}`;
+      break;
+    }
+
+    case 'assign_tree_position': {
+      const admin = resolveAdminActor(state, requestActor);
+      const res = assignTreePositionByAdmin(state, {
+        treeId: Number(payload.params.treeId),
+        positionIndex: Number(payload.params.positionIndex),
+        userId: Number(payload.params.userId),
+        actor: { actorUserId: admin.id, actorUsername: admin.username, githubActor: requestActor },
+        idempotencyKey: payload.idempotencyKey
+      });
+      if (!res.success) {
+        console.error(`ERRO: Atribuição administrativa de posição rejeitada: ${res.error}`);
+        process.exit(1);
+      }
+      resultState = res.state;
+      commitMessage = `[game-data] admin atribuiu usuário #${payload.params.userId} à árvore #${payload.params.treeId} posição #${payload.params.positionIndex}`;
+      break;
+    }
+
+    case 'clear_tree_position': {
+      const admin = resolveAdminActor(state, requestActor);
+      const res = clearTreePositionByAdmin(state, {
+        treeId: Number(payload.params.treeId),
+        positionIndex: Number(payload.params.positionIndex),
+        actor: { actorUserId: admin.id, actorUsername: admin.username, githubActor: requestActor },
+        idempotencyKey: payload.idempotencyKey
+      });
+      if (!res.success) {
+        console.error(`ERRO: Liberação administrativa de posição rejeitada: ${res.error}`);
+        process.exit(1);
+      }
+      resultState = res.state;
+      commitMessage = `[game-data] admin liberou árvore #${payload.params.treeId} posição #${payload.params.positionIndex}`;
+      break;
+    }
+
     default:
       console.error(`Ação desconhecida: ${(payload as any).action}`);
       process.exit(1);
@@ -135,7 +256,6 @@ async function main() {
   saveState(resultState);
   console.log(`✓ Ação concluída com sucesso: ${commitMessage}`);
 
-  // If in GitHub Actions, set output
   if (process.env.GITHUB_OUTPUT) {
     fs.appendFileSync(process.env.GITHUB_OUTPUT, `commit_message=${commitMessage}\n`);
   }

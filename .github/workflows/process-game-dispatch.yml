@@ -1,0 +1,85 @@
+name: Process Game Dispatch
+
+on:
+  workflow_dispatch:
+    inputs:
+      payload:
+        description: JSON payload da ação Arboris
+        required: true
+        type: string
+      actor:
+        description: Conta GitHub autorizada que originou a ação
+        required: true
+        default: sistemacodigolucrativo
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: game-json-write
+  cancel-in-progress: false
+
+jobs:
+  process-game-dispatch:
+    name: Processar ação automática do jogo
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci || npm install
+
+      - name: Validate dispatch payload
+        env:
+          ACTION_PAYLOAD: ${{ inputs.payload }}
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const payload = JSON.parse(process.env.ACTION_PAYLOAD || '{}');
+          const allowed = new Set(['create_tree']);
+
+          if (!allowed.has(payload.action)) {
+            throw new Error(`Ação não permitida pelo dispatcher automático: ${payload.action}`);
+          }
+
+          if (!payload.idempotencyKey || typeof payload.idempotencyKey !== 'string') {
+            throw new Error('idempotencyKey obrigatória.');
+          }
+
+          fs.writeFileSync('.github-action-payload.json', JSON.stringify(payload), 'utf8');
+          NODE
+
+      - name: Validate and update JSON database
+        id: run_engine
+        env:
+          GITHUB_REQUEST_ACTOR: ${{ inputs.actor }}
+          ARBORIS_ADMIN_GITHUB_ACTORS: ${{ vars.ARBORIS_ADMIN_GITHUB_ACTORS }}
+        run: |
+          GAME_ACTION_PAYLOAD="$(cat .github-action-payload.json)" npx tsx scripts/process-game-action.ts
+
+      - name: Commit JSON database changes
+        id: commit_data
+        run: |
+          git config --global user.name "Arboris Bot"
+          git config --global user.email "bot@arboris.local"
+          git add data/ public/data/
+          if git diff --staged --quiet; then
+            echo "committed=false" >> "$GITHUB_OUTPUT"
+          else
+            COMMIT_MSG="${{ steps.run_engine.outputs.commit_message || '[game-data] atualizar dados do jogo' }}"
+            git commit -m "$COMMIT_MSG"
+            git push origin HEAD
+            echo "committed=true" >> "$GITHUB_OUTPUT"
+          fi

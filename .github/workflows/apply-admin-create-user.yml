@@ -1,0 +1,41 @@
+name: Apply Admin Create User Patch
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - scripts/apply-admin-create-user.py
+      - .github/workflows/apply-admin-create-user.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-admin-create-user
+  cancel-in-progress: true
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Apply patch
+        run: python scripts/apply-admin-create-user.py
+
+      - name: Commit patched App
+        run: |
+          if git diff --quiet -- src/App.tsx; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/App.tsx
+          git commit -m "feat: add admin user creation flow"
+          git push

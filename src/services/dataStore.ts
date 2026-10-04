@@ -18,7 +18,7 @@ const REPOSITORY = 'sistemacodigolucrativo/ARBORIS';
 const ISSUE_URL = `https://github.com/${REPOSITORY}/issues/new`;
 
 type OnlineActionPayload = {
-  action: 'register_participant' | 'strengthen_tronco';
+  action: 'register_participant' | 'strengthen_tronco' | 'create_tree' | 'archive_tree' | 'assign_tree_position' | 'clear_tree_position';
   params: Record<string, unknown>;
   idempotencyKey: string;
 };
@@ -243,78 +243,59 @@ class DataStoreService {
   }
 
   /**
-   * Admin: Creates a new community tree manually.
+   * Admin: creates a new tree through the online JSON workflow.
    */
   async createTreeAction(categoryId: number, troncoUserId: number) {
     if (!this.state) await this.loadState();
-    const tronco = this.state!.users.find(u => u.id === troncoUserId);
-    if (!tronco) return { success: false, error: 'Tronco não encontrado.' };
-
-    const category = this.state!.config.categories.find(c => c.id === categoryId);
-    if (!category) return { success: false, error: 'Categoria não encontrada.' };
-
-    const newTreeId = Math.max(0, ...this.state!.trees.map(t => t.id)) + 1;
-    const now = new Date().toISOString();
-
-    const positions = TOPOLOGY.map(topo => {
-      if (topo.index === 0) {
-        return {
-          index: 0,
-          level: 0,
-          side: topo.side,
-          userId: tronco.id,
-          status: 'occupied' as const,
-          occupiedAt: now,
-          username: tronco.username,
-          name: tronco.name
-        };
-      }
-      return {
-        index: topo.index,
-        level: topo.level,
-        side: topo.side,
-        userId: null,
-        status: 'vacant' as const,
-        occupiedAt: null,
-        username: null,
-        name: null
-      };
-    });
-
-    const newTree: Tree = {
-      id: newTreeId,
-      categoryId,
-      treeCode: `ARB-TREE-${category.tokenRequirement}-${String(newTreeId).padStart(3, '0')}`,
-      troncoUserId,
-      status: 'active',
-      cycleNumber: 1,
-      parentTreeId: null,
-      positions,
-      createdAt: now,
-      completedAt: null
+    const tronco = this.state!.users.find(u => u.id === troncoUserId && u.status === 'active');
+    if (!tronco) return { success: false, error: 'Tronco não encontrado ou inativo.' };
+    const category = this.state!.config.categories.find(c => c.id === categoryId && c.isActive);
+    if (!category) return { success: false, error: 'Categoria não encontrada ou inativa.' };
+    const payload: OnlineActionPayload = {
+      action: 'create_tree',
+      params: { categoryId, troncoUserId },
+      idempotencyKey: this.createIdempotencyKey(`admin_create_tree_${categoryId}_${troncoUserId}`)
     };
+    return { success: true, result: { request_url: this.createGameActionIssueUrl(payload), idempotency_key: payload.idempotencyKey } };
+  }
 
-    this.state!.trees.push(newTree);
+  async archiveTreeAction(treeId: number, reason: string) {
+    if (!this.state) await this.loadState();
+    const tree = this.state!.trees.find(t => t.id === treeId);
+    if (!tree) return { success: false, error: 'Árvore não encontrada.' };
+    if (tree.status !== 'active') return { success: false, error: 'Somente árvores ativas podem ser arquivadas.' };
+    const payload: OnlineActionPayload = {
+      action: 'archive_tree',
+      params: { treeId, reason: reason || 'Arquivamento administrativo' },
+      idempotencyKey: this.createIdempotencyKey(`admin_archive_tree_${treeId}`)
+    };
+    return { success: true, result: { request_url: this.createGameActionIssueUrl(payload), idempotency_key: payload.idempotencyKey } };
+  }
 
-    // Referral link for new tree
-    const nextRefId = Math.max(0, ...this.state!.referrals.map(r => r.id)) + 1;
-    const refToken = `ref_${newTree.treeCode.toLowerCase()}_${Math.random().toString(36).substring(2, 10)}`;
-    this.state!.referrals.push({
-      id: nextRefId,
-      referrerUserId: troncoUserId,
-      referredUserId: null,
-      treeId: newTreeId,
-      token: refToken,
-      clicks: 0,
-      registrationsCount: 0,
-      isActive: true,
-      createdAt: now
-    });
+  async assignTreePositionAction(treeId: number, positionIndex: number, userId: number) {
+    if (!this.state) await this.loadState();
+    const tree = this.state!.trees.find(t => t.id === treeId && t.status === 'active');
+    if (!tree) return { success: false, error: 'Árvore ativa não encontrada.' };
+    const user = this.state!.users.find(u => u.id === userId && u.status === 'active');
+    if (!user) return { success: false, error: 'Membro ativo não encontrado.' };
+    const payload: OnlineActionPayload = {
+      action: 'assign_tree_position',
+      params: { treeId, positionIndex, userId },
+      idempotencyKey: this.createIdempotencyKey(`admin_assign_tree_${treeId}_${positionIndex}_${userId}`)
+    };
+    return { success: true, result: { request_url: this.createGameActionIssueUrl(payload), idempotency_key: payload.idempotencyKey } };
+  }
 
-    this.saveToStorage();
-    this.notify();
-
-    return { success: true, treeId: newTreeId };
+  async clearTreePositionAction(treeId: number, positionIndex: number) {
+    if (!this.state) await this.loadState();
+    const tree = this.state!.trees.find(t => t.id === treeId && t.status === 'active');
+    if (!tree) return { success: false, error: 'Árvore ativa não encontrada.' };
+    const payload: OnlineActionPayload = {
+      action: 'clear_tree_position',
+      params: { treeId, positionIndex },
+      idempotencyKey: this.createIdempotencyKey(`admin_clear_tree_${treeId}_${positionIndex}`)
+    };
+    return { success: true, result: { request_url: this.createGameActionIssueUrl(payload), idempotency_key: payload.idempotencyKey } };
   }
 
   /**

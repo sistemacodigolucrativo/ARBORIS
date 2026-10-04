@@ -1,6 +1,6 @@
 export type UserRole = 'participant' | 'admin';
 export type UserStatus = 'active' | 'blocked';
-export type TreeStatus = 'active' | 'completed';
+export type TreeStatus = 'active' | 'completed' | 'archived';
 export type PositionSide = 'root' | 'left' | 'right';
 export type LedgerEntryType = 'CONCESSAO_INICIAL_SEMENTES' | 'FORTALECIMENTO_TRONCO' | 'AJUSTE_ADMINISTRATIVO';
 

@@ -1,1 +1,109 @@
 @import "tailwindcss";
+
+/*
+  ARBORIS visual policy: mobile is the canonical layout.
+  Anything intentionally hidden on mobile must remain hidden on tablet/desktop.
+  Breakpoint utilities that create wider tablet/desktop-only layouts are neutralized
+  so the same mobile column model is preserved across all viewport widths.
+*/
+@layer utilities {
+  @media (min-width: 640px) {
+    .hidden[class~="sm:inline"],
+    .hidden[class~="sm:block"],
+    .hidden[class~="sm:flex"],
+    .hidden[class~="sm:inline-flex"],
+    .hidden[class~="sm:grid"] {
+      display: none !important;
+    }
+
+    [class~="sm:grid-cols-2"],
+    [class~="sm:grid-cols-3"],
+    [class~="sm:grid-cols-4"] {
+      grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
+    }
+
+    [class~="sm:flex-row"] {
+      flex-direction: column !important;
+    }
+  }
+
+  @media (min-width: 768px) {
+    .hidden[class~="md:inline"],
+    .hidden[class~="md:block"],
+    .hidden[class~="md:flex"],
+    .hidden[class~="md:inline-flex"],
+    .hidden[class~="md:grid"] {
+      display: none !important;
+    }
+
+    [class~="md:grid-cols-2"],
+    [class~="md:grid-cols-3"],
+    [class~="md:grid-cols-4"] {
+      grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
+    }
+
+    [class~="md:flex-row"] {
+      flex-direction: column !important;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .hidden[class~="lg:inline"],
+    .hidden[class~="lg:block"],
+    .hidden[class~="lg:flex"],
+    .hidden[class~="lg:inline-flex"],
+    .hidden[class~="lg:grid"] {
+      display: none !important;
+    }
+
+    [class~="lg:grid-cols-2"],
+    [class~="lg:grid-cols-3"],
+    [class~="lg:grid-cols-4"] {
+      grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
+    }
+
+    [class~="lg:flex-row"] {
+      flex-direction: column !important;
+    }
+  }
+
+  @media (min-width: 1280px) {
+    .hidden[class~="xl:inline"],
+    .hidden[class~="xl:block"],
+    .hidden[class~="xl:flex"],
+    .hidden[class~="xl:inline-flex"],
+    .hidden[class~="xl:grid"] {
+      display: none !important;
+    }
+
+    [class~="xl:grid-cols-2"],
+    [class~="xl:grid-cols-3"],
+    [class~="xl:grid-cols-4"] {
+      grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
+    }
+
+    [class~="xl:flex-row"] {
+      flex-direction: column !important;
+    }
+  }
+
+  @media (min-width: 1536px) {
+    .hidden[class~="2xl:inline"],
+    .hidden[class~="2xl:block"],
+    .hidden[class~="2xl:flex"],
+    .hidden[class~="2xl:inline-flex"],
+    .hidden[class~="2xl:grid"] {
+      display: none !important;
+    }
+
+    [class~="2xl:grid-cols-2"],
+    [class~="2xl:grid-cols-3"],
+    [class~="2xl:grid-cols-4"] {
+      grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
+    }
+
+    [class~="2xl:flex-row"] {
+      flex-direction: column !important;
+    }
+  }
+}

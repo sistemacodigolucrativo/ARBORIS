@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /*
-  ARBORIS visual policy: mobile is the canonical layout.
+  ARBORIS visual policy fallback: mobile is the canonical layout.
   Anything intentionally hidden on mobile must remain hidden on tablet/desktop.
   Breakpoint utilities that create wider tablet/desktop-only layouts are neutralized
   so the same mobile column model is preserved across all viewport widths.

@@ -127,10 +127,43 @@ interface Setting {
   description: string;
 }
 
+type StoredUiState = {
+  showLandingPage?: boolean;
+  isLocked?: boolean;
+  currentView?: 'member' | 'public' | 'admin';
+  selectedTreeModel?: number;
+  memberTab?: 'my_tree' | 'marketing' | 'wallet';
+  adminTab?: 'global_trees' | 'create_user' | 'members' | 'settings' | 'audit';
+  selectedAdminTreeId?: number;
+  currentUser?: User | null;
+};
+
+const ARBORIS_UI_STATE_KEY = 'arboris_ui_state_v1';
+
+const readStoredUiState = (): StoredUiState => {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = window.localStorage.getItem(ARBORIS_UI_STATE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+};
+
+const persistStoredUiState = (state: StoredUiState) => {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(ARBORIS_UI_STATE_KEY, JSON.stringify(state));
+  } catch {
+    // Storage may be unavailable in private browsing; ignore gracefully.
+  }
+};
+
 export default function App() {
+  const initialUiState = readStoredUiState();
   // Public landing page is the default entry point!
-  const [showLandingPage, setShowLandingPage] = useState<boolean>(true);
-  const [isLocked, setIsLocked] = useState<boolean>(false);
+  const [showLandingPage, setShowLandingPage] = useState<boolean>(() => initialUiState.showLandingPage ?? true);
+  const [isLocked, setIsLocked] = useState<boolean>(() => initialUiState.isLocked ?? false);
   
   // Lock Screen state
   const [indicadorInput, setIndicadorInput] = useState<string>('');
@@ -147,19 +180,28 @@ export default function App() {
   const [activatingTronco, setActivatingTronco] = useState<boolean>(false);
 
   // Navigation: member, public, admin
-  const [currentView, setCurrentView] = useState<'member' | 'public' | 'admin'>('member');
+  const [currentView, setCurrentView] = useState<'member' | 'public' | 'admin'>(() => {
+    const stored = initialUiState.currentView;
+    return stored === 'member' || stored === 'public' || stored === 'admin' ? stored : 'member';
+  });
   
   // Selected tree visual model: Default is Model 1 (Árvore Radial Orgânica)
-  const [selectedTreeModel, setSelectedTreeModel] = useState<number>(1);
+  const [selectedTreeModel, setSelectedTreeModel] = useState<number>(() => initialUiState.selectedTreeModel ?? 1);
 
   // Member sub-tabs: tree, marketing, wallet
-  const [memberTab, setMemberTab] = useState<'my_tree' | 'marketing' | 'wallet'>('my_tree');
+  const [memberTab, setMemberTab] = useState<'my_tree' | 'marketing' | 'wallet'>(() => {
+    const stored = initialUiState.memberTab;
+    return stored === 'my_tree' || stored === 'marketing' || stored === 'wallet' ? stored : 'my_tree';
+  });
   
   // Admin sub-tabs: global_trees, members, settings, audit
-  const [adminTab, setAdminTab] = useState<'global_trees' | 'create_user' | 'members' | 'settings' | 'audit'>('global_trees');
+  const [adminTab, setAdminTab] = useState<'global_trees' | 'create_user' | 'members' | 'settings' | 'audit'>(() => {
+    const stored = initialUiState.adminTab;
+    return stored === 'global_trees' || stored === 'create_user' || stored === 'members' || stored === 'settings' || stored === 'audit' ? stored : 'global_trees';
+  });
   
   // Simulated logged-in user
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(() => initialUiState.currentUser ?? null);
 
   // System state from API
   const [systemState, setSystemState] = useState<any>(null);
@@ -172,7 +214,7 @@ export default function App() {
 
   // Inspector & modal states
   const [selectedNode, setSelectedNode] = useState<Position | null>(null);
-  const [selectedAdminTreeId, setSelectedAdminTreeId] = useState<number>(1);
+  const [selectedAdminTreeId, setSelectedAdminTreeId] = useState<number>(() => initialUiState.selectedAdminTreeId ?? 1);
   const [showCreateTreeModal, setShowCreateTreeModal] = useState<boolean>(false);
   const [showDirectLoginModal, setShowDirectLoginModal] = useState<boolean>(false);
   const [showRulesModal, setShowRulesModal] = useState<boolean>(false);
@@ -188,6 +230,9 @@ export default function App() {
   const [adminCreateLastName, setAdminCreateLastName] = useState<string>('');
   const [adminCreateUserLoading, setAdminCreateUserLoading] = useState<boolean>(false);
   const [adminCreateUserError, setAdminCreateUserError] = useState<string | null>(null);
+  const [adminSelectedUserId, setAdminSelectedUserId] = useState<number>(2);
+  const [adminActionLoading, setAdminActionLoading] = useState<boolean>(false);
+  const [adminActionMessage, setAdminActionMessage] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -219,6 +264,19 @@ export default function App() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    persistStoredUiState({
+      showLandingPage,
+      isLocked,
+      currentView,
+      selectedTreeModel,
+      memberTab,
+      adminTab,
+      selectedAdminTreeId,
+      currentUser
+    });
+  }, [showLandingPage, isLocked, currentView, selectedTreeModel, memberTab, adminTab, selectedAdminTreeId, currentUser]);
 
   useEffect(() => {
     fetchState();
@@ -406,15 +464,94 @@ export default function App() {
     e.preventDefault();
     try {
       const res = await dataStore.createTreeAction(newTreeCatId, newTreeTroncoId);
-      if (res.success) {
-        showToast(`✓ Nova árvore comunitária criada com sucesso (#${res.treeId})!`);
+      if (res.success && res.result?.request_url) {
+        openActionRequest(res.result.request_url);
         setShowCreateTreeModal(false);
-        await fetchState();
+        showToast('Solicitação de criação de árvore aberta no GitHub. Envie a issue para a Action validar e gravar nos JSONs.');
       } else {
-        showToast('Erro: ' + res.error);
+        showToast('Erro: ' + (res.error || 'Não foi possível criar a solicitação da árvore.'));
       }
     } catch (e: any) {
       showToast('Erro: ' + e.message);
+    }
+  };
+
+  const openAdminOnlineAction = (res: any, successMessage: string) => {
+    if (res.success && res.result?.request_url) {
+      openActionRequest(res.result.request_url);
+      setAdminActionMessage('Solicitação online aberta no GitHub. Envie a issue para a Action validar e gravar a alteração nos JSONs.');
+      showToast(successMessage);
+      return;
+    }
+
+    const error = res.error || 'Não foi possível criar a solicitação administrativa.';
+    setAdminActionMessage(error);
+    showToast('Erro: ' + error);
+  };
+
+  const handleArchiveSelectedTree = async () => {
+    if (!adminTree) return;
+    if (adminTree.status !== 'active') {
+      showToast('Somente árvores ativas podem ser arquivadas.');
+      return;
+    }
+    if (!window.confirm(`Arquivar a árvore ${adminTree.tree_code}? O histórico será preservado.`)) return;
+
+    setAdminActionLoading(true);
+    setAdminActionMessage(null);
+    try {
+      const res = await dataStore.archiveTreeAction(adminTree.id, 'Arquivamento administrativo pelo painel');
+      openAdminOnlineAction(res, 'Solicitação de arquivamento aberta.');
+    } catch (e: any) {
+      setAdminActionMessage('Erro ao arquivar árvore: ' + e.message);
+      showToast('Erro: ' + e.message);
+    } finally {
+      setAdminActionLoading(false);
+    }
+  };
+
+  const handleAssignSelectedNode = async () => {
+    if (!adminTree || !selectedNode) return;
+    if (selectedNode.position_index === 0) {
+      showToast('O tronco não deve ser alterado por este atalho. Crie uma nova árvore com o tronco correto.');
+      return;
+    }
+
+    setAdminActionLoading(true);
+    setAdminActionMessage(null);
+    try {
+      const res = await dataStore.assignTreePositionAction(adminTree.id, selectedNode.position_index, adminSelectedUserId);
+      openAdminOnlineAction(res, `Solicitação para atribuir/mover membro à posição #${selectedNode.position_index} aberta.`);
+    } catch (e: any) {
+      setAdminActionMessage('Erro ao atribuir membro: ' + e.message);
+      showToast('Erro: ' + e.message);
+    } finally {
+      setAdminActionLoading(false);
+    }
+  };
+
+  const handleClearSelectedNode = async () => {
+    if (!adminTree || !selectedNode) return;
+    if (selectedNode.position_index === 0) {
+      showToast('O tronco não pode ser liberado por este atalho.');
+      return;
+    }
+    if (selectedNode.status !== 'occupied') {
+      showToast('Esta posição já está vaga.');
+      return;
+    }
+    if (!window.confirm(`Liberar a posição #${selectedNode.position_index}?`)) return;
+
+    setAdminActionLoading(true);
+    setAdminActionMessage(null);
+    try {
+      const res = await dataStore.clearTreePositionAction(adminTree.id, selectedNode.position_index);
+      openAdminOnlineAction(res, `Solicitação para liberar a posição #${selectedNode.position_index} aberta.`);
+    } catch (e: any) {
+      setAdminActionMessage('Erro ao liberar posição: ' + e.message);
+      showToast('Erro: ' + e.message);
+    } finally {
+      setAdminActionLoading(false);
     }
   };
 
@@ -436,6 +573,7 @@ export default function App() {
   const allTrees: Tree[] = systemState?.trees || [];
   const allPositions: Position[] = systemState?.positions || [];
   const allUsers: User[] = systemState?.users || [];
+  const activeAssignableUsers = allUsers.filter(u => u.status === 'active' && u.role !== 'admin');
   const allLinks: ReferralLink[] = systemState?.referral_links || [];
 
   // Active member's tree
@@ -1469,6 +1607,7 @@ export default function App() {
                     onClick={() => {
                       setCurrentUser(u);
                       setIsLocked(false);
+                      setShowLandingPage(false);
                       setCurrentView(u.role === 'admin' ? 'admin' : 'member');
                       setShowDirectLoginModal(false);
                       showToast(`✓ Acesso autorizado: ${u.full_name}`);
@@ -1590,7 +1729,7 @@ export default function App() {
           </div>
 
           {/* Contextual Role & View Switcher */}
-          <div className="flex items-center justify-between pt-1 border-t border-slate-800/80 text-[11px]">
+          <div className="hidden">
             <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 w-full">
               <button
                 onClick={() => setCurrentView('member')}
@@ -2105,6 +2244,38 @@ export default function App() {
                         </span>
                         <span className="text-[10px] text-slate-400 font-mono">15 Posições</span>
                       </div>
+
+                      <div className="p-3 bg-slate-900 border border-slate-800 rounded-2xl space-y-2 text-xs">
+                        <div className="font-bold text-slate-200 flex items-center gap-1.5">
+                          <Shield className="w-3.5 h-3.5 text-amber-400" />
+                          <span>Ações administrativas da árvore</span>
+                        </div>
+                        <div className="grid grid-cols-1 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => fetchState(true)}
+                            className="w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold flex items-center justify-center gap-2 transition"
+                          >
+                            <RefreshCw className="w-3.5 h-3.5" />
+                            <span>Recarregar JSON</span>
+                          </button>
+                          <button
+                            type="button"
+                            disabled={adminActionLoading || adminTree.status !== 'active'}
+                            onClick={handleArchiveSelectedTree}
+                            className="w-full py-2 rounded-xl bg-rose-950/70 hover:bg-rose-900 disabled:opacity-50 border border-rose-800 text-rose-200 font-bold flex items-center justify-center gap-2 transition"
+                          >
+                            <Lock className="w-3.5 h-3.5" />
+                            <span>{adminTree.status === 'active' ? 'Arquivar árvore' : `Status: ${adminTree.status}`}</span>
+                          </button>
+                        </div>
+                        {adminActionMessage && (
+                          <div className="p-2 bg-slate-950 border border-slate-800 rounded-xl text-[11px] text-slate-300 leading-relaxed">
+                            {adminActionMessage}
+                          </div>
+                        )}
+                      </div>
+
                       {renderActiveModel(adminTreePositions)}
                     </div>
                   )}
@@ -2330,6 +2501,59 @@ export default function App() {
                 {selectedNode.status === 'occupied' ? 'Ocupada' : 'Disponível'}
               </span>
             </div>
+
+            {currentView === 'admin' && currentUser?.role === 'admin' && adminTab === 'global_trees' && adminTree && (
+              <div className="p-2.5 bg-slate-950 rounded-xl border border-amber-900/60 text-xs space-y-2">
+                <div className="font-bold text-amber-300 flex items-center gap-1.5">
+                  <Shield className="w-3.5 h-3.5" />
+                  <span>Ações da posição</span>
+                </div>
+
+                {selectedNode.position_index === 0 ? (
+                  <div className="text-[11px] text-slate-400 leading-relaxed">
+                    O tronco não deve ser removido ou movido por este painel. Para alterar tronco, crie uma nova árvore com o membro correto.
+                  </div>
+                ) : (
+                  <>
+                    <select
+                      value={adminSelectedUserId}
+                      onChange={(e) => setAdminSelectedUserId(parseInt(e.target.value))}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-slate-100 outline-none focus:border-amber-500"
+                    >
+                      {activeAssignableUsers.map(user => (
+                        <option key={user.id} value={user.id}>
+                          {user.full_name || user.username} (@{user.username})
+                        </option>
+                      ))}
+                    </select>
+
+                    <div className="grid grid-cols-1 gap-2">
+                      <button
+                        type="button"
+                        disabled={adminActionLoading || activeAssignableUsers.length === 0}
+                        onClick={handleAssignSelectedNode}
+                        className="w-full py-2 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 font-black transition flex items-center justify-center gap-2"
+                      >
+                        <UserCheck className="w-3.5 h-3.5" />
+                        <span>Escolher / mover para esta posição</span>
+                      </button>
+
+                      {selectedNode.status === 'occupied' && (
+                        <button
+                          type="button"
+                          disabled={adminActionLoading}
+                          onClick={handleClearSelectedNode}
+                          className="w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-200 font-bold transition flex items-center justify-center gap-2"
+                        >
+                          <Unlock className="w-3.5 h-3.5" />
+                          <span>Liberar posição</span>
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         )}
 

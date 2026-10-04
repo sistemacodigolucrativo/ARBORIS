@@ -1,0 +1,59 @@
+name: Apply pending UI fixes
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - scripts/apply-pending-ui-fixes.py
+      - .github/workflows/apply-pending-ui-fixes.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-pending-ui-fixes
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    if: github.event.head_commit.message != 'fix: complete pending UI flows'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Apply pending UI fixes
+        run: python scripts/apply-pending-ui-fixes.py
+
+      - name: Show diff
+        run: git diff -- src/App.tsx src/index.css
+
+      - name: Run game tests
+        run: npm run test:game
+
+      - name: Build
+        run: npm run build
+
+      - name: Commit changes
+        run: |
+          if git diff --quiet -- src/App.tsx src/index.css; then
+            echo "No UI changes to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/App.tsx src/index.css
+          git commit -m "fix: complete pending UI flows"
+          git push origin main

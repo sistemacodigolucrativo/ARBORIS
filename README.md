@@ -24,7 +24,8 @@ O **Arboris** é uma aplicação web **100% estática em React, TypeScript e Vit
   - Ocupação de vagas externas na base da árvore.
   - Ao preencher 15/15 posições, a árvore mãe é concluída e bifurca harmonicamente em duas novas árvores filhas ativas.
 - **Auditoria e Ledger Imutável:** Histórico de todas as transferências com proteção contra duplicidade (`idempotencyKey`).
-- **Segurança sem Exposição de Segredos:** Nenhum token do GitHub no frontend; alterações automatizadas via GitHub Actions com concorrência travada.
+- **Gravação administrativa direta:** ações administrativas podem gravar `data/*.json` e `public/data/*.json` pela GitHub API usando fine-grained Personal Access Token informado localmente pelo administrador. O token não deve ser commitado.
+- **Fluxos públicos:** podem continuar usando o fluxo automatizado por GitHub Actions quando aplicável.
 
 ---
 

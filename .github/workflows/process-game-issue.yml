@@ -50,7 +50,14 @@ jobs:
           }
 
           const payload = JSON.parse(match[1]);
-          const allowed = new Set(['register_participant', 'strengthen_tronco']);
+          const allowed = new Set([
+            'register_participant',
+            'strengthen_tronco',
+            'create_tree',
+            'archive_tree',
+            'assign_tree_position',
+            'clear_tree_position'
+          ]);
 
           if (!allowed.has(payload.action)) {
             throw new Error(`Acao nao permitida por issue publica: ${payload.action}`);
@@ -67,6 +74,7 @@ jobs:
         id: run_engine
         env:
           GITHUB_REQUEST_ACTOR: ${{ github.event.issue.user.login }}
+          ARBORIS_ADMIN_GITHUB_ACTORS: ${{ vars.ARBORIS_ADMIN_GITHUB_ACTORS }}
         run: |
           GAME_ACTION_PAYLOAD="$(cat .github-action-payload.json)" npx tsx scripts/process-game-action.ts
 

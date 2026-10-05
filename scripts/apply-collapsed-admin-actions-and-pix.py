@@ -405,3 +405,4 @@ s = replace_once(s, old_wallet_marker, pix_card, path, 'Pix card before ledger')
 write(path, s)
 
 print('Collapsed admin actions and Pix patch applied')
+# retrigger

@@ -455,7 +455,7 @@ if "handleOpenActivationModal" not in text:
   };
 '''
     text = replace_once(text,
-"  const handleCreateTree = async (e: React.FormEvent) => {",
+"const handleCreateTree = async (e: React.FormEvent) => {",
 helper + "\nconst handleCreateTree = async (e: React.FormEvent) => {",
     'App activation handlers')
 # Make old strengthen button open the Pix activation modal instead of direct legacy transfer.

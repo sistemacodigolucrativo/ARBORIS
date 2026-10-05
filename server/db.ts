@@ -25,7 +25,8 @@ const descriptors = [
   ['trees','trees','id','id categoryId treeCode nickname troncoUserId status cycleNumber parentTreeId createdAt completedAt'],
   ['referrals','referrals','id','id referrerUserId referredUserId treeId token clicks registrationsCount isActive createdAt'],
   ['ledger','ledger','id','id type fromUserId toUserId treeId amount reason idempotencyKey createdAt fromUsername toUsername'],
-  ['auditLog','audit_log','id','id actorUserId action entity entityId metadata createdAt actorUsername']
+  ['auditLog','audit_log','id','id actorUserId action entity entityId metadata createdAt actorUsername'],
+  ['activationRequests','activation_requests','id','id requesterUserId troncoUserId treeId positionIndex amount status requesterUsername troncoUsername whatsappMessage createdAt decidedAt decisionNote']
 ] as const;
 const jsonFields = new Set(['entityId','metadata']);
 const parseJson = (value: any) => typeof value === 'string' ? JSON.parse(value) : value;
@@ -59,6 +60,7 @@ async function deleteRemovedRows(db: PoolConnection, state: GameDatabaseState, p
   if (removedTreeIds.length) {
     await executeForIds(db, 'DELETE FROM tree_positions WHERE treeId IN', removedTreeIds);
     await executeForIds(db, 'DELETE FROM referrals WHERE treeId IN', removedTreeIds);
+    await executeForIds(db, 'DELETE FROM activation_requests WHERE treeId IN', removedTreeIds);
     await executeForIds(db, 'DELETE FROM ledger WHERE treeId IN', removedTreeIds);
     await executeForIds(db, 'DELETE FROM trees WHERE id IN', removedTreeIds);
   }
@@ -70,9 +72,10 @@ async function deleteRemovedRows(db: PoolConnection, state: GameDatabaseState, p
     await executeForIds(db, 'DELETE FROM credentials WHERE userId IN', removedUserIds);
     await executeForIds(db, 'DELETE FROM wallets WHERE userId IN', removedUserIds);
     const placeholders = removedUserIds.map(() => '?').join(',');
+    await db.execute(`DELETE FROM activation_requests WHERE requesterUserId IN (${placeholders}) OR troncoUserId IN (${placeholders})`, [...removedUserIds, ...removedUserIds]);
     await db.execute(`DELETE FROM referrals WHERE referrerUserId IN (${placeholders}) OR referredUserId IN (${placeholders})`, [...removedUserIds, ...removedUserIds]);
     await db.execute(`DELETE FROM ledger WHERE fromUserId IN (${placeholders}) OR toUserId IN (${placeholders})`, [...removedUserIds, ...removedUserIds]);
-    await executeForIds(db, "UPDATE tree_positions SET userId=NULL,status='vacant',occupiedAt=NULL,username=NULL,name=NULL WHERE userId IN", removedUserIds);
+    await executeForIds(db, "UPDATE tree_positions SET userId=NULL,status='vacant',activationStatus=NULL,occupiedAt=NULL,username=NULL,name=NULL WHERE userId IN", removedUserIds);
     await executeForIds(db, 'DELETE FROM users WHERE id IN', removedUserIds);
   }
 }
@@ -83,14 +86,14 @@ export async function saveState(db: PoolConnection, state: GameDatabaseState, pr
   }
   if (previous) await deleteRemovedRows(db, state, previous);
   for (const [key, table, primary, fields] of descriptors) {
-    const before = new Map((previous?.[key] as any[] || []).map(r => [r[primary], r]));
-    for (const row of state[key] as any[]) {
+    const before = new Map(((previous?.[key] as any[]) || []).map(r => [r[primary], r]));
+    for (const row of (((state as any)[key] || []) as any[])) {
       if (JSON.stringify(row) === JSON.stringify(before.get(row[primary]))) continue;
       await upsert(db, table, fields.split(' '), row);
       if (key === 'trees') {
         await db.execute('DELETE FROM tree_positions WHERE treeId = ?', [row.id]);
         for (const position of row.positions) await upsert(db, 'tree_positions',
-          'treeId index level side userId status occupiedAt username name'.split(' '), { treeId: row.id, ...position });
+          'treeId index level side userId status activationStatus occupiedAt username name'.split(' '), { treeId: row.id, ...position });
       }
     }
   }

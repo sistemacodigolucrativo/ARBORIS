@@ -2,6 +2,8 @@ export type UserRole = 'participant' | 'admin';
 export type UserStatus = 'active' | 'blocked';
 export type TreeStatus = 'active' | 'completed' | 'archived';
 export type PositionSide = 'root' | 'left' | 'right';
+export type PositionActivationStatus = 'reserved' | 'active';
+export type ActivationRequestStatus = 'pending' | 'approved' | 'rejected';
 export type LedgerEntryType = 'CONCESSAO_INICIAL_SEMENTES' | 'FORTALECIMENTO_TRONCO' | 'RESERVA_VAGA' | 'AJUSTE_ADMINISTRATIVO';
 
 export interface GameConfig {
@@ -48,6 +50,7 @@ export interface TreePosition {
   side: PositionSide;
   userId: number | null;
   status: 'vacant' | 'occupied';
+  activationStatus?: PositionActivationStatus | null;
   occupiedAt: string | null;
   username?: string | null;
   name?: string | null;
@@ -104,6 +107,22 @@ export interface AuditLogEntry {
   actorUsername?: string;
 }
 
+export interface ActivationRequest {
+  id: number;
+  requesterUserId: number;
+  troncoUserId: number;
+  treeId: number;
+  positionIndex: number;
+  amount: number;
+  status: ActivationRequestStatus;
+  requesterUsername: string;
+  troncoUsername: string;
+  whatsappMessage?: string | null;
+  createdAt: string;
+  decidedAt?: string | null;
+  decisionNote?: string | null;
+}
+
 export interface GameDatabaseState {
   config: GameConfig;
   users: User[];
@@ -112,4 +131,5 @@ export interface GameDatabaseState {
   referrals: Referral[];
   ledger: LedgerEntry[];
   auditLog: AuditLogEntry[];
+  activationRequests?: ActivationRequest[];
 }

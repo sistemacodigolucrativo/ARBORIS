@@ -42,6 +42,15 @@ class DataStoreService {
   async strengthenTroncoAction(_userId: number, treeId: number) {
     return apiMutation('/actions', { action: 'strengthen_tronco', params: { treeId } });
   }
+  async requestActivationAction(treeId: number) {
+    return apiMutation('/actions', { action: 'request_activation', params: { treeId } });
+  }
+  async approveActivationRequestAction(requestId: number) {
+    return apiMutation('/actions', { action: 'approve_activation_request', params: { requestId } });
+  }
+  async rejectActivationRequestAction(requestId: number, reason?: string) {
+    return apiMutation('/actions', { action: 'reject_activation_request', params: { requestId, reason } });
+  }
   async updatePixAction(params: { holderName: string; keyType: 'random' | 'email' | 'phone'; key: string }) {
     return apiMutation('/actions', { action: 'update_pix', params });
   }
@@ -80,6 +89,7 @@ class DataStoreService {
         side: p.side,
         user_id: p.userId,
         status: p.status,
+        activation_status: p.activationStatus || (p.status === 'occupied' ? 'active' : null),
         occupied_at: p.occupiedAt,
         username: p.username,
         full_name: p.name
@@ -170,6 +180,21 @@ class DataStoreService {
       referral_links: formattedLinks,
       ledger: formattedLedger,
       audit: formattedAudit,
+      activation_requests: (this.state.activationRequests || []).map(r => ({
+        id: r.id,
+        requester_user_id: r.requesterUserId,
+        tronco_user_id: r.troncoUserId,
+        tree_id: r.treeId,
+        position_index: r.positionIndex,
+        amount: r.amount,
+        status: r.status,
+        requester_username: r.requesterUsername,
+        tronco_username: r.troncoUsername,
+        whatsapp_message: r.whatsappMessage,
+        created_at: r.createdAt,
+        decided_at: r.decidedAt,
+        decision_note: r.decisionNote
+      })),
       categories: this.state.config.categories.map(c => ({
         id: c.id,
         code: c.code,

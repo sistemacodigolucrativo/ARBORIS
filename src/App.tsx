@@ -59,6 +59,7 @@ interface Position {
   side: string;
   user_id: number | null;
   status: 'vacant' | 'occupied';
+  activation_status?: 'reserved' | 'active' | null;
   username?: string;
   full_name?: string;
 }
@@ -140,6 +141,22 @@ interface Setting {
   setting_key: string;
   setting_value: string;
   description: string;
+}
+
+interface ActivationRequest {
+  id: number;
+  requester_user_id: number;
+  tronco_user_id: number;
+  tree_id: number;
+  position_index: number;
+  amount: number;
+  status: 'pending' | 'approved' | 'rejected';
+  requester_username: string;
+  tronco_username: string;
+  whatsapp_message?: string | null;
+  created_at: string;
+  decided_at?: string | null;
+  decision_note?: string | null;
 }
 
 type StoredUiState = {
@@ -263,6 +280,8 @@ export default function App() {
   const [pixKeyType, setPixKeyType] = useState<'random' | 'email' | 'phone'>('random');
   const [pixKey, setPixKey] = useState<string>('');
   const [pixSaving, setPixSaving] = useState<boolean>(false);
+  const [activationModalData, setActivationModalData] = useState<any | null>(null);
+  const [activationRequestLoading, setActivationRequestLoading] = useState<boolean>(false);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -535,28 +554,105 @@ const handleAdminCreateUser = async (e: React.FormEvent) => {
   // ATOMIC POSITION CLAIM & STRENGTHENING:
   // "Transferir 25 Sementes para fortalecer o tronco"
   // The member enters and appears in the tree ONLY AFTER clicking this button!
-  const handleStrengthenTronco = async (userId: number, treeId: number) => {
+  const handleStrengthenTronco = async (_userId: number, _treeId: number) => {
     if (currentUser?.role === 'admin') {
-      showToast('Ação bloqueada: o coordenador não deve fortalecer tronco pelo painel de membro. Use Organização > Árvores > Nova Árvore.');
+      showToast('Ação bloqueada: coordenador não participa deste fluxo.');
       return;
     }
+    handleOpenActivationModal();
+  };
 
-    setActivatingTronco(true);
+
+
+  const pixTypeLabel = (type?: string | null) => {
+    if (type === 'phone') return 'Telefone';
+    if (type === 'email') return 'E-mail';
+    return 'Aleatória';
+  };
+
+  const buildWhatsappUrl = (rawPhone: string | null | undefined, message: string) => {
+    const digits = String(rawPhone || '').replace(/\D/g, '');
+    if (!digits) return null;
+    const phone = digits.length <= 11 ? `55${digits}` : digits;
+    return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+  };
+
+  const handleOpenActivationModal = () => {
+    if (!currentUser || !memberTree) return;
+    const tronco = allUsers.find(u => u.id === memberTree.tronco_user_id);
+    if (!tronco) {
+      showToast('Tronco não encontrado nesta árvore.');
+      return;
+    }
+    if (!tronco.pixHolderName || !tronco.pixKey || !tronco.pixKeyType) {
+      showToast('O tronco ainda não cadastrou uma chave Pix para ativação.');
+      return;
+    }
+    const amount = memberTree.token_requirement || 25;
+    const message = `Eu, @${currentUser.username}, acabei de fazer a minha doação para você e preciso da minha ativação.`;
+    setActivationModalData({
+      treeId: memberTree.id,
+      amount,
+      tronco,
+      message,
+      whatsappUrl: tronco.pixKeyType === 'phone' ? buildWhatsappUrl(tronco.pixKey, message) : null
+    });
+  };
+
+  const handleConfirmPixDonation = async () => {
+    if (!activationModalData) return;
+    setActivationRequestLoading(true);
     try {
-      const res = await dataStore.strengthenTroncoAction(userId, treeId);
-      if (res.success && res.result) {
+      const res = await dataStore.requestActivationAction(activationModalData.treeId);
+      if (res.success) {
         await fetchState(true);
-        showToast('25 sementes enviadas ao tronco.');
+        showToast('Solicitação de ativação enviada ao tronco.');
+        const url = activationModalData.whatsappUrl;
+        setActivationModalData(null);
+        if (url) window.open(url, '_blank', 'noopener,noreferrer');
       } else {
-        showToast('Falha: ' + (res.error || 'Não foi possível completar o fortalecimento.'));
+        showToast('Erro: ' + (res.error || 'Não foi possível solicitar ativação.'));
       }
     } catch (e: any) {
       showToast('Erro: ' + e.message);
     } finally {
-      setActivatingTronco(false);
+      setActivationRequestLoading(false);
     }
   };
 
+  const handleApproveActivationRequest = async (requestId: number) => {
+    setActivationRequestLoading(true);
+    try {
+      const res = await dataStore.approveActivationRequestAction(requestId);
+      if (res.success) {
+        await fetchState(true);
+        showToast('Ativação aprovada. A posição ficou verde.');
+      } else {
+        showToast('Erro: ' + (res.error || 'Não foi possível aprovar.'));
+      }
+    } catch (e: any) {
+      showToast('Erro: ' + e.message);
+    } finally {
+      setActivationRequestLoading(false);
+    }
+  };
+
+  const handleRejectActivationRequest = async (requestId: number) => {
+    setActivationRequestLoading(true);
+    try {
+      const res = await dataStore.rejectActivationRequestAction(requestId, 'Ativação recusada pelo tronco.');
+      if (res.success) {
+        await fetchState(true);
+        showToast('Solicitação recusada.');
+      } else {
+        showToast('Erro: ' + (res.error || 'Não foi possível recusar.'));
+      }
+    } catch (e: any) {
+      showToast('Erro: ' + e.message);
+    } finally {
+      setActivationRequestLoading(false);
+    }
+  };
 
 const handleCreateTree = async (e: React.FormEvent) => {
   e.preventDefault();
@@ -836,6 +932,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
   const safeAdminMembersPage = Math.min(adminMembersPage, totalAdminMemberPages);
   const paginatedRegisteredMembers = registeredMembers.slice((safeAdminMembersPage - 1) * adminMembersPageSize, safeAdminMembersPage * adminMembersPageSize);
   const allLinks: ReferralLink[] = systemState?.referral_links || [];
+  const allActivationRequests: ActivationRequest[] = systemState?.activation_requests || [];
 
   // Active member's tree
   const memberTreeId = currentUser?.current_tree_id || (allTrees[0]?.id ?? 1);
@@ -858,6 +955,11 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
 
   // Has the current user entered and secured their spot in the branch yet?
   const isUserPositioned = currentUser && currentUser.current_position_index !== null && currentUser.current_position_index !== undefined;
+  const currentUserTreePosition = currentUser ? memberPositions.find(p => p.user_id === currentUser.id && p.status === 'occupied') : null;
+  const isCurrentUserReserved = Boolean(currentUserTreePosition && currentUserTreePosition.activation_status === 'reserved');
+  const isCurrentUserActivated = Boolean(currentUserTreePosition && currentUserTreePosition.activation_status !== 'reserved');
+  const myPendingActivationRequest = currentUser ? allActivationRequests.find(r => r.requester_user_id === currentUser.id && r.tree_id === memberTreeId && r.status === 'pending') : null;
+  const pendingTroncoRequests = currentUser ? allActivationRequests.filter(r => r.tronco_user_id === currentUser.id && r.status === 'pending') : [];
 
   // Selected tree for admin explorer
   const adminTree = allTrees.find(t => t.id === selectedAdminTreeId) || allTrees[0];
@@ -918,6 +1020,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
             const isLeft = p.position_index === 1;
             const isUser = p.user_id === currentUserId;
             const isOcc = p.status === 'occupied';
+            const isReserved = isOcc && p.activation_status === 'reserved';
             const style = isLeft ? { left: '60px', top: '135px' } : { right: '60px', top: '135px' };
             return (
               <div
@@ -926,7 +1029,9 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                 style={style}
                 className={`absolute z-10 w-14 h-14 rounded-full flex flex-col items-center justify-center text-center cursor-pointer transition shadow-md ${
                   isUser
-                    ? 'bg-rose-950 border-2 border-rose-400 text-white ring-2 ring-rose-500/50'
+                    ? isReserved ? 'bg-rose-950 border-2 border-rose-400 text-white ring-2 ring-rose-500/50' : 'bg-emerald-950 border-2 border-emerald-400 text-white ring-2 ring-emerald-500/50'
+                    : isReserved
+                    ? 'bg-rose-950 border border-rose-500/70 text-rose-200'
                     : isOcc
                     ? 'bg-slate-900 border border-emerald-500/60 text-slate-100'
                     : 'bg-slate-950 border border-dashed border-slate-700 text-slate-500'
@@ -945,6 +1050,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
           {n2.map((p) => {
             const isUser = p.user_id === currentUserId;
             const isOcc = p.status === 'occupied';
+            const isReserved = isOcc && p.activation_status === 'reserved';
             let posStyle: React.CSSProperties = {};
             if (p.position_index === 3) posStyle = { left: '25px', top: '80px' };
             if (p.position_index === 4) posStyle = { left: '25px', bottom: '80px' };
@@ -958,7 +1064,9 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                 style={posStyle}
                 className={`absolute z-10 w-11 h-11 rounded-full flex flex-col items-center justify-center text-center cursor-pointer transition ${
                   isUser
-                    ? 'bg-emerald-950 border-2 border-emerald-400 text-emerald-200'
+                    ? isReserved ? 'bg-rose-950 border-2 border-rose-400 text-rose-100' : 'bg-emerald-950 border-2 border-emerald-400 text-emerald-200'
+                    : isReserved
+                    ? 'bg-rose-950 border border-rose-700 text-rose-200'
                     : isOcc
                     ? 'bg-slate-900 border border-slate-700 text-slate-200'
                     : 'bg-slate-950 border border-dashed border-slate-800 text-slate-600'
@@ -974,6 +1082,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
           {n3.map((p, i) => {
             const isUser = p.user_id === currentUserId;
             const isOcc = p.status === 'occupied';
+            const isReserved = isOcc && p.activation_status === 'reserved';
             const angles = [-150, -120, -60, -30, 30, 60, 120, 150];
             const angleRad = (angles[i] * Math.PI) / 180;
             const x = 165 + 140 * Math.cos(angleRad) - 16;
@@ -986,7 +1095,9 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                 style={{ left: `${x}px`, top: `${y}px` }}
                 className={`absolute z-10 w-8 h-8 rounded-full flex flex-col items-center justify-center text-center cursor-pointer text-[8px] font-mono transition ${
                   isUser
-                    ? 'bg-emerald-900 border-2 border-emerald-400 text-white font-bold'
+                    ? isReserved ? 'bg-rose-900 border-2 border-rose-400 text-white font-bold' : 'bg-emerald-900 border-2 border-emerald-400 text-white font-bold'
+                    : isReserved
+                    ? 'bg-rose-950 border border-rose-500/70 text-rose-200'
                     : isOcc
                     ? 'bg-slate-900 border border-emerald-500/50 text-emerald-300'
                     : 'bg-slate-950 border border-dashed border-slate-800 text-slate-600'
@@ -1007,7 +1118,11 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-            <span>Ocupado</span>
+            <span>Ativado</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+            <span>Reservado</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full border border-dashed border-slate-600"></span>
@@ -2005,6 +2120,50 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
           )}
         </header>
 
+
+        {activationModalData && (
+          <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="w-full max-w-md bg-slate-900 border border-emerald-500/40 rounded-3xl p-5 space-y-4 shadow-2xl text-sm">
+              <div className="space-y-1">
+                <div className="text-lg font-black text-emerald-300">Ative suas 25 sementes</div>
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  Para sua vaga florescer em definitivo no Arboris, faça a doação Pix ao tronco da sua árvore. Depois confirme para que o tronco libere sua ativação.
+                </p>
+              </div>
+              <div className="p-3 bg-slate-950 border border-slate-800 rounded-2xl space-y-2 text-xs">
+                <div><span className="text-slate-500">Tronco:</span> <strong className="text-slate-100">@{activationModalData.tronco.username}</strong></div>
+                <div><span className="text-slate-500">Titular:</span> <strong className="text-slate-100">{activationModalData.tronco.pixHolderName}</strong></div>
+                <div><span className="text-slate-500">Tipo:</span> <strong className="text-slate-100">{pixTypeLabel(activationModalData.tronco.pixKeyType)}</strong></div>
+                <div className="space-y-1">
+                  <span className="text-slate-500">Chave Pix:</span>
+                  <div className="flex items-center gap-2">
+                    <input readOnly value={activationModalData.tronco.pixKey} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 text-xs" />
+                    <button type="button" onClick={() => navigator.clipboard.writeText(activationModalData.tronco.pixKey)} className="px-3 py-2 rounded-xl bg-emerald-600 text-white font-bold">
+                      Copiar
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div className="p-3 bg-emerald-950/30 border border-emerald-900/50 rounded-2xl text-xs text-emerald-200 leading-relaxed">
+                Ao clicar em “Já realizei minha doação”, uma solicitação será enviada ao tronco. Sua posição permanecerá vermelha até ele confirmar; depois ficará verde.
+              </div>
+              <div className="grid grid-cols-1 gap-2">
+                <button
+                  type="button"
+                  disabled={activationRequestLoading}
+                  onClick={handleConfirmPixDonation}
+                  className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-black"
+                >
+                  Já realizei minha doação
+                </button>
+                <button type="button" onClick={() => setActivationModalData(null)} className="w-full py-2 rounded-xl bg-slate-800 text-slate-300 font-bold">
+                  Voltar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Dynamic View Content */}
         <div className="flex-1 p-4 space-y-4">
           
@@ -2063,6 +2222,50 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                     </div>
                   </div>
 
+
+
+                  {pendingTroncoRequests.length > 0 && (
+                    <div className="bg-amber-950/40 border border-amber-500/50 rounded-2xl p-3.5 space-y-3 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-amber-300 flex items-center gap-1.5">
+                          <AlertCircle className="w-4 h-4" />
+                          <span>Solicitações de ativação</span>
+                        </span>
+                        <span className="text-[10px] font-mono text-amber-200">{pendingTroncoRequests.length} pendente(s)</span>
+                      </div>
+                      <div className="space-y-2">
+                        {pendingTroncoRequests.map(request => (
+                          <div key={request.id} className="p-3 bg-slate-950 border border-amber-900/70 rounded-xl space-y-2">
+                            <div className="text-slate-200 leading-relaxed">
+                              Você recebeu uma solicitação de ativação de <strong>@{request.requester_username}</strong>.
+                            </div>
+                            <div className="text-[11px] text-slate-400">
+                              @{request.requester_username} informou que realizou a doação. Deseja ativar?
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <button
+                                type="button"
+                                disabled={activationRequestLoading}
+                                onClick={() => handleApproveActivationRequest(request.id)}
+                                className="py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold"
+                              >
+                                Sim, ativar
+                              </button>
+                              <button
+                                type="button"
+                                disabled={activationRequestLoading}
+                                onClick={() => handleRejectActivationRequest(request.id)}
+                                className="py-2 rounded-xl bg-rose-950 hover:bg-rose-900 disabled:opacity-50 border border-rose-800 text-rose-200 font-bold"
+                              >
+                                Não, recusar
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* CRUCIAL GAME MECHANIC CARD:
                       A pessoa só entra, só aparece na ramificação depois que ela clicar no botão.
                       Enquanto ela não clicar ela está fora! Quem clicar antes fica numa posição muito melhor! */}
@@ -2108,7 +2311,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                         <div className="flex items-center gap-2">
                           <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                           <div>
-                            <span className="font-bold text-rose-300">Vaga reservada na árvore:</span>
+                            <span className={`font-bold ${isCurrentUserReserved ? 'text-rose-300' : 'text-emerald-300'}`}>{isCurrentUserReserved ? 'Vaga reservada na árvore:' : 'Vaga ativada na árvore:'}</span>
                             <span className="text-slate-300 ml-1">
                               Você ocupa a <strong>vaga #{currentUser.current_position_index}</strong> ({
                                 currentUser.current_position_index === 0
@@ -2123,22 +2326,27 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                           </div>
                         </div>
                         <span className="text-[10px] font-mono text-rose-300 bg-rose-950 px-2 py-0.5 rounded border border-rose-800 shrink-0">
-                          RESERVADA
+                          {isCurrentUserReserved ? 'RESERVADA' : 'ATIVADA'}
                         </span>
                       </div>
 
                       <div className="p-3 bg-slate-900 border border-slate-800 rounded-2xl space-y-2 text-xs">
-                        <div className="font-bold text-rose-300">− 25 Sementes</div>
-                        <div className="text-slate-300">Sua vaga na árvore está reservada.</div>
+                        <div className={`font-bold ${isCurrentUserReserved ? 'text-rose-300' : 'text-emerald-300'}`}>{isCurrentUserReserved ? '− 25 Sementes' : '✓ Ativado'}</div>
+                        <div className="text-slate-300">{isCurrentUserReserved ? 'Sua vaga na árvore está reservada. Envie a solicitação Pix para ativar.' : 'Sua vaga está ativada no projeto.'}</div>
                         <div className="text-[11px] text-slate-400">Saldo disponível: <strong>{currentUser.balance}</strong> sementes.</div>
-                        {currentUser.balance >= 25 && (
+                        {myPendingActivationRequest && (
+                          <div className="p-2 bg-amber-950/30 border border-amber-800 rounded-xl text-[11px] text-amber-200">
+                            Aguardando confirmação do tronco para ativar sua posição.
+                          </div>
+                        )}
+                        {isCurrentUserReserved && !myPendingActivationRequest && currentUser.balance >= 25 && (
                           <button
                             onClick={() => handleStrengthenTronco(currentUser.id, memberTree.id)}
                             disabled={activatingTronco}
                             className="w-full py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold flex items-center justify-center gap-2"
                           >
                             {activatingTronco ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Sprout className="w-3.5 h-3.5" />}
-                            <span>Enviar 25 sementes ao tronco</span>
+                            <span>Ativar 25 sementes via Pix</span>
                           </button>
                         )}
                       </div>

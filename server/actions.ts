@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { GameDatabaseState, User } from '../src/types/game';
-import { ActionResult, createParticipant, reserveTreeEntry, strengthenTronco, transferSeeds, validateReferral } from '../src/services/gameEngine';
+import { ActionResult, createParticipant, reserveTreeEntry, strengthenTronco, transferSeeds, validateReferral, splitTreeIfComplete } from '../src/services/gameEngine';
 import { createTreeByAdmin, archiveTreeByAdmin, deleteTreeByAdmin, deleteUserByAdmin, updateTreeNicknameByAdmin, assignTreePositionByAdmin, clearTreePositionByAdmin } from '../src/services/adminGameEngine';
 import { HttpError, newToken } from './security';
 const id = z.number().int().positive().max(2147483647);
@@ -19,6 +19,9 @@ export const actionSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('reserve_tree_entry'), params: z.object({ treeId: id }).strict() }),
   z.object({ action: z.literal('update_pix'), params: z.object({ holderName: pixHolderSchema, keyType: pixKeyTypeSchema, key: pixKeySchema }).strict() }),
   z.object({ action: z.literal('clear_pix'), params: z.object({}).strict() }),
+  z.object({ action: z.literal('request_activation'), params: z.object({ treeId: id }).strict() }),
+  z.object({ action: z.literal('approve_activation_request'), params: z.object({ requestId: id }).strict() }),
+  z.object({ action: z.literal('reject_activation_request'), params: z.object({ requestId: id, reason: z.string().trim().max(300).optional() }).strict() }),
   z.object({ action: z.literal('assign_tree_position'), params: z.object({ treeId: id, positionIndex: z.number().int().min(1).max(14), userId: id }).strict() }),
   z.object({ action: z.literal('clear_tree_position'), params: z.object({ treeId: id, positionIndex: z.number().int().min(1).max(14) }).strict() }),
   z.object({ action: z.literal('toggle_user_status'), params: z.object({ userId: id }).strict() }),
@@ -54,9 +57,24 @@ export function register(state: GameDatabaseState, params: z.infer<typeof regist
   }
   return res;
 }
+
+function nextLocalId(items: Array<{ id: number }> | undefined): number {
+  return Math.max(0, ...(items || []).map(item => item.id)) + 1;
+}
+
+function pixTypeLabel(type: string | null | undefined): string {
+  if (type === 'phone') return 'Telefone';
+  if (type === 'email') return 'E-mail';
+  return 'Aleatória';
+}
+
+function ensureActivationRequests(state: GameDatabaseState) {
+  return (state.activationRequests ??= []);
+}
+
 export function applyAction(state: GameDatabaseState, user: User, input: z.infer<typeof actionSchema>, key: string): ActionResult {
   const actor = { actorUserId: user.id, actorUsername: user.username };
-  if (!['reserve_tree_entry', 'strengthen_tronco', 'transfer_seeds', 'update_pix', 'clear_pix'].includes(input.action) && user.role !== 'admin') throw new HttpError(403, 'Acesso administrativo obrigatório.');
+  if (!['reserve_tree_entry', 'strengthen_tronco', 'transfer_seeds', 'update_pix', 'clear_pix', 'request_activation', 'approve_activation_request', 'reject_activation_request'].includes(input.action) && user.role !== 'admin') throw new HttpError(403, 'Acesso administrativo obrigatório.');
   if (state.config.systemMode !== 'active') throw new HttpError(503, 'Sistema em manutenção.');
   switch (input.action) {
     case 'create_tree': return createTreeByAdmin(state, { ...input.params, actor, idempotencyKey: key });
@@ -107,6 +125,133 @@ export function applyAction(state: GameDatabaseState, user: User, input: z.infer
       });
       return { success: true, state: next, result: { pixHolderName: null, pixKeyType: null, pixKey: null } };
     }
+    case 'request_activation': {
+      if (user.role === 'admin') throw new HttpError(403, 'Coordenador não participa deste fluxo.');
+      const next = structuredClone(state);
+      const requests = ensureActivationRequests(next);
+      const tree = next.trees.find(t => t.id === input.params.treeId && t.status === 'active');
+      if (!tree) return { success: false, state, error: 'Árvore ativa não encontrada.' };
+      const position = tree.positions.find(p => p.userId === user.id && p.status === 'occupied');
+      if (!position) return { success: false, state, error: 'Reserve sua vaga antes de solicitar ativação.' };
+      if ((position.activationStatus ?? 'active') === 'active') return { success: false, state, error: 'Sua vaga já está ativada.' };
+      const requester = next.users.find(u => u.id === user.id && u.status === 'active');
+      const tronco = next.users.find(u => u.id === tree.troncoUserId && u.status === 'active');
+      if (!requester || !tronco) return { success: false, state, error: 'Participante ou tronco não encontrado.' };
+      if (!tronco.pixHolderName || !tronco.pixKeyType || !tronco.pixKey) {
+        return { success: false, state, error: 'O tronco ainda não cadastrou uma chave Pix para ativação.' };
+      }
+      const pending = requests.find(r => r.requesterUserId === requester.id && r.treeId === tree.id && r.status === 'pending');
+      if (pending) return { success: true, state: next, result: { request: pending, alreadyPending: true } };
+      const category = next.config.categories.find(c => c.id === tree.categoryId);
+      const amount = category?.tokenRequirement || next.config.transferAmount || 25;
+      const message = `Eu, @${requester.username}, acabei de fazer a minha doação para você e preciso da minha ativação.`;
+      const request = {
+        id: nextLocalId(requests),
+        requesterUserId: requester.id,
+        troncoUserId: tronco.id,
+        treeId: tree.id,
+        positionIndex: position.index,
+        amount,
+        status: 'pending' as const,
+        requesterUsername: requester.username,
+        troncoUsername: tronco.username,
+        whatsappMessage: message,
+        createdAt: new Date().toISOString(),
+        decidedAt: null,
+        decisionNote: null
+      };
+      requests.push(request);
+      next.auditLog.push({
+        id: nextLocalId(next.auditLog),
+        actorUserId: requester.id,
+        actorUsername: requester.username,
+        action: 'PIX_ACTIVATION_REQUESTED',
+        entity: 'activation_request',
+        entityId: request.id,
+        metadata: { idempotencyKey: key, treeId: tree.id, positionIndex: position.index, troncoUserId: tronco.id, amount },
+        createdAt: request.createdAt
+      });
+      return { success: true, state: next, result: { request, troncoPix: { holderName: tronco.pixHolderName, keyType: tronco.pixKeyType, key: tronco.pixKey, keyTypeLabel: pixTypeLabel(tronco.pixKeyType) }, whatsappMessage: message } };
+    }
+    case 'approve_activation_request': {
+      const next = structuredClone(state);
+      const requests = ensureActivationRequests(next);
+      const request = requests.find(r => r.id === input.params.requestId);
+      if (!request || request.status !== 'pending') return { success: false, state, error: 'Solicitação pendente não encontrada.' };
+      if (user.role !== 'admin' && request.troncoUserId !== user.id) throw new HttpError(403, 'Somente o tronco desta árvore pode aprovar a ativação.');
+      const tree = next.trees.find(t => t.id === request.treeId && t.status === 'active');
+      const requester = next.users.find(u => u.id === request.requesterUserId && u.status === 'active');
+      const tronco = next.users.find(u => u.id === request.troncoUserId && u.status === 'active');
+      if (!tree || !requester || !tronco) return { success: false, state, error: 'Árvore, participante ou tronco não encontrado.' };
+      const position = tree.positions.find(p => p.index === request.positionIndex && p.userId === requester.id && p.status === 'occupied');
+      if (!position) return { success: false, state, error: 'A posição reservada não foi encontrada.' };
+      if ((position.activationStatus ?? 'active') === 'active') return { success: false, state, error: 'Esta posição já está ativada.' };
+      const fromWallet = next.wallets.find(w => w.userId === requester.id);
+      const toWallet = next.wallets.find(w => w.userId === tronco.id);
+      if (!fromWallet || fromWallet.balance < request.amount) return { success: false, state, error: 'Saldo de sementes insuficiente para ativação.' };
+      if (!toWallet) return { success: false, state, error: 'Carteira do tronco não encontrada.' };
+      const now = new Date().toISOString();
+      fromWallet.balance -= request.amount;
+      fromWallet.updatedAt = now;
+      toWallet.balance += request.amount;
+      toWallet.updatedAt = now;
+      position.activationStatus = 'active';
+      requester.updatedAt = now;
+      request.status = 'approved';
+      request.decidedAt = now;
+      request.decisionNote = 'Ativação aprovada pelo tronco.';
+      next.ledger.push({
+        id: nextLocalId(next.ledger),
+        type: 'FORTALECIMENTO_TRONCO',
+        fromUserId: requester.id,
+        toUserId: tronco.id,
+        treeId: tree.id,
+        amount: request.amount,
+        reason: `Ativação Pix confirmada pelo tronco: posição #${position.index} na Árvore ${tree.treeCode}`,
+        idempotencyKey: key,
+        fromUsername: requester.username,
+        toUsername: tronco.username,
+        createdAt: now
+      });
+      next.auditLog.push({
+        id: nextLocalId(next.auditLog),
+        actorUserId: user.id,
+        actorUsername: user.username,
+        action: 'PIX_ACTIVATION_APPROVED',
+        entity: 'activation_request',
+        entityId: request.id,
+        metadata: { idempotencyKey: key, treeId: tree.id, requesterUserId: requester.id, troncoUserId: tronco.id, amount: request.amount },
+        createdAt: now
+      });
+      const activeCount = tree.positions.filter(p => p.status === 'occupied' && (p.activationStatus ?? 'active') === 'active').length;
+      if (activeCount === 15) {
+        const split = splitTreeIfComplete(next, tree.id);
+        if (split.success) return { success: true, state: split.state, result: { requestId: request.id, status: 'approved', bifurcated: true, newTrees: split.result?.newTrees || [] } };
+      }
+      return { success: true, state: next, result: { requestId: request.id, status: 'approved', bifurcated: false } };
+    }
+    case 'reject_activation_request': {
+      const next = structuredClone(state);
+      const requests = ensureActivationRequests(next);
+      const request = requests.find(r => r.id === input.params.requestId);
+      if (!request || request.status !== 'pending') return { success: false, state, error: 'Solicitação pendente não encontrada.' };
+      if (user.role !== 'admin' && request.troncoUserId !== user.id) throw new HttpError(403, 'Somente o tronco desta árvore pode recusar a ativação.');
+      const now = new Date().toISOString();
+      request.status = 'rejected';
+      request.decidedAt = now;
+      request.decisionNote = input.params.reason || 'Ativação recusada pelo tronco.';
+      next.auditLog.push({
+        id: nextLocalId(next.auditLog),
+        actorUserId: user.id,
+        actorUsername: user.username,
+        action: 'PIX_ACTIVATION_REJECTED',
+        entity: 'activation_request',
+        entityId: request.id,
+        metadata: { idempotencyKey: key, treeId: request.treeId, requesterUserId: request.requesterUserId, reason: request.decisionNote },
+        createdAt: now
+      });
+      return { success: true, state: next, result: { requestId: request.id, status: 'rejected' } };
+    }
     case 'assign_tree_position': return assignTreePositionByAdmin(state, { ...input.params, actor, idempotencyKey: key });
     case 'clear_tree_position': return clearTreePositionByAdmin(state, { ...input.params, actor, idempotencyKey: key });
     case 'strengthen_tronco':
@@ -138,5 +283,7 @@ export function visibleState(state: GameDatabaseState, user: User | null): GameD
     users: user ? state.users.filter(u => ids.has(u.id)).map(({ githubActor, ...u }) => u) : [],
     wallets: state.wallets.filter(w => w.userId === user?.id),
     referrals: state.referrals.filter(r => r.referrerUserId === user?.id),
-    ledger: state.ledger.filter(l => l.toUserId === user?.id || l.fromUserId === user?.id), auditLog: [] };
+    ledger: state.ledger.filter(l => l.toUserId === user?.id || l.fromUserId === user?.id),
+    activationRequests: state.activationRequests?.filter(r => r.requesterUserId === user?.id || r.troncoUserId === user?.id) || [],
+    auditLog: [] };
 }

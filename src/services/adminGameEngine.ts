@@ -46,6 +46,7 @@ function createEmptyPositions(tronco: User, createdAt: string): TreePosition[] {
     side: topo.side,
     userId: topo.index === 0 ? tronco.id : null,
     status: topo.index === 0 ? 'occupied' : 'vacant',
+    activationStatus: topo.index === 0 ? 'active' : null,
     occupiedAt: topo.index === 0 ? createdAt : null,
     username: topo.index === 0 ? tronco.username : null,
     name: topo.index === 0 ? tronco.name : null
@@ -285,6 +286,7 @@ export function deleteUserByAdmin(
       if (position.userId === target.id) {
         position.userId = null;
         position.status = 'vacant';
+        position.activationStatus = null;
         position.occupiedAt = null;
         position.username = null;
         position.name = null;
@@ -389,6 +391,7 @@ export function assignTreePositionByAdmin(
   if (currentPosition && currentPosition.index !== targetPosition.index) {
     currentPosition.userId = null;
     currentPosition.status = 'vacant';
+    currentPosition.activationStatus = null;
     currentPosition.occupiedAt = null;
     currentPosition.username = null;
     currentPosition.name = null;
@@ -396,6 +399,7 @@ export function assignTreePositionByAdmin(
 
   targetPosition.userId = user.id;
   targetPosition.status = 'occupied';
+  targetPosition.activationStatus = 'active';
   targetPosition.occupiedAt = now;
   targetPosition.username = user.username;
   targetPosition.name = user.name;
@@ -459,6 +463,7 @@ export function clearTreePositionByAdmin(
 
   position.userId = null;
   position.status = 'vacant';
+  position.activationStatus = null;
   position.occupiedAt = null;
   position.username = null;
   position.name = null;

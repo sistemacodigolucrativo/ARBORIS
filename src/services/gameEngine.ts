@@ -64,6 +64,10 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
+function isActivatedPosition(position: TreePosition): boolean {
+  return position.status === 'occupied' && (position.activationStatus ?? 'active') === 'active';
+}
+
 /**
  * Validates whether an idempotency key has already been consumed in the ledger.
  */
@@ -371,6 +375,7 @@ export function reserveTreeEntry(
 
   const targetPos = tree.positions.find(p => p.index === vacantPos.index)!;
   targetPos.status = 'occupied';
+  targetPos.activationStatus = 'reserved';
   targetPos.userId = user.id;
   targetPos.username = user.username;
   targetPos.name = user.name;
@@ -501,6 +506,14 @@ export function strengthenTronco(
   });
 
   if (alreadyInTree && existingPosition) {
+    existingPosition.activationStatus = 'active';
+    const activeCount = tree.positions.filter(isActivatedPosition).length;
+    if (activeCount === 15) {
+      const splitRes = splitTreeIfComplete(state, tree.id);
+      if (splitRes.success) {
+        return { success: true, state: splitRes.state, result: { positionIndex: existingPosition.index, bifurcated: true, newTrees: splitRes.result?.newTrees || [] } };
+      }
+    }
     const nextAuditId = Math.max(0, ...state.auditLog.map(a => a.id)) + 1;
     state.auditLog.push({
       id: nextAuditId,
@@ -523,6 +536,7 @@ export function strengthenTronco(
   // Step 2: Occupy the position
   const targetPos = tree.positions.find(p => p.index === vacantPos.index)!;
   targetPos.status = 'occupied';
+  targetPos.activationStatus = 'active';
   targetPos.userId = user.id;
   targetPos.username = user.username;
   targetPos.name = user.name;
@@ -552,7 +566,7 @@ export function strengthenTronco(
   });
 
   // Step 4: Check if tree is complete (all 15 positions occupied)
-  const occupiedCount = tree.positions.filter(p => p.status === 'occupied').length;
+  const occupiedCount = tree.positions.filter(isActivatedPosition).length;
   let bifurcated = false;
   let newTrees: Tree[] = [];
 
@@ -600,7 +614,7 @@ export function splitTreeIfComplete(
     return { success: false, state: originalState, error: 'Árvore mãe não encontrada ou inativa.' };
   }
 
-  const occupiedCount = mother.positions.filter(p => p.status === 'occupied').length;
+  const occupiedCount = mother.positions.filter(isActivatedPosition).length;
   if (occupiedCount < 15) {
     return { success: false, state: originalState, error: `Árvore incompleta (${occupiedCount}/15). Não é possível bifurcar.` };
   }
@@ -642,6 +656,7 @@ export function splitTreeIfComplete(
             side: topo.side,
             userId: oldPos.userId,
             status: 'occupied',
+            activationStatus: 'active',
             occupiedAt: now,
             username: oldPos.username,
             name: oldPos.name
@@ -656,6 +671,7 @@ export function splitTreeIfComplete(
         side: topo.side,
         userId: null,
         status: 'vacant',
+        activationStatus: null,
         occupiedAt: null,
         username: null,
         name: null

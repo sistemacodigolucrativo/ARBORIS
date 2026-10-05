@@ -47,8 +47,14 @@ export function applyAction(state: GameDatabaseState, user: User, input: z.infer
     case 'clear_tree_position': return clearTreePositionByAdmin(state, { ...input.params, actor, idempotencyKey: key });
     case 'strengthen_tronco':
       if (user.role === 'admin') throw new HttpError(403, 'Coordenador não participa deste fluxo.');
+      if (state.trees.some(t => t.status === 'active' && t.positions.some(p => p.userId === user.id && p.status === 'occupied'))) throw new HttpError(400, 'Você já ocupa uma posição em árvore ativa.');
       return strengthenTronco(state, { userId: user.id, treeId: input.params.treeId, idempotencyKey: key });
-    case 'transfer_seeds': return transferSeeds(state, { ...input.params, fromUserId: user.id, idempotencyKey: key });
+    case 'transfer_seeds': {
+      if (input.params.toUserId === user.id) throw new HttpError(400, 'Escolha outro destinatário.');
+      if (!state.users.some(u => u.id === input.params.toUserId && u.status === 'active')) throw new HttpError(400, 'Destinatário inativo ou inexistente.');
+      if (!state.trees.some(t => t.id === input.params.treeId && t.status === 'active')) throw new HttpError(400, 'Árvore inativa ou inexistente.');
+      return transferSeeds(state, { ...input.params, fromUserId: user.id, idempotencyKey: key });
+    }
     case 'toggle_user_status': {
       const next = structuredClone(state);
       const target = next.users.find(u => u.id === input.params.userId);

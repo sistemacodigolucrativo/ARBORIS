@@ -123,8 +123,20 @@ A integração exige `TEST_DATABASE_URL` apontando para um banco **vazio e desca
 cujo nome termina em `_test`. Sem variável, esse teste é marcado como ignorado.
 `REQUIRE_MYSQL_TESTS=true` torna a ausência um erro. O CI provisiona MySQL 8.4 e exige
 a integração: cadastro, login, autorização, CSRF, rollback, repetição concorrente,
-concessões concorrentes, árvores, posições, bloqueio, logout e persistência/reinício.
+concessões concorrentes, bifurcação, árvores, posições, bloqueio, logout e persistência/reinício.
+O CI também executa um teste Chromium em viewport de celular: login, criação pelo
+painel persistida no MySQL, acesso de membro, recarga da sessão e logout.
 
 Faça backup MySQL e teste restauração antes da migração de produção. Os JSONs em data/
 são apenas a entrada histórica de importação. Os workflows antigos que gravavam JSON
 ou reaplicavam patches foram removidos; documentos antigos descrevem o sistema anterior.
+
+## Referências técnicas
+
+- https://sidorares.github.io/node-mysql2/docs/documentation
+- https://dev.mysql.com/doc/refman/8.4/en/innodb-locking-reads.html
+- https://nodejs.org/api/crypto.html
+
+A auditoria npm identificou avisos no Vite/esbuild da ferramenta de desenvolvimento
+herdada. Esses pacotes ficam em devDependencies e não entram na instalação runtime
+`npm ci --omit=dev`. Não exponha o servidor de desenvolvimento na internet.

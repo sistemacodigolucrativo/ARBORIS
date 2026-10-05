@@ -1,0 +1,53 @@
+import { chromium, expect } from '@playwright/test';
+import { createPool } from './db';
+import { createApp } from './app';
+import type { RowDataPacket } from 'mysql2/promise';
+
+if (!process.env.TEST_DATABASE_URL || !new URL(process.env.TEST_DATABASE_URL).pathname.endsWith('_test')) throw new Error('Use um banco de teste, após test:api.');
+process.env.DATABASE_URL = process.env.TEST_DATABASE_URL;
+process.env.NODE_ENV = 'test';
+process.env.APP_ORIGINS = 'http://127.0.0.1:3001';
+const pool = createPool();
+const server = createApp(pool).listen(3001, '127.0.0.1');
+await new Promise<void>(resolve => server.once('listening', resolve));
+const browser = await chromium.launch();
+const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+const errors: string[] = [];
+page.on('pageerror', error => errors.push(error.message));
+try {
+  await page.goto('http://127.0.0.1:3001/ARBORIS/');
+  await page.getByRole('button', { name: /Já sou membro/ }).click();
+  await page.getByLabel('Usuário', { exact: true }).fill('admin');
+  await page.getByLabel('Senha', { exact: true }).fill('test-only-long-password-123');
+  await page.getByRole('button', { name: 'Entrar', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Organização', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Criar', exact: true }).click();
+  await page.getByPlaceholder('username do indicador').fill('maria');
+  await page.getByRole('button', { name: 'Validar indicador', exact: true }).click();
+  await page.getByPlaceholder('Nome do usuário').fill('Browser');
+  await page.getByPlaceholder('Sobrenome do usuário').fill('Member');
+  await page.getByLabel('Senha da nova conta', { exact: false }).fill('browser-only-long-password-123');
+  await page.getByRole('button', { name: 'Criar usuário', exact: true }).click();
+  await expect(page.getByText('Usuário criado: @browser_member.', { exact: true })).toBeVisible();
+  const [users] = await pool.execute<RowDataPacket[]>('SELECT id FROM users WHERE username=?', ['browser_member']);
+  if (users.length !== 1) throw new Error('A criação pelo navegador não foi persistida.');
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Organização', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Sair', exact: true }).click();
+  await page.getByRole('button', { name: /Já sou membro/ }).click();
+  await page.getByLabel('Usuário', { exact: true }).fill('browser_member');
+  await page.getByLabel('Senha', { exact: true }).fill('browser-only-long-password-123');
+  await page.getByRole('button', { name: 'Entrar', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Sair', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Organização', exact: true })).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Sair', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Sair', exact: true }).click();
+  await expect(page.getByRole('button', { name: /Já sou membro/ })).toBeVisible();
+  if (errors.length) throw new Error(errors.join('\n'));
+  console.log('Browser smoke passed: login, admin creation persisted in MySQL, member access, session reload, logout.');
+} finally {
+  await browser.close();
+  await new Promise<void>(resolve => server.close(() => resolve()));
+  await pool.end();
+}

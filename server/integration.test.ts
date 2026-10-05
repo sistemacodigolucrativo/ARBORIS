@@ -95,6 +95,27 @@ test('MySQL: authentication, atomic writes, rollback, idempotency and persistenc
     assert.equal(persisted.users.some(u => u.id === memberId), true);
     assert.equal(persisted.wallets.find(w => w.userId === memberId)?.balance, 0);
   } finally { await anotherPool.end(); }
+  // Force an error after a write to prove actual SQL rollback.
+  const balanceBeforeRollback = (await call('/state', undefined, admin)).data.state.wallets.find((w: any) => w.userId === 2).balance;
+  await assert.rejects(transaction(pool, async db => {
+    await db.execute('UPDATE wallets SET balance=balance+100 WHERE userId=2');
+    await db.execute('INSERT INTO wallets (userId,balance,updatedAt) VALUES (999999,0,?)', [new Date().toISOString()]);
+  }, true));
+  assert.equal((await call('/state', undefined, admin)).data.state.wallets.find((w: any) => w.userId === 2).balance, balanceBeforeRollback);
+  // Complete the original tree through the API; both children must persist atomically.
+  for (let i = 0; i < 7; i++) {
+    const entrant = await call('/register', { ...registration, firstName: 'Completion', lastName: `Member${i}` });
+    assert.equal(entrant.status, 201, JSON.stringify(entrant.data));
+    const entrySession = await call('/auth/login', { username: entrant.data.result.user.username, password });
+    const entry = await call('/actions', strengthen, entrySession.cookie);
+    assert.equal(entry.status, 200, JSON.stringify(entry.data));
+    assert.equal(entry.data.result.bifurcated, i === 6);
+  }
+  const splitState = (await call('/state', undefined, admin)).data.state;
+  assert.equal(splitState.trees.find((tree: any) => tree.id === 1).status, 'completed');
+  const children = splitState.trees.filter((tree: any) => tree.parentTreeId === 1);
+  assert.equal(children.length, 2);
+  assert(children.every((tree: any) => tree.positions.length === 15 && tree.status === 'active'));
   assert.equal((await call('/actions', { action: 'toggle_user_status', params: { userId: memberId } }, admin)).status, 200);
   assert.equal((await call('/actions', strengthen, member)).status, 401);
   assert.equal((await call('/auth/login', { username: created.data.result.user.username, password })).status, 401);

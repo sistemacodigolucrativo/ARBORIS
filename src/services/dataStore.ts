@@ -29,7 +29,6 @@ class DataStoreService {
   async logout() {
     await apiRequest('/auth/logout', {});
     this.user = null; this.state = null;
-    await this.loadState();
   }
   async validateIndicador(value: string) {
     return apiRequest(`/referrals/validate?value=${encodeURIComponent(value)}`);

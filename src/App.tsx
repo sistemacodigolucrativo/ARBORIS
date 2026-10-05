@@ -307,7 +307,9 @@ export default function App() {
   }, [showLandingPage, isLocked, currentView, selectedTreeModel, memberTab, adminTab, selectedAdminTreeId, currentUser]);
 
   useEffect(() => {
-    for (const key of ['arboris_game_state_v1', 'arboris_current_user_v1', 'arboris_admin_execution_key_v1', 'arboris_github_fine_grained_token_v1']) localStorage.removeItem(key);
+    try {
+      for (const key of ['arboris_game_state_v1', 'arboris_current_user_v1', 'arboris_admin_execution_key_v1', 'arboris_github_fine_grained_token_v1']) localStorage.removeItem(key);
+    } catch { /* Storage can be disabled; authentication does not depend on it. */ }
     const expired = () => { setCurrentUser(null); setSystemState(null); setShowDirectLoginModal(true); setCurrentView('member'); };
     window.addEventListener('arboris-session-expired', expired);
     return () => window.removeEventListener('arboris-session-expired', expired);

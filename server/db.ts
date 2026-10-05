@@ -4,7 +4,7 @@ import type { GameDatabaseState } from '../src/types/game';
 export function createPool() {
   if (!process.env.DATABASE_URL) throw new Error('Configure DATABASE_URL no servidor.');
   return mysql.createPool({ uri: process.env.DATABASE_URL, connectionLimit: 10, timezone: 'Z',
-    charset: 'utf8mb4', multipleStatements: false,
+    charset: 'utf8mb4', multipleStatements: false, jsonStrings: true,
     ...(process.env.MYSQL_SSL === 'true' ? { ssl: { rejectUnauthorized: true } } : {}) });
 }
 export type DatabasePool = ReturnType<typeof createPool>;

@@ -1,7 +1,7 @@
 import { apiMutation } from './api';
 type ActorParams = { actorUserId?: number; actorUsername?: string };
-export function createTreeDirect({ categoryId, troncoUserId }: { categoryId: number; troncoUserId: number } & ActorParams) {
-  return apiMutation('/actions', { action: 'create_tree', params: { categoryId, troncoUserId } });
+export function createTreeDirect({ categoryId, tokenRequirement, troncoUserId }: { categoryId: number; tokenRequirement?: number; troncoUserId: number } & ActorParams) {
+  return apiMutation('/actions', { action: 'create_tree', params: { categoryId, tokenRequirement, troncoUserId } });
 }
 export function createUserDirect({ indicadorUsername, firstName, lastName, password }: { indicadorUsername?: string; firstName: string; lastName: string; password: string } & ActorParams) {
   return apiMutation('/admin/users', {

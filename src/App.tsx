@@ -261,6 +261,7 @@ export default function App() {
 
   // Create tree form (organizador)
   const [newTreeCatId, setNewTreeCatId] = useState<number>(1);
+  const [newTreeSeeds, setNewTreeSeeds] = useState<number>(25);
   const [newTreeTroncoId, setNewTreeTroncoId] = useState<number>(2);
 
   // Admin create-user flow: same validation and registration path as public entry
@@ -540,7 +541,7 @@ const handleAdminCreateUser = async (e: React.FormEvent) => {
       const res = await dataStore.reserveTreeEntryAction(treeId);
       if (res.success && res.result) {
         await fetchState(true);
-        showToast('− 25 Sementes. Sua vaga na árvore está reservada.');
+        showToast(`− ${res.result.amountConsumed} Sementes. Sua vaga na árvore está reservada.`);
       } else {
         showToast('Falha: ' + (res.error || 'Não foi possível reservar sua vaga.'));
       }
@@ -665,11 +666,22 @@ const handleCreateTree = async (e: React.FormEvent) => {
     return;
   }
 
+  const treeSeeds = Number(newTreeSeeds);
+  if (!Number.isInteger(treeSeeds) || treeSeeds <= 0 || treeSeeds > 1000000) {
+    showToast('Informe uma quantidade de sementes válida para a árvore.');
+    return;
+  }
+
+  const categories = systemState?.categories || [];
+  const matchedCategory = categories.find((cat: any) => Number(cat.token_requirement) === treeSeeds);
+  const categoryId = matchedCategory?.id || categories[0]?.id || newTreeCatId;
+
   setAdminActionLoading(true);
   setAdminActionMessage(null);
   try {
     const res = await createTreeDirect({
-      categoryId: newTreeCatId,
+      categoryId,
+      tokenRequirement: treeSeeds,
       troncoUserId: newTreeTroncoId,
       actorUserId: currentUser.id,
       actorUsername: currentUser.username
@@ -680,8 +692,8 @@ const handleCreateTree = async (e: React.FormEvent) => {
       const treeId = (res.result as any)?.tree?.id;
       if (treeId) setSelectedAdminTreeId(treeId);
       setShowCreateTreeModal(false);
-      setAdminActionMessage('Árvore criada e salva no banco de dados.');
-      showToast('Árvore criada e salva no banco de dados.');
+      setAdminActionMessage(`Árvore de ${treeSeeds} sementes criada e salva no banco de dados.`);
+      showToast(`Árvore de ${treeSeeds} sementes criada e salva no banco de dados.`);
     } else {
       const error = res.error || 'Não foi possível criar a árvore no banco de dados.';
       setAdminActionMessage(error);
@@ -2125,7 +2137,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
           <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4">
             <div className="w-full max-w-md bg-slate-900 border border-emerald-500/40 rounded-3xl p-5 space-y-4 shadow-2xl text-sm">
               <div className="space-y-1">
-                <div className="text-lg font-black text-emerald-300">Ative suas 25 sementes</div>
+                <div className="text-lg font-black text-emerald-300">Ative suas {activationModalData.amount} sementes</div>
                 <p className="text-xs text-slate-300 leading-relaxed">
                   Para sua vaga florescer em definitivo no Arboris, faça a doação Pix ao tronco da sua árvore. Depois confirme para que o tronco libere sua ativação.
                 </p>
@@ -3157,18 +3169,20 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
 
             <form onSubmit={handleCreateTree} className="space-y-3 text-xs">
               <div>
-                <label className="block text-slate-300 mb-1 font-medium">Categoria da Árvore</label>
-                <select
-                  value={newTreeCatId}
-                  onChange={e => setNewTreeCatId(parseInt(e.target.value))}
+                <label className="block text-slate-300 mb-1 font-medium">Quantidade de sementes da árvore</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={1000000}
+                  step={1}
+                  value={newTreeSeeds}
+                  onChange={e => setNewTreeSeeds(parseInt(e.target.value) || 1)}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 focus:outline-none"
-                >
-                  {(systemState?.categories || []).map((cat: any) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.token_requirement} sementes
-                    </option>
-                  ))}
-                </select>
+                  placeholder="Ex: 2, 25, 50, 100"
+                />
+                <p className="text-[10px] text-slate-500 mt-1 leading-relaxed">
+                  O novo participante receberá automaticamente o dobro: metade para reserva e metade para ativação Pix do tronco.
+                </p>
               </div>
 
               <div>

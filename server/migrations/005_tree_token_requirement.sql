@@ -1,0 +1,1 @@
+ALTER TABLE trees ADD COLUMN IF NOT EXISTS tokenRequirement INT NULL AFTER nickname;

@@ -61,6 +61,7 @@ export interface Tree {
   categoryId: number;
   treeCode: string;
   nickname?: string | null;
+  tokenRequirement?: number | null;
   troncoUserId: number;
   status: TreeStatus;
   cycleNumber: number;

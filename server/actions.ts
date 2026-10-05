@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { GameDatabaseState, User } from '../src/types/game';
-import { ActionResult, createParticipant, reserveTreeEntry, strengthenTronco, transferSeeds, validateReferral, splitTreeIfComplete } from '../src/services/gameEngine';
+import { ActionResult, createParticipant, reserveTreeEntry, strengthenTronco, transferSeeds, validateReferral, splitTreeIfComplete, resolveTreeTokenRequirement } from '../src/services/gameEngine';
 import { createTreeByAdmin, archiveTreeByAdmin, deleteTreeByAdmin, deleteUserByAdmin, updateTreeNicknameByAdmin, assignTreePositionByAdmin, clearTreePositionByAdmin } from '../src/services/adminGameEngine';
 import { HttpError, newToken } from './security';
 const id = z.number().int().positive().max(2147483647);
@@ -11,7 +11,7 @@ const pixKeySchema = z.string().trim().min(1).max(200);
 export const passwordSchema = z.string().min(12, 'A senha precisa ter pelo menos 12 caracteres.').max(128);
 export const registrationSchema = z.object({ firstName: text, lastName: text, indicadorUsername: z.string().trim().min(1).max(200).optional(), password: passwordSchema }).strict();
 export const actionSchema = z.discriminatedUnion('action', [
-  z.object({ action: z.literal('create_tree'), params: z.object({ categoryId: id, troncoUserId: id }).strict() }),
+  z.object({ action: z.literal('create_tree'), params: z.object({ categoryId: id, tokenRequirement: z.number().int().positive().max(1000000).optional(), troncoUserId: id }).strict() }),
   z.object({ action: z.literal('archive_tree'), params: z.object({ treeId: id, reason: z.string().trim().max(500).optional() }).strict() }),
   z.object({ action: z.literal('delete_tree'), params: z.object({ treeId: id }).strict() }),
   z.object({ action: z.literal('delete_user'), params: z.object({ userId: id }).strict() }),
@@ -142,8 +142,8 @@ export function applyAction(state: GameDatabaseState, user: User, input: z.infer
       }
       const pending = requests.find(r => r.requesterUserId === requester.id && r.treeId === tree.id && r.status === 'pending');
       if (pending) return { success: true, state: next, result: { request: pending, alreadyPending: true } };
-      const category = next.config.categories.find(c => c.id === tree.categoryId);
-      const amount = category?.tokenRequirement || next.config.transferAmount || 25;
+      const amount = resolveTreeTokenRequirement(next, tree);
+      if (!amount) return { success: false, state, error: 'Quantidade de sementes da árvore inválida.' };
       const message = `Eu, @${requester.username}, acabei de fazer a minha doação para você e preciso da minha ativação.`;
       const request = {
         id: nextLocalId(requests),

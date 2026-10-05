@@ -5,7 +5,7 @@ import { z, ZodError } from 'zod';
 import { resolve } from 'node:path';
 import type { PoolConnection, RowDataPacket } from 'mysql2/promise';
 import type { User } from '../src/types/game';
-import { validateReferral } from '../src/services/gameEngine';
+import { validateReferral, resolveTreeTokenRequirement } from '../src/services/gameEngine';
 import { DatabasePool, transaction, loadState, saveState } from './db';
 import { digest, newToken, hashPassword, verifyPassword, HttpError } from './security';
 import { registrationSchema, actionSchema, register, applyAction, visibleState } from './actions';
@@ -95,9 +95,10 @@ export function createApp(pool: DatabasePool) {
       const state = await loadState(db), ref = validateReferral(state, value);
       if (!ref.valid || !ref.tree || !ref.referrer) throw new HttpError(400, ref.error || 'Indicador inválido.');
       const cat = state.config.categories.find(c => c.id === ref.tree!.categoryId);
+      const tokenRequirement = resolveTreeTokenRequirement(state, ref.tree!);
       const tronco = state.users.find(u => u.id === ref.tree!.troncoUserId);
       return { username: ref.referrer.username, full_name: ref.referrer.name, tree_id: ref.tree.id, tree_code: ref.tree.treeCode,
-        category_name: cat?.name, token_requirement: cat?.tokenRequirement, tronco_full_name: tronco?.name, tronco_username: tronco?.username };
+        category_name: cat?.name, token_requirement: tokenRequirement, initial_grant: tokenRequirement ? tokenRequirement * 2 : null, tronco_full_name: tronco?.name, tronco_username: tronco?.username };
     });
     res.json({ success: true, data });
   });

@@ -64,6 +64,15 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
+export function resolveTreeTokenRequirement(state: GameDatabaseState, tree: Tree): number | null {
+  const direct = typeof tree.tokenRequirement === 'number' ? tree.tokenRequirement : null;
+  if (direct && direct > 0) return direct;
+  const category = state.config.categories.find(c => c.id === tree.categoryId);
+  if (category?.tokenRequirement && category.tokenRequirement > 0) return category.tokenRequirement;
+  const fallback = state.config.transferAmount || state.config.initialSeedsGrant || 25;
+  return fallback > 0 ? fallback : null;
+}
+
 function isActivatedPosition(position: TreePosition): boolean {
   return position.status === 'occupied' && (position.activationStatus ?? 'active') === 'active';
 }
@@ -171,8 +180,10 @@ export function createParticipant(
   }
 
   const targetTree = refCheck.tree;
-  const category = state.config.categories.find(c => c.id === targetTree.categoryId);
-  const reservationAmount = category?.tokenRequirement || state.config.initialSeedsGrant || 25;
+  const reservationAmount = resolveTreeTokenRequirement(state, targetTree);
+  if (!reservationAmount) {
+    return { success: false, state: originalState, error: 'Quantidade de sementes da árvore inválida ou não configurada.' };
+  }
   const initialGrant = reservationAmount * 2;
 
   // New User
@@ -351,11 +362,10 @@ export function reserveTreeEntry(
   const alreadyInTree = tree.positions.some(p => p.userId === user.id && p.status === 'occupied');
   if (alreadyInTree) return { success: false, state: originalState, error: 'Sua vaga nesta árvore já está reservada.' };
 
-  const category = state.config.categories.find(c => c.id === tree.categoryId);
-  if (!category || !category.tokenRequirement || category.tokenRequirement <= 0) {
-    return { success: false, state: originalState, error: 'Configuração da categoria inválida ou corrompida.' };
+  const requiredAmount = resolveTreeTokenRequirement(state, tree);
+  if (!requiredAmount) {
+    return { success: false, state: originalState, error: 'Quantidade de sementes da árvore inválida ou corrompida.' };
   }
-  const requiredAmount = category.tokenRequirement;
 
   const vacantPos = findNextVacantPosition(tree);
   if (!vacantPos) return { success: false, state: originalState, error: 'Esta árvore já está sem vagas externas.' };
@@ -443,12 +453,11 @@ export function strengthenTronco(
   const existingPosition = tree.positions.find(p => p.userId === user.id && p.status === 'occupied');
   const alreadyInTree = Boolean(existingPosition);
 
-  // Strict backend amount resolution from category (CRÍTICO 1)
-  const category = state.config.categories.find(c => c.id === tree.categoryId);
-  if (!category || !category.tokenRequirement || category.tokenRequirement <= 0) {
-    return { success: false, state: originalState, error: 'Configuração da categoria inválida ou corrompida. Operação abortada.' };
+  // Strict backend amount resolution from tree first, category fallback second.
+  const requiredAmount = resolveTreeTokenRequirement(state, tree);
+  if (!requiredAmount) {
+    return { success: false, state: originalState, error: 'Quantidade de sementes da árvore inválida ou corrompida. Operação abortada.' };
   }
-  const requiredAmount = category.tokenRequirement;
 
   // Find next vacant external position only when the user has not reserved a position yet.
   const vacantPos = existingPosition || findNextVacantPosition(tree);
@@ -685,11 +694,13 @@ export function splitTreeIfComplete(
 
   const leftTroncoUid = leftPositions[0].userId!;
   const rightTroncoUid = rightPositions[0].userId!;
+  const childTokenRequirement = mother.tokenRequirement ?? resolveTreeTokenRequirement(state, mother) ?? null;
 
   const leftTree: Tree = {
     id: leftChildId,
     categoryId: mother.categoryId,
     treeCode: `${mother.treeCode}-L`,
+    tokenRequirement: childTokenRequirement,
     troncoUserId: leftTroncoUid,
     status: 'active',
     cycleNumber: mother.cycleNumber + 1,
@@ -703,6 +714,7 @@ export function splitTreeIfComplete(
     id: rightChildId,
     categoryId: mother.categoryId,
     treeCode: `${mother.treeCode}-R`,
+    tokenRequirement: childTokenRequirement,
     troncoUserId: rightTroncoUid,
     status: 'active',
     cycleNumber: mother.cycleNumber + 1,

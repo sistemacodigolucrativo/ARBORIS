@@ -89,6 +89,7 @@ export function createTreeByAdmin(
   originalState: GameDatabaseState,
   params: {
     categoryId: number;
+    tokenRequirement?: number;
     troncoUserId: number;
     actor: AdminActor;
     idempotencyKey: string;
@@ -113,15 +114,22 @@ export function createTreeByAdmin(
   // Regra administrativa: o mesmo participante pode ocupar uma posição em várias árvores.
   // O bloqueio global por qualquer árvore ativa impedia a criação de novas árvores com troncos válidos.
 
+  const requestedRequirement = params.tokenRequirement ?? category.tokenRequirement;
+  const tokenRequirement = Number.isInteger(requestedRequirement) && requestedRequirement > 0 ? requestedRequirement : category.tokenRequirement;
+  if (!tokenRequirement || tokenRequirement <= 0) {
+    return { success: false, state: originalState, error: 'Quantidade de sementes inválida para a árvore.' };
+  }
+
   const nextTreeId = nextId(state.trees);
   const nextCycle = Math.max(0, ...state.trees.map(tree => tree.cycleNumber || 0)) + 1;
-  const treeCode = `ARB-TREE-${String(category.tokenRequirement).padStart(2, '0')}-${String(nextTreeId).padStart(3, '0')}`;
+  const treeCode = `ARB-TREE-${String(tokenRequirement).padStart(2, '0')}-${String(nextTreeId).padStart(3, '0')}`;
 
   const tree: Tree = {
     id: nextTreeId,
     categoryId: category.id,
     treeCode,
     nickname: null,
+    tokenRequirement,
     troncoUserId: tronco.id,
     status: 'active',
     cycleNumber: nextCycle,
@@ -154,6 +162,8 @@ export function createTreeByAdmin(
     categoryId: category.id,
     troncoUserId: tronco.id,
     treeCode: tree.treeCode,
+    tokenRequirement,
+    initialGrant: tokenRequirement * 2,
     githubActor: params.actor.githubActor || null
   });
 

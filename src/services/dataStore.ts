@@ -99,13 +99,14 @@ class DataStoreService {
     const formattedTrees = this.state.trees.map(t => {
       const tronco = this.state!.users.find(u => u.id === t.troncoUserId);
       const cat = this.state!.config.categories.find(c => c.id === t.categoryId);
+      const tokenRequirement = t.tokenRequirement ?? cat?.tokenRequirement ?? 0;
       const occupied = t.positions.filter(p => p.status === 'occupied').length;
       return {
         id: t.id,
         category_id: t.categoryId,
         tree_code: t.treeCode,
         nickname: t.nickname || null,
-        display_name: t.nickname || cat?.name,
+        display_name: t.nickname || (tokenRequirement ? `${tokenRequirement} sementes` : cat?.name),
         tronco_user_id: t.troncoUserId,
         status: t.status,
         cycle_number: t.cycleNumber,
@@ -114,8 +115,8 @@ class DataStoreService {
         created_at: t.createdAt,
         tronco_username: tronco?.username,
         tronco_full_name: tronco?.name,
-        category_name: cat?.name,
-        token_requirement: cat?.tokenRequirement,
+        category_name: tokenRequirement ? `${tokenRequirement} sementes` : cat?.name,
+        token_requirement: tokenRequirement,
         occupied_count: occupied
       };
     });

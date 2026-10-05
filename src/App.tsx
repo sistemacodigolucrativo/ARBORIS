@@ -210,7 +210,9 @@ export default function App() {
   // Admin sub-tabs: global_trees, members, settings, audit
   const [adminTab, setAdminTab] = useState<'global_trees' | 'create_user' | 'members' | 'settings' | 'audit'>(() => {
     const stored = initialUiState.adminTab;
-    return stored === 'global_trees' || stored === 'create_user' || stored === 'members' || stored === 'settings' || stored === 'audit' ? stored : 'global_trees';
+    if (stored === 'members') return 'create_user';
+    if (stored === 'audit') return 'global_trees';
+    return stored === 'global_trees' || stored === 'create_user' || stored === 'settings' ? stored : 'global_trees';
   });
   
   // Identity comes exclusively from the authenticated server session.
@@ -305,6 +307,12 @@ export default function App() {
       selectedAdminTreeId
     });
   }, [showLandingPage, isLocked, currentView, selectedTreeModel, memberTab, adminTab, selectedAdminTreeId, currentUser]);
+
+  useEffect(() => {
+    if (currentUser?.role === 'admin' && currentView === 'member') {
+      setCurrentView('admin');
+    }
+  }, [currentUser, currentView]);
 
   useEffect(() => {
     try {
@@ -432,11 +440,9 @@ export default function App() {
         setAdminValidatedIndicadorData(val.data);
         showToast(`✓ Indicador validado: @${val.data.username}`);
       } else {
-        setAdminValidatedIndicadorData(null);
-        setAdminCreateUserError(val.error || 'Indicador inválido.');
+          setAdminCreateUserError(val.error || 'Indicador inválido.');
       }
     } catch (err: any) {
-      setAdminValidatedIndicadorData(null);
       setAdminCreateUserError('Erro ao validar indicador: ' + err.message);
     } finally {
       setAdminCreateUserLoading(false);
@@ -446,10 +452,6 @@ export default function App() {
 
 const handleAdminCreateUser = async (e: React.FormEvent) => {
   e.preventDefault();
-  if (!adminValidatedIndicadorData) {
-    setAdminCreateUserError('Valide o indicador antes de criar o usuário.');
-    return;
-  }
   if (!adminCreateFirstName.trim() || !adminCreateLastName.trim()) {
     setAdminCreateUserError('Preencha nome e sobrenome do novo usuário.');
     return;
@@ -463,7 +465,6 @@ const handleAdminCreateUser = async (e: React.FormEvent) => {
   setAdminCreateUserError(null);
   try {
     const res = await createUserDirect({
-      indicadorUsername: adminValidatedIndicadorData.username,
       firstName: adminCreateFirstName.trim(),
       lastName: adminCreateLastName.trim(),
       password: adminCreatePassword,
@@ -478,7 +479,6 @@ const handleAdminCreateUser = async (e: React.FormEvent) => {
       setAdminCreateFirstName('');
       setAdminCreateLastName('');
       setAdminCreatePassword('');
-      setAdminValidatedIndicadorData(null);
     } else {
       setAdminCreateUserError(res.error || 'Falha ao criar usuário pelo painel administrativo.');
     }
@@ -1746,47 +1746,32 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
               </div>
               <div>
                 <span className="font-bold text-slate-100 text-sm tracking-wide block leading-none">ARBORIS</span>
-                <span className="text-[10px] text-slate-400 leading-tight">Comunidade de 15 Posições & Sementes</span>
               </div>
             </div>
 
             <div className="flex items-center gap-1.5">
-              {/* Lock screen / Exit button */}
-              <button
-                onClick={() => {
-                  setIsLocked(true);
-                  showToast('Tela de bloqueio ativada.');
-                }}
-                title="Bloquear Acesso / Tela Inicial"
-                className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-400 text-xs flex items-center gap-1 transition"
-              >
-                <Lock className="w-3.5 h-3.5" />
-                <span className="text-[10px]">Bloquear</span>
-              </button>
 
-              <button
-                onClick={() => fetchState(false)}
-                title="Recarregar dados"
-                className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-              </button>
+              {currentView === 'admin' && (
+                <button
+                  onClick={() => {
+                    fetchState(true);
+                    showToast('Dados atualizados.');
+                  }}
+                  title="Atualizar dados do servidor"
+                  className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-400 text-xs flex items-center gap-1 transition"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline text-[10px]">Atualizar</span>
+                </button>
+              )}
 
               <button
                 onClick={() => {
-                  fetchState(true);
-                  showToast('Dados atualizados.');
+                  setShowLandingPage(false);
+                  setIsLocked(false);
+                  setCurrentView('public');
                 }}
-                title="Atualizar dados do servidor"
-                className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-400 text-xs flex items-center gap-1 transition"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline text-[10px]">Atualizar</span>
-              </button>
-
-              <button
-                onClick={() => setShowLandingPage(true)}
-                title="Página pública explicativa sobre as regras e dinâmica do jogo"
+                title="Regras e dinâmica do jogo"
                 className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-teal-300 text-xs flex items-center gap-1 transition"
               >
                 <BookOpen className="w-3.5 h-3.5" />
@@ -2223,16 +2208,6 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                   }`}
                 >
                   <UserCheck className="w-3.5 h-3.5" />
-                  <span>Criar</span>
-                </button>
-
-                <button
-                  onClick={() => setAdminTab('members')}
-                  className={`flex-1 py-1.5 rounded-lg font-medium transition text-center flex items-center justify-center gap-1 ${
-                    adminTab === 'members' ? 'bg-slate-800 text-amber-400 shadow-sm' : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  <Users className="w-3.5 h-3.5" />
                   <span>Membros</span>
                 </button>
 
@@ -2244,16 +2219,6 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                 >
                   <Filter className="w-3.5 h-3.5" />
                   <span>Regras</span>
-                </button>
-
-                <button
-                  onClick={() => setAdminTab('audit')}
-                  className={`flex-1 py-1.5 rounded-lg font-medium transition text-center flex items-center justify-center gap-1 ${
-                    adminTab === 'audit' ? 'bg-slate-800 text-amber-400 shadow-sm' : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  <Activity className="w-3.5 h-3.5" />
-                  <span>Auditoria</span>
                 </button>
               </div>
 
@@ -2348,136 +2313,101 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                   )}
                 </div>
               )}
-
-              {/* SUB-TAB: CRIAR USUÁRIO */}
+              {/* SUB-TAB: MEMBROS */}
               {adminTab === 'create_user' && (
-                <div className="space-y-3">
+                <div className="space-y-4">
                   <div className="p-3.5 bg-slate-900 border border-slate-800 rounded-2xl space-y-1">
                     <div className="text-xs font-bold text-slate-100 flex items-center gap-1.5">
                       <UserCheck className="w-4 h-4 text-amber-400" />
                       <span>Criar usuário pelo painel</span>
                     </div>
                     <p className="text-[11px] text-slate-400 leading-relaxed">
-                      Valide o indicador e preencha nome, sobrenome e senha para criar a conta.
+                      Preencha nome, sobrenome e senha para criar a conta. Não é necessário informar usuário indicador.
                     </p>
                   </div>
 
-                  <form onSubmit={handleAdminValidateIndicador} className="p-3.5 bg-slate-900 border border-slate-800 rounded-2xl space-y-3">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] uppercase tracking-wide text-slate-500 font-bold">Usuário indicador</label>
-                      <input
-                        type="text"
-                        value={adminIndicadorInput}
-                        onChange={(e) => {
-                          setAdminIndicadorInput(e.target.value);
-                          setAdminValidatedIndicadorData(null);
-                        }}
-                        placeholder="username do indicador"
-                        className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-100 outline-none focus:border-amber-500"
-                      />
+                  <form onSubmit={handleAdminCreateUser} className="p-3.5 bg-slate-900 border border-amber-800/60 rounded-2xl space-y-3">
+                    <div className="grid grid-cols-1 gap-2">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] uppercase tracking-wide text-slate-500 font-bold">Nome</label>
+                        <input
+                          type="text"
+                          value={adminCreateFirstName}
+                          onChange={(e) => setAdminCreateFirstName(e.target.value)}
+                          placeholder="Nome do usuário"
+                          className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-100 outline-none focus:border-amber-500"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] uppercase tracking-wide text-slate-500 font-bold">Sobrenome</label>
+                        <input
+                          type="text"
+                          value={adminCreateLastName}
+                          onChange={(e) => setAdminCreateLastName(e.target.value)}
+                          placeholder="Sobrenome do usuário"
+                          className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-100 outline-none focus:border-amber-500"
+                        />
+                      </div>
                     </div>
 
+                    <label className="block text-xs text-slate-300">Senha da nova conta (mínimo 12 caracteres)
+                      <input required type="password" minLength={12} maxLength={128} autoComplete="new-password" value={adminCreatePassword} onChange={e => setAdminCreatePassword(e.target.value)} className="w-full mt-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5" />
+                    </label>
                     <button
                       type="submit"
                       disabled={adminCreateUserLoading}
-                      className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-60 text-slate-100 font-bold text-xs transition flex items-center justify-center gap-2"
+                      className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-slate-950 font-black text-xs transition flex items-center justify-center gap-2"
                     >
-                      {adminCreateUserLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
-                      <span>Validar indicador</span>
+                      {adminCreateUserLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <PlusCircle className="w-3.5 h-3.5" />}
+                      <span>Criar usuário</span>
                     </button>
                   </form>
-
-                  {adminValidatedIndicadorData && (
-                    <form onSubmit={handleAdminCreateUser} className="p-3.5 bg-slate-900 border border-amber-800/60 rounded-2xl space-y-3">
-                      <div className="p-2.5 bg-amber-950/30 border border-amber-800/60 rounded-xl text-[11px] text-amber-100">
-                        Indicador validado: <strong>@{adminValidatedIndicadorData.username}</strong> · Árvore <strong>{adminValidatedIndicadorData.tree_code}</strong>
-                      </div>
-
-                      <div className="grid grid-cols-1 gap-2">
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] uppercase tracking-wide text-slate-500 font-bold">Nome</label>
-                          <input
-                            type="text"
-                            value={adminCreateFirstName}
-                            onChange={(e) => setAdminCreateFirstName(e.target.value)}
-                            placeholder="Nome do usuário"
-                            className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-100 outline-none focus:border-amber-500"
-                          />
-                        </div>
-
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] uppercase tracking-wide text-slate-500 font-bold">Sobrenome</label>
-                          <input
-                            type="text"
-                            value={adminCreateLastName}
-                            onChange={(e) => setAdminCreateLastName(e.target.value)}
-                            placeholder="Sobrenome do usuário"
-                            className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-100 outline-none focus:border-amber-500"
-                          />
-                        </div>
-                      </div>
-
-                      <label className="block text-xs text-slate-300">Senha da nova conta (mínimo 12 caracteres)
-                        <input required type="password" minLength={12} maxLength={128} autoComplete="new-password" value={adminCreatePassword} onChange={e => setAdminCreatePassword(e.target.value)} className="w-full mt-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5" />
-                      </label>
-                      <button
-                        type="submit"
-                        disabled={adminCreateUserLoading}
-                        className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-slate-950 font-black text-xs transition flex items-center justify-center gap-2"
-                      >
-                        {adminCreateUserLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <PlusCircle className="w-3.5 h-3.5" />}
-                        <span>Criar usuário</span>
-                      </button>
-                    </form>
-                  )}
 
                   {adminCreateUserError && (
                     <div className="p-3 bg-slate-950 border border-slate-800 rounded-xl text-[11px] text-slate-300 leading-relaxed">
                       {adminCreateUserError}
                     </div>
                   )}
-                </div>
-              )}
 
-              {/* SUB-TAB: MEMBROS */}
-              {adminTab === 'members' && (
-                <div className="space-y-3">
-                  <div className="text-xs font-bold text-slate-200">
-                    Membros Cadastrados ({allUsers.length})
-                  </div>
+                  <div className="space-y-3">
+                    <div className="text-xs font-bold text-slate-200">
+                      Membros Cadastrados ({allUsers.length})
+                    </div>
 
-                  <div className="space-y-2">
-                    {allUsers.map(user => (
-                      <div key={user.id} className="p-3 bg-slate-900 border border-slate-800 rounded-xl text-xs space-y-2">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <div className="font-bold text-slate-100">{user.full_name || user.username}</div>
-                            <div className="text-[10px] text-slate-400">@{user.username}</div>
+                    <div className="space-y-2">
+                      {allUsers.map(user => (
+                        <div key={user.id} className="p-3 bg-slate-900 border border-slate-800 rounded-xl text-xs space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="font-bold text-slate-100">{user.full_name || user.username}</div>
+                              <div className="text-[10px] text-slate-400">@{user.username}</div>
+                            </div>
+                            <div className="text-right font-mono">
+                              <span className="font-bold text-emerald-400">{user.balance}</span>
+                              <span className="text-[9px] text-slate-500 block">sementes</span>
+                            </div>
                           </div>
-                          <div className="text-right font-mono">
-                            <span className="font-bold text-emerald-400">{user.balance}</span>
-                            <span className="text-[9px] text-slate-500 block">sementes</span>
+
+                          <div className="flex items-center justify-between pt-2 border-t border-slate-800 text-[10px]">
+                            <span className={`px-2 py-0.5 rounded font-mono ${
+                              user.status === 'active' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-rose-950 text-rose-400 border border-rose-800'
+                            }`}>
+                              {user.status === 'active' ? 'Ativo' : 'Suspenso'}
+                            </span>
+
+                            {user.id !== 1 && (
+                              <button
+                                onClick={() => handleToggleUserStatus(user.id)}
+                                className="text-slate-400 hover:text-white underline"
+                              >
+                                {user.status === 'active' ? 'Suspender Membro' : 'Ativar Membro'}
+                              </button>
+                            )}
                           </div>
                         </div>
-
-                        <div className="flex items-center justify-between pt-2 border-t border-slate-800 text-[10px]">
-                          <span className={`px-2 py-0.5 rounded font-mono ${
-                            user.status === 'active' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-rose-950 text-rose-400 border border-rose-800'
-                          }`}>
-                            {user.status === 'active' ? 'Ativo' : 'Suspenso'}
-                          </span>
-
-                          {user.id !== 1 && (
-                            <button
-                              onClick={() => handleToggleUserStatus(user.id)}
-                              className="text-slate-400 hover:text-white underline"
-                            >
-                              {user.status === 'active' ? 'Suspender Membro' : 'Ativar Membro'}
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}
@@ -2592,7 +2522,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                     >
                       {activeAssignableUsers.map(user => (
                         <option key={user.id} value={user.id}>
-                          {user.full_name || user.username} (@{user.username})
+                          {user.full_name || user.username}
                         </option>
                       ))}
                     </select>
@@ -2690,7 +2620,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                 >
                   {(systemState?.categories || []).map((cat: any) => (
                     <option key={cat.id} value={cat.id}>
-                      {cat.name} ({cat.token_requirement} Sementes)
+                      {cat.token_requirement} sementes
                     </option>
                   ))}
                 </select>
@@ -2705,7 +2635,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                 >
                   {allUsers.filter(u => u.id !== 1).map(u => (
                     <option key={u.id} value={u.id}>
-                      {u.full_name || u.username} (@{u.username})
+                      {u.full_name || u.username}
                     </option>
                   ))}
                 </select>

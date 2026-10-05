@@ -643,7 +643,9 @@ const handleAdminUpdateMember = async (e: React.FormEvent) => {
 
   const handleOpenActivationModal = () => {
     if (!currentUser || !memberTree) return;
-    const tronco = allUsers.find(u => u.id === memberTree.tronco_user_id);
+    const troncoPosition = memberPositions.find(p => p.position_index === 0 && p.user_id);
+    const troncoUserId = troncoPosition?.user_id || memberTree.tronco_user_id;
+    const tronco = allUsers.find(u => u.id === troncoUserId);
     if (!tronco) {
       showToast('Tronco não encontrado nesta árvore.');
       return;
@@ -1013,6 +1015,24 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
   const memberTreeId = currentUser?.current_tree_id || (allTrees[0]?.id ?? 1);
   const memberTree = allTrees.find(t => t.id === memberTreeId) || allTrees[0];
   const memberPositions = allPositions.filter(p => p.tree_id === memberTreeId);
+  const currentUserIsTronco = Boolean(currentUser && memberTree && currentUser.role !== 'admin' && memberTree.tronco_user_id === currentUser.id);
+  const currentUserHasPixConfigured = Boolean(currentUser?.pixHolderName && currentUser?.pixKeyType && currentUser?.pixKey);
+  const currentUserPixLock = Boolean(currentUserIsTronco && !currentUserHasPixConfigured);
+
+  useEffect(() => {
+    if (!currentUserPixLock) return;
+    setShowLandingPage(false);
+    setIsLocked(false);
+    setActivationModalData(null);
+    if (currentView !== 'member') setCurrentView('member');
+    if (memberTab !== 'wallet') setMemberTab('wallet');
+  }, [currentUserPixLock, currentView, memberTab]);
+
+  const enforceTroncoPixLock = () => {
+    setCurrentView('member');
+    setMemberTab('wallet');
+    showToast('Configure sua chave Pix de recebimento para liberar as outras opções.');
+  };
 
   // Link for member's tree
   const memberLink = allLinks.find(l => l.tree_id === memberTreeId && (l.user_id === currentUser?.id || l.user_id === memberTree?.tronco_user_id)) || allLinks.find(l => l.tree_id === memberTreeId) || allLinks[0];
@@ -2123,6 +2143,10 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
 
               <button
                 onClick={() => {
+                  if (currentUserPixLock) {
+                    enforceTroncoPixLock();
+                    return;
+                  }
                   setShowLandingPage(false);
                   setIsLocked(false);
                   setCurrentView('public');
@@ -2247,12 +2271,23 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
           {/* ======================================================== */}
           {currentView === 'member' && currentUser && (
             <div className="space-y-4 animate-in fade-in duration-150">
+              {currentUserPixLock && (
+                <div className="p-3.5 bg-rose-950/60 border border-rose-500/70 rounded-2xl text-xs text-rose-100 leading-relaxed font-semibold">
+                  Agora você está no tronco e precisa configurar sua chave Pix de recebimento. Você não será capaz de sair dessa tela se não fizer essa configuração.
+                </div>
+              )}
               {/* Member Sub-Navigation */}
               <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800 text-xs">
                 <button
-                  onClick={() => setMemberTab('my_tree')}
+                  onClick={() => {
+                    if (currentUserPixLock) {
+                      enforceTroncoPixLock();
+                      return;
+                    }
+                    setMemberTab('my_tree');
+                  }}
                   className={`flex-1 py-1.5 rounded-lg font-medium transition text-center flex items-center justify-center gap-1.5 ${
-                    memberTab === 'my_tree' ? 'bg-slate-800 text-emerald-400 shadow-sm' : 'text-slate-400 hover:text-slate-200'
+                    memberTab === 'my_tree' ? 'bg-slate-800 text-emerald-400 shadow-sm' : currentUserPixLock ? 'text-slate-600 cursor-not-allowed opacity-60' : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
                   <Trees className="w-3.5 h-3.5" />
@@ -2260,9 +2295,15 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                 </button>
 
                 <button
-                  onClick={() => setMemberTab('marketing')}
+                  onClick={() => {
+                    if (currentUserPixLock) {
+                      enforceTroncoPixLock();
+                      return;
+                    }
+                    setMemberTab('marketing');
+                  }}
                   className={`flex-1 py-1.5 rounded-lg font-medium transition text-center flex items-center justify-center gap-1.5 ${
-                    memberTab === 'marketing' ? 'bg-slate-800 text-emerald-400 shadow-sm' : 'text-slate-400 hover:text-slate-200'
+                    memberTab === 'marketing' ? 'bg-slate-800 text-emerald-400 shadow-sm' : currentUserPixLock ? 'text-slate-600 cursor-not-allowed opacity-60' : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
                   <Share2 className="w-3.5 h-3.5" />
@@ -2574,6 +2615,11 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
               {/* SUB-TAB C: CARTEIRA DE SEMENTES */}
               {memberTab === 'wallet' && (
                 <div className="space-y-4">
+                  {currentUserPixLock && (
+                    <div className="p-3.5 bg-rose-950/70 border-2 border-rose-500 rounded-2xl text-xs text-rose-100 leading-relaxed font-semibold shadow-lg">
+                      Agora você está no tronco e precisa configurar sua chave Pix de recebimento. Você não será capaz de sair dessa tela se não fizer essa configuração.
+                    </div>
+                  )}
                   <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex items-center justify-between">
                     <div>
                       <div className="text-[10px] text-slate-400 uppercase font-mono tracking-wider">Saldo de Sementes</div>

@@ -1,0 +1,112 @@
+.arboris-tree-board {
+  position: relative;
+  isolation: isolate;
+  container-type: inline-size;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  overflow: hidden;
+  border-radius: 18px;
+  background: #20a5ef;
+  color: #f8fafc;
+}
+.arboris-tree-art,
+.arboris-tree-connections {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.arboris-tree-art { object-fit: contain; user-select: none; }
+.arboris-tree-brand,
+.arboris-tree-heading,
+.arboris-tree-legend {
+  position: absolute;
+  left: 4.5%;
+  right: 4.5%;
+  z-index: 2;
+  background: rgb(2 27 42 / 96%);
+  border: 1px solid #27845c;
+  border-radius: 3cqw;
+}
+.arboris-tree-brand {
+  top: 1.1%;
+  height: 6.3%;
+  display: flex;
+  align-items: center;
+  gap: 3.5%;
+  font-size: 4.4cqw;
+  letter-spacing: .02em;
+}
+.arboris-tree-brand > span {
+  height: 100%;
+  aspect-ratio: 1;
+  border-radius: 3cqw;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(145deg, #006c43, #003932);
+  border: 1px solid #148752;
+}
+.arboris-tree-brand svg { width: 62%; height: 62%; color: #05cf6f; }
+.arboris-tree-heading {
+  top: 8.5%;
+  min-height: 7.3%;
+  padding: 1.5% 2.8%;
+  display: flex;
+  align-items: center;
+  gap: 3%;
+}
+.arboris-tree-heading h3 { flex: 1; min-width: 0; font-size: 3cqw; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
+.arboris-tree-heading h3 strong { color: #ffc400; }
+.arboris-tree-heading > span { flex: none; padding-left: 3%; border-left: 1px solid #567181; color: #adbed5; font-size: 2.9cqw; line-height: 1.2; }
+.arboris-tree-connections { z-index: 1; fill: none; }
+.arboris-branch-glow { stroke: #39d834; stroke-width: 11; opacity: .8; filter: drop-shadow(0 0 5px #7aff17); }
+.arboris-branch-core { stroke: #d4ff76; stroke-width: 3; }
+.arboris-tree-node {
+  position: absolute;
+  z-index: 2;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: .3cqw;
+  padding: 1%;
+  cursor: pointer;
+  font-weight: 800;
+  line-height: 1.05;
+  box-shadow: 0 0 0 .4cqw #05291e, 0 .5cqw 1cqw rgb(0 0 0 / 45%);
+  transition: filter 120ms ease;
+}
+.arboris-tree-node:hover { filter: brightness(1.15); }
+.arboris-tree-node:focus-visible { outline: 3px solid white; outline-offset: 3px; z-index: 4; }
+.arboris-tree-node--active {
+  background: linear-gradient(145deg, #037340, #004635);
+  border: .75cqw solid #00ef8a;
+  box-shadow: inset 0 .45cqw .2cqw #88ffb4, 0 0 0 .4cqw #063320, 0 .5cqw 1cqw #032b28;
+}
+.arboris-tree-node--reserved { background: linear-gradient(145deg, #800b43, #3c122f); border: .75cqw solid #ff0060; color: #fff1f7; }
+.arboris-tree-node--vacant { background: #071c2c; border: .65cqw dashed #8098b5; color: #adbed5; }
+.arboris-tree-node-index { font-size: 3.65cqw; }
+.arboris-tree-node-name { display: block; width: 94%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 2.25cqw; }
+.arboris-tree-node--root { z-index: 3; background: radial-gradient(ellipse at top, #1a1c30 40%, #472108); border: .85cqw solid #ffb900; color: #fff; box-shadow: inset 0 .45cqw .1cqw #fff291, 0 0 0 .45cqw #683e04, 0 .8cqw 1.5cqw #052e1f; }
+.arboris-tree-node--root svg { width: 29%; height: 25%; color: #ffc400; margin-bottom: 2%; }
+.arboris-tree-node--root .arboris-tree-node-index { font-size: 2.9cqw; color: #ffc400; }
+.arboris-tree-node--root .arboris-tree-node-name { font-size: 2.6cqw; margin-top: 3%; }
+.arboris-tree-node--mine { outline: .4cqw solid #fff; outline-offset: .6cqw; }
+.arboris-tree-node-you { border-radius: 10px; padding: .2cqw .8cqw; color: #052e16; background: #adffbd; font-size: 1.6cqw; }
+.arboris-tree-legend { bottom: 3%; min-height: 6.4%; display: flex; align-items: center; justify-content: space-between; gap: 1%; padding: 1.8% 2.8%; font-size: 2.55cqw; color: #b6cedb; }
+.arboris-tree-legend > span { display: inline-flex; align-items: center; gap: .8cqw; white-space: nowrap; }
+.arboris-tree-legend i { width: 3.2cqw; aspect-ratio: 1; border-radius: 50%; flex: none; border: .25cqw solid #001b27; }
+.arboris-key--root { background: #ffbf00; }
+.arboris-key--active { background: #00cd77; }
+.arboris-key--reserved { background: #ff0060; }
+.arboris-tree-legend .arboris-key--vacant { border: .3cqw dashed #7189a1; }
+.arboris-explorer { background: #105c26; border-radius: 18px; padding-bottom: 12px; overflow: hidden; }
+.arboris-explorer .arboris-tree-board { border-radius: 18px 18px 0 0; }
+.arboris-explorer .arboris-tree-actions { margin: 0 4.5%; border-color: #27845c; background: #021d2d; padding: 16px; }
+.arboris-tree-actions > summary { font-size: 14px; }
+.arboris-tree-actions > summary svg { width: 22px; height: 22px; }
+@media (prefers-reduced-motion: reduce) { .arboris-tree-node { transition: none; } }

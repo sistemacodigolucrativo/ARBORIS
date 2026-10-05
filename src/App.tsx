@@ -51,6 +51,7 @@ import {
   updateTreeNicknameDirect,
   adminUpdateMemberDirect
 } from './services/directAdminActions';
+import { TreeBoard } from './components/TreeBoard';
 import { PublicLandingPage } from './components/PublicLandingPage';
 
 interface Position {
@@ -1070,162 +1071,10 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
 
   // MODEL 1: ÁRVORE RADIAL ORGÂNICA (Mind Map Circular 360°)
   const renderModel1Radial = (positionsToRender: Position[], currentUserId?: number) => {
-    const tronco = positionsToRender.find(p => p.position_index === 0);
-    const n1 = positionsToRender.filter(p => p.position_index >= 1 && p.position_index <= 2);
-    const n2 = positionsToRender.filter(p => p.position_index >= 3 && p.position_index <= 6);
-    const n3 = positionsToRender.filter(p => p.position_index >= 7 && p.position_index <= 14);
-
-    return (
-      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 flex flex-col items-center relative overflow-hidden">
-        {/* Radial SVG Connections Canvas */}
-        <div className="w-[330px] h-[330px] relative flex items-center justify-center my-2 select-none">
-          <div className="absolute inset-0 rounded-full border border-slate-800/40 pointer-events-none scale-100"></div>
-          <div className="absolute inset-8 rounded-full border border-dashed border-slate-800/60 pointer-events-none"></div>
-          <div className="absolute inset-20 rounded-full border border-slate-800/80 pointer-events-none"></div>
-
-          {/* SVG Connection Lines from Center to Levels */}
-          <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 330 330">
-            <line x1="165" y1="165" x2="88" y2="163" stroke="#f59e0b" strokeWidth="2.5" strokeDasharray="3 3" opacity="0.6" />
-            <line x1="165" y1="165" x2="242" y2="163" stroke="#f59e0b" strokeWidth="2.5" strokeDasharray="3 3" opacity="0.6" />
-
-            <path d="M 88 163 Q 90 125 94 94" fill="none" stroke="#10b981" strokeWidth="1.5" opacity="0.7" />
-            <path d="M 88 163 Q 90 202 94 236" fill="none" stroke="#10b981" strokeWidth="1.5" opacity="0.7" />
-
-            <path d="M 242 163 Q 240 125 236 94" fill="none" stroke="#10b981" strokeWidth="1.5" opacity="0.7" />
-            <path d="M 242 163 Q 240 202 236 236" fill="none" stroke="#10b981" strokeWidth="1.5" opacity="0.7" />
-          </svg>
-
-          {/* CENTER: O TRONCO (#0) */}
-          <div
-            onClick={() => tronco && setSelectedNode(tronco)}
-            className="absolute z-20 w-24 h-24 rounded-full bg-gradient-to-br from-amber-950 via-slate-900 to-amber-900 border-2 border-amber-400 p-2 flex flex-col items-center justify-center text-center cursor-pointer shadow-xl hover:scale-105 transition"
-          >
-            <Crown className="w-4 h-4 text-amber-400 animate-pulse" />
-            <span className="text-[9px] font-bold text-amber-300 font-mono tracking-wider mt-0.5">TRONCO #0</span>
-            <span className="text-[10px] font-bold text-slate-100 truncate max-w-[80px]">
-              {tronco?.full_name || tronco?.username || 'Tronco'}
-            </span>
-            {tronco?.user_id === currentUserId && (
-              <span className="text-[8px] bg-amber-400 text-slate-950 font-bold px-1 rounded-full mt-0.5">VOCÊ</span>
-            )}
-          </div>
-
-          {/* RING 1: RAMOS PRINCIPAIS (#1 ESQ e #2 DIR) */}
-          {n1.map((p) => {
-            const isLeft = p.position_index === 1;
-            const isUser = p.user_id === currentUserId;
-            const isOcc = p.status === 'occupied';
-            const isReserved = isOcc && p.activation_status === 'reserved';
-            const style = isLeft ? { left: '60px', top: '135px' } : { right: '60px', top: '135px' };
-            return (
-              <div
-                key={p.position_index}
-                onClick={() => setSelectedNode(p)}
-                style={style}
-                className={`absolute z-10 w-14 h-14 rounded-full flex flex-col items-center justify-center text-center cursor-pointer transition shadow-md ${
-                  isUser
-                    ? isReserved ? 'bg-rose-950 border-2 border-rose-400 text-white ring-2 ring-rose-500/50' : 'bg-emerald-950 border-2 border-emerald-400 text-white ring-2 ring-emerald-500/50'
-                    : isReserved
-                    ? 'bg-rose-950 border border-rose-500/70 text-rose-200'
-                    : isOcc
-                    ? 'bg-slate-900 border border-emerald-500/60 text-slate-100'
-                    : 'bg-slate-950 border border-dashed border-slate-700 text-slate-500'
-                }`}
-              >
-                <span className="text-[9px] font-mono font-bold">#{p.position_index}</span>
-                <span className="text-[8px] truncate max-w-[45px] font-medium leading-none">
-                  {isOcc ? p.username : 'Livre'}
-                </span>
-                {isUser && <span className="text-[7px] text-emerald-400 font-bold">VOCÊ</span>}
-              </div>
-            );
-          })}
-
-          {/* RING 2: SUB-RAMOS (#3, #4, #5, #6) */}
-          {n2.map((p) => {
-            const isUser = p.user_id === currentUserId;
-            const isOcc = p.status === 'occupied';
-            const isReserved = isOcc && p.activation_status === 'reserved';
-            let posStyle: React.CSSProperties = {};
-            if (p.position_index === 3) posStyle = { left: '72px', top: '72px' };
-            if (p.position_index === 4) posStyle = { left: '72px', bottom: '72px' };
-            if (p.position_index === 5) posStyle = { right: '72px', top: '72px' };
-            if (p.position_index === 6) posStyle = { right: '72px', bottom: '72px' };
-
-            return (
-              <div
-                key={p.position_index}
-                onClick={() => setSelectedNode(p)}
-                style={posStyle}
-                className={`absolute z-10 w-11 h-11 rounded-full flex flex-col items-center justify-center text-center cursor-pointer transition ${
-                  isUser
-                    ? isReserved ? 'bg-rose-950 border-2 border-rose-400 text-rose-100' : 'bg-emerald-950 border-2 border-emerald-400 text-emerald-200'
-                    : isReserved
-                    ? 'bg-rose-950 border border-rose-700 text-rose-200'
-                    : isOcc
-                    ? 'bg-slate-900 border border-slate-700 text-slate-200'
-                    : 'bg-slate-950 border border-dashed border-slate-800 text-slate-600'
-                }`}
-              >
-                <span className="text-[8px] font-mono font-bold">#{p.position_index}</span>
-                <span className="text-[7px] truncate max-w-[36px]">{isOcc ? p.username : 'Livre'}</span>
-              </div>
-            );
-          })}
-
-          {/* RING 3: 8 VAGAS DE ENTRADA (#7 a #14) */}
-          {n3.map((p, i) => {
-            const isUser = p.user_id === currentUserId;
-            const isOcc = p.status === 'occupied';
-            const isReserved = isOcc && p.activation_status === 'reserved';
-            const angles = [-150, -120, -60, -30, 30, 60, 120, 150];
-            const angleRad = (angles[i] * Math.PI) / 180;
-            const x = 165 + 140 * Math.cos(angleRad) - 16;
-            const y = 165 + 140 * Math.sin(angleRad) - 16;
-
-            return (
-              <div
-                key={p.position_index}
-                onClick={() => setSelectedNode(p)}
-                style={{ left: `${x}px`, top: `${y}px` }}
-                className={`absolute z-10 w-8 h-8 rounded-full flex flex-col items-center justify-center text-center cursor-pointer text-[8px] font-mono transition ${
-                  isUser
-                    ? isReserved ? 'bg-rose-900 border-2 border-rose-400 text-white font-bold' : 'bg-emerald-900 border-2 border-emerald-400 text-white font-bold'
-                    : isReserved
-                    ? 'bg-rose-950 border border-rose-500/70 text-rose-200'
-                    : isOcc
-                    ? 'bg-slate-900 border border-emerald-500/50 text-emerald-300'
-                    : 'bg-slate-950 border border-dashed border-slate-800 text-slate-600'
-                }`}
-                title={`Posição #${p.position_index}: ${isOcc ? p.username : 'Vaga Livre'}`}
-              >
-                #{p.position_index}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Legend */}
-        <div className="w-full flex items-center justify-around pt-3 border-t border-slate-800 text-[10px] text-slate-400">
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
-            <span>Centro: Tronco</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-            <span>Ativado</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
-            <span>Reservado</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full border border-dashed border-slate-600"></span>
-            <span>Vaga Aberta</span>
-          </div>
-        </div>
-      </div>
-    );
+    const tree = allTrees.find(item => item.id === positionsToRender[0]?.tree_id);
+    return <TreeBoard positions={positionsToRender} currentUserId={currentUserId}
+      treeCode={tree?.tree_code} treeLabel={tree ? treeDisplayName(tree) : undefined}
+      onSelect={setSelectedNode} />;
   };
 
   // MODEL 2: MAPA MENTAL BI-LATERAL
@@ -2844,17 +2693,18 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                   </div>
 
                   {adminTree && (
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-bold text-slate-200">
-                          Explorador da Árvore: <span className="text-amber-400 font-mono">{adminTree.tree_code}</span> · <span className="text-slate-300">{treeDisplayName(adminTree)}</span>
-                        </span>
-                        <span className="text-[10px] text-slate-400 font-mono">15 Posições</span>
-                      </div>
-
+                    <div className={[2, 3, 4].includes(selectedTreeModel) ? 'space-y-3' : 'arboris-explorer'}>
+                      {[2, 3, 4].includes(selectedTreeModel) && (
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-bold text-slate-200">
+                            Explorador da Árvore: <span className="text-amber-400 font-mono">{adminTree.tree_code}</span> · <span className="text-slate-300">{treeDisplayName(adminTree)}</span>
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-mono">15 Posições</span>
+                        </div>
+                      )}
                       {renderActiveModel(adminTreePositions)}
 
-                      <details className="p-3 bg-slate-900 border border-slate-800 rounded-2xl space-y-2 text-xs">
+                      <details className="arboris-tree-actions p-3 bg-slate-900 border border-slate-800 rounded-2xl space-y-2 text-xs">
                         <summary className="font-bold text-slate-200 flex items-center gap-1.5 cursor-pointer select-none">
                           <Shield className="w-3.5 h-3.5 text-amber-400" />
                           <span>Ações administrativas da árvore</span>

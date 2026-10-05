@@ -1,0 +1,47 @@
+name: Apply Leaf Node Visuals
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/patch-leaf-node-visuals.mjs'
+      - 'public/assets/arboris-leaf-node.png'
+      - '.github/workflows/apply-leaf-node-visuals.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Apply leaf node visual patch
+        run: node scripts/patch-leaf-node-visuals.mjs
+      - name: Install dependencies
+        run: npm install
+      - name: Lint
+        run: npm run lint
+      - name: Backend tests
+        run: npm run test:api
+      - name: Game tests
+        run: npm run test:game
+      - name: Build frontend
+        run: npm run build
+      - name: Commit patched files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ -n "$(git status --porcelain)" ]; then
+            git add src/App.tsx
+            git commit -m "fix: use leaf visuals for radial tree nodes"
+            git push
+          else
+            echo "No changes to commit."
+          fi

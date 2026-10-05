@@ -34,3 +34,11 @@ Prompt: “Clean background plate only. Remove all UI, text, numbered circles, g
 - **Pendente:** inspeção da página renderizada em navegador e teste real de cliques/teclado em 320, 390, 768 e 1440 px. O navegador remoto bloqueou a prévia local; Chromium local não iniciou neste ambiente. Não houve validação visual ponta a ponta nem alteração na VPS.
 
 Para publicar: executar o procedimento de atualização/build já utilizado na VPS. Após publicar, verificar o modelo 1 nas visões de membro e administrador, os 15 cliques, estados e ausência de rolagem horizontal nas larguras acima.
+
+## Atualização: posições em formato de folhas
+
+A pedido do responsável, os círculos laterais foram substituídos por folhas individuais. As sete posições à esquerda (1, 3, 4, 7, 8, 13, 14) apontam para cima e para a esquerda (↖); as sete à direita (2, 5, 6, 9, 10, 11, 12), para cima e para a direita (↗). A direção segue a coordenada visual, e não a numeração ou os dados de `side`.
+
+O contorno é aplicado ao próprio botão em CSS, com ponta no canto superior externo, base arredondada e nervuras SVG discretas. Os textos permanecem horizontais. Cores de estado, contorno tracejado das vagas, foco de teclado e seleção são preservados. A legenda acompanha o novo formato; o tronco central mantém o medalhão dourado. O ZIP enviado contém uma copa agrupada, utilizada como referência de estilo, sem adicionar uma imagem de copa a cada posição.
+
+Validação desta atualização: TypeScript, build e renderização React com 7 folhas de cada orientação e 1 tronco. A validação visual no navegador continua pendente pela limitação de ambiente registrada acima.

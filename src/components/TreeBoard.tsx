@@ -55,6 +55,8 @@ export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, onSel
         const point = layout[position.position_index];
         if (!point) return null;
         const root = position.position_index === 0;
+        // Direction follows the visible side of the tree, including positions 13–14.
+        const leafDirection = point.x < 50 ? 'left' : 'right';
         const occupied = position.status === 'occupied';
         const reserved = occupied && position.activation_status === 'reserved';
         const state = reserved ? 'reserved' : occupied ? 'active' : 'vacant';
@@ -63,11 +65,14 @@ export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, onSel
         const mine = currentUserId !== undefined && position.user_id === currentUserId;
         return (
           <button key={position.position_index} type="button"
-            className={`arboris-tree-node arboris-tree-node--${state}${root ? ' arboris-tree-node--root' : ''}${mine ? ' arboris-tree-node--mine' : ''}`}
+            className={`arboris-tree-node arboris-tree-node--${state}${root ? ' arboris-tree-node--root' : ` arboris-tree-node--leaf arboris-tree-node--leaf-${leafDirection}`}${mine ? ' arboris-tree-node--mine' : ''}`}
             style={{ left: `${point.x}%`, top: `${point.y}%`, width: `${point.size}%` }}
             data-position={position.position_index} data-state={state}
             aria-label={`${root ? 'Tronco' : 'Posição'} #${position.position_index}: ${name}. ${statusLabel}${mine ? '. Você' : ''}`}
             title={`${name} · ${statusLabel}`} onClick={() => onSelect(position)}>
+            {!root && <svg className="arboris-leaf-veins" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+              <path d="M 9 9 Q 44 43 86 86 M 32 33 Q 43 24 58 23 M 48 49 Q 62 39 76 41 M 33 34 Q 24 43 24 57 M 49 50 Q 39 62 42 76" />
+            </svg>}
             {root && <Crown aria-hidden="true" />}
             <span className="arboris-tree-node-index">{root ? 'TRONCO #0' : `#${position.position_index}`}</span>
             {(root || occupied) && <span className="arboris-tree-node-name">{name}</span>}

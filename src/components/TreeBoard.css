@@ -89,6 +89,27 @@
 }
 .arboris-tree-node--reserved { background: linear-gradient(145deg, #800b43, #3c122f); border: .75cqw solid #ff0060; color: #fff1f7; }
 .arboris-tree-node--vacant { background: #071c2c; border: .65cqw dashed #8098b5; color: #adbed5; }
+/* The sharp corner is the leaf tip: ↖ on the left, ↗ on the right.
+   Shape the button itself so its border, focus ring and hit area agree.
+   Do not rotate the button: names and position numbers stay horizontal. */
+.arboris-tree-node--leaf-left { border-radius: 3% 68% 38% 68%; }
+.arboris-tree-node--leaf-right { border-radius: 68% 3% 68% 38%; }
+.arboris-tree-node--leaf { text-shadow: 0 1px 2px rgb(0 0 0 / 65%); }
+.arboris-tree-node--leaf > span { position: relative; z-index: 1; }
+.arboris-tree-node--leaf .arboris-tree-node-name { width: 80%; }
+.arboris-leaf-veins {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  opacity: .14;
+  pointer-events: none;
+}
+.arboris-tree-node--leaf-right .arboris-leaf-veins { transform: scaleX(-1); }
 .arboris-tree-node-index { font-size: 3.65cqw; }
 .arboris-tree-node-name { display: block; width: 94%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 2.25cqw; }
 .arboris-tree-node--root { z-index: 3; background: radial-gradient(ellipse at top, #1a1c30 40%, #472108); border: .85cqw solid #ffb900; color: #fff; box-shadow: inset 0 .45cqw .1cqw #fff291, 0 0 0 .45cqw #683e04, 0 .8cqw 1.5cqw #052e1f; }
@@ -100,6 +121,7 @@
 .arboris-tree-legend { bottom: 3%; min-height: 6.4%; display: flex; align-items: center; justify-content: space-between; gap: 1%; padding: 1.8% 2.8%; font-size: 2.55cqw; color: #b6cedb; }
 .arboris-tree-legend > span { display: inline-flex; align-items: center; gap: .8cqw; white-space: nowrap; }
 .arboris-tree-legend i { width: 3.2cqw; aspect-ratio: 1; border-radius: 50%; flex: none; border: .25cqw solid #001b27; }
+.arboris-tree-legend i:not(.arboris-key--root) { border-radius: 68% 3% 68% 38%; }
 .arboris-key--root { background: #ffbf00; }
 .arboris-key--active { background: #00cd77; }
 .arboris-key--reserved { background: #ff0060; }

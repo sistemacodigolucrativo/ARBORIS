@@ -117,19 +117,25 @@ class DataStoreService {
       };
     });
 
-    const formattedLedger = this.state.ledger.map(l => ({
-      id: l.id,
-      transaction_uuid: `tx_${l.id}`,
-      user_id: l.toUserId,
-      type: l.type,
-      amount: l.amount,
-      balance_before: 0,
-      balance_after: 0,
-      status: 'completed',
-      idempotency_key: l.idempotencyKey,
-      created_at: l.createdAt,
-      username: l.toUsername
-    }));
+    // Recover opening balances from persisted closing balances and recorded movements.
+    const balances = new Map(this.state.wallets.map(w => [w.userId, w.balance]));
+    for (const entry of this.state.ledger) {
+      balances.set(entry.toUserId, (balances.get(entry.toUserId) || 0) - entry.amount);
+      if (entry.fromUserId !== null) balances.set(entry.fromUserId, (balances.get(entry.fromUserId) || 0) + entry.amount);
+    }
+    const formattedLedger = this.state.ledger.map(l => {
+      const userId = l.fromUserId === this.user?.id ? l.fromUserId : l.toUserId;
+      const before = balances.get(userId) || 0;
+      if (l.fromUserId !== null) balances.set(l.fromUserId, (balances.get(l.fromUserId) || 0) - l.amount);
+      balances.set(l.toUserId, (balances.get(l.toUserId) || 0) + l.amount);
+      return {
+        id: l.id, transaction_uuid: `tx_${l.id}`, user_id: userId,
+        type: l.type, amount: userId === l.fromUserId ? -l.amount : l.amount,
+        balance_before: before, balance_after: balances.get(userId) || 0,
+        status: 'completed', idempotency_key: l.idempotencyKey,
+        created_at: l.createdAt, username: userId === l.fromUserId ? l.fromUsername : l.toUsername
+      };
+    });
 
     const formattedAudit = this.state.auditLog.map(a => ({
       id: a.id,

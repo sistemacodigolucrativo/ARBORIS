@@ -4,7 +4,7 @@ import { ActionResult, createParticipant, strengthenTronco, transferSeeds, valid
 import { createTreeByAdmin, archiveTreeByAdmin, assignTreePositionByAdmin, clearTreePositionByAdmin } from '../src/services/adminGameEngine';
 import { HttpError, newToken } from './security';
 const id = z.number().int().positive().max(2147483647);
-const text = z.string().trim().min(1).max(100);
+const text = z.string().trim().min(1).max(80);
 export const passwordSchema = z.string().min(12, 'A senha precisa ter pelo menos 12 caracteres.').max(128);
 export const registrationSchema = z.object({ firstName: text, lastName: text, indicadorUsername: z.string().trim().min(1).max(200), password: passwordSchema }).strict();
 export const actionSchema = z.discriminatedUnion('action', [

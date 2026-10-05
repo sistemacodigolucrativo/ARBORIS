@@ -24,8 +24,8 @@ try {
   await page.getByRole('button', { name: 'Criar', exact: true }).click();
   await page.getByPlaceholder('username do indicador').fill('maria');
   await page.getByRole('button', { name: 'Validar indicador', exact: true }).click();
-  await page.getByPlaceholder('Nome do usuário').fill('Browser');
-  await page.getByPlaceholder('Sobrenome do usuário').fill('Member');
+  await page.getByPlaceholder('Nome do usuário', { exact: true }).fill('Browser');
+  await page.getByPlaceholder('Sobrenome do usuário', { exact: true }).fill('Member');
   await page.getByLabel('Senha da nova conta', { exact: false }).fill('browser-only-long-password-123');
   await page.getByRole('button', { name: 'Criar usuário', exact: true }).click();
   await expect(page.getByText('Usuário criado: @browser_member.', { exact: true })).toBeVisible();
@@ -40,12 +40,19 @@ try {
   await page.getByRole('button', { name: 'Entrar', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Sair', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Organização', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Transferir 25 Sementes para fortalecer o tronco', exact: true }).click();
+  await expect(page.getByText('Fortalecimento concluído.', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Sementes', exact: true }).click();
+  await expect(page.getByText('-25', { exact: true })).toBeVisible();
+  await expect(page.getByText('Saldo: 0', { exact: true })).toBeVisible();
+  const [wallets] = await pool.execute<RowDataPacket[]>('SELECT balance FROM wallets WHERE userId=?', [users[0].id]);
+  if (wallets[0].balance !== 0) throw new Error('Fortalecimento não debitou o saldo no MySQL.');
   await page.reload();
   await expect(page.getByRole('button', { name: 'Sair', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Sair', exact: true }).click();
   await expect(page.getByRole('button', { name: /Já sou membro/ })).toBeVisible();
   if (errors.length) throw new Error(errors.join('\n'));
-  console.log('Browser smoke passed: login, admin creation persisted in MySQL, member access, session reload, logout.');
+  console.log('Browser smoke passed: login, admin creation persisted in MySQL, member access, strengthening and signed ledger, session reload, logout.');
 } finally {
   await browser.close();
   await new Promise<void>(resolve => server.close(() => resolve()));

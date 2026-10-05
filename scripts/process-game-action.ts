@@ -96,6 +96,7 @@ function resolveAdminActor(state: GameDatabaseState, requestActor: string | null
 }
 
 async function main() {
+  if (process.env.ARBORIS_LEGACY_JSON_TOOLING !== 'true') throw new Error('Processador JSON legado desativado. Use a API MySQL.');
   const payloadRaw = process.env.GAME_ACTION_PAYLOAD || process.argv[2];
   if (!payloadRaw) {
     console.error('ERRO: Nenhum payload de ação fornecido.');

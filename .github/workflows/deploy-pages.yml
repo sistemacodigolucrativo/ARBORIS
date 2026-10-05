@@ -18,6 +18,7 @@ concurrency:
 
 jobs:
   build-and-deploy:
+    if: vars.ARBORIS_API_BASE_URL != ''
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -33,12 +34,14 @@ jobs:
           node-version: 22
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Run game tests
         run: npm run test:game
 
       - name: Build for GitHub Pages
+        env:
+          VITE_API_BASE_URL: ${{ vars.ARBORIS_API_BASE_URL }}
         run: npm run build
 
       - name: Configure GitHub Pages

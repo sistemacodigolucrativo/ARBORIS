@@ -142,7 +142,6 @@ type StoredUiState = {
   memberTab?: 'my_tree' | 'marketing' | 'wallet';
   adminTab?: 'global_trees' | 'create_user' | 'members' | 'settings' | 'audit';
   selectedAdminTreeId?: number;
-  currentUser?: User | null;
 };
 
 const ARBORIS_UI_STATE_KEY = 'arboris_ui_state_v1';
@@ -181,6 +180,13 @@ export default function App() {
   // Lock Screen registration fields
   const [formFirstName, setFormFirstName] = useState<string>('');
   const [formLastName, setFormLastName] = useState<string>('');
+  const [formPassword, setFormPassword] = useState('');
+  const [loginUsername, setLoginUsername] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const [adminCreatePassword, setAdminCreatePassword] = useState('');
   const [submittingAccess, setSubmittingAccess] = useState<boolean>(false);
 
   // Activation & Strengthening Loading state
@@ -207,8 +213,8 @@ export default function App() {
     return stored === 'global_trees' || stored === 'create_user' || stored === 'members' || stored === 'settings' || stored === 'audit' ? stored : 'global_trees';
   });
   
-  // Simulated logged-in user
-  const [currentUser, setCurrentUser] = useState<User | null>(() => initialUiState.currentUser ?? null);
+  // Identity comes exclusively from the authenticated server session.
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   // System state from API
   const [systemState, setSystemState] = useState<any>(null);
@@ -246,44 +252,43 @@ export default function App() {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  const openActionRequest = (url: string) => {
-    const opened = window.open(url, '_blank', 'noopener,noreferrer');
-    if (!opened) {
-      window.location.assign(url);
-    }
+  const applyDirectAdminState = async (_res: any) => { await fetchState(true); };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault(); setLoginLoading(true); setLoginError('');
+    try {
+      await dataStore.login(loginUsername.trim(), loginPassword);
+      const view = dataStore.getSystemStateView();
+      const user = view?.users.find(u => u.id === dataStore.getSessionUser()?.id);
+      if (!user) throw new Error('Não foi possível confirmar sua sessão.');
+      setCurrentUser(user); setSystemState(view); setLoginPassword('');
+      setShowDirectLoginModal(false); setShowLandingPage(false); setIsLocked(false);
+      setCurrentView(user.role === 'admin' ? 'admin' : 'member'); setLoadError('');
+    } catch (error: any) { setLoginError(error.message); }
+    finally { setLoginLoading(false); }
   };
-
-  const applyDirectAdminState = async (res: any) => {
-    if (res?.state) {
-      dataStore.replaceState(res.state);
-      const stateView = dataStore.getSystemStateView();
-      if (stateView) {
-        setSystemState(stateView);
-        if (currentUser) {
-          const fresh = stateView.users.find((u: User) => u.id === currentUser.id);
-          if (fresh) setCurrentUser(fresh);
-        }
-      }
-      return;
-    }
-
-    await fetchState(true);
+  const handleLogout = async () => {
+    try {
+      await dataStore.logout(); setCurrentUser(null); setSystemState(null);
+      setShowLandingPage(true); setCurrentView('member');
+    } catch (error: any) { showToast(error.message); }
   };
 
   const fetchState = async (forceReloadFromJson = false) => {
     try {
       setLoading(true);
       await dataStore.loadState(forceReloadFromJson);
+      setLoadError('');
       const stateView = dataStore.getSystemStateView();
       if (stateView) {
         setSystemState(stateView);
-        if (currentUser) {
-          const fresh = stateView.users.find((u: User) => u.id === currentUser.id);
-          if (fresh) setCurrentUser(fresh);
-        }
+        const fresh = stateView.users.find((u: User) => u.id === dataStore.getSessionUser()?.id);
+        setCurrentUser(fresh || null);
+        if (!fresh) setCurrentView('public');
       }
-    } catch (e) {
-      console.error('Error fetching state', e);
+    } catch (e: any) {
+      setLoadError(e.message);
+      setSystemState(null);
     } finally {
       setLoading(false);
     }
@@ -297,10 +302,16 @@ export default function App() {
       selectedTreeModel,
       memberTab,
       adminTab,
-      selectedAdminTreeId,
-      currentUser
+      selectedAdminTreeId
     });
   }, [showLandingPage, isLocked, currentView, selectedTreeModel, memberTab, adminTab, selectedAdminTreeId, currentUser]);
+
+  useEffect(() => {
+    for (const key of ['arboris_game_state_v1', 'arboris_current_user_v1', 'arboris_admin_execution_key_v1', 'arboris_github_fine_grained_token_v1']) localStorage.removeItem(key);
+    const expired = () => { setCurrentUser(null); setSystemState(null); setShowDirectLoginModal(true); setCurrentView('member'); };
+    window.addEventListener('arboris-session-expired', expired);
+    return () => window.removeEventListener('arboris-session-expired', expired);
+  }, []);
 
   useEffect(() => {
     fetchState();
@@ -309,15 +320,15 @@ export default function App() {
     const urlParams = new URLSearchParams(window.location.search);
     const refParam = urlParams.get('ref') || (window.location.pathname.includes('/ref/') ? window.location.pathname.split('/ref/')[1] : null);
     if (refParam) {
-      dataStore.loadState().then(() => {
-        const val = dataStore.validateIndicador(refParam);
+      dataStore.loadState().then(async () => {
+        const val = await dataStore.validateIndicador(refParam);
         if (val.success && val.data) {
           setValidatedIndicadorData(val.data);
           setShowLandingPage(false);
           setIsLocked(true); // Direct to step 2 (fill in data)
           showToast(`✓ Link de indicação aceito! Preencha seus dados para entrar.`);
         }
-      });
+      }).catch((error: any) => setLockError(error.message));
     }
   }, []);
 
@@ -327,7 +338,7 @@ export default function App() {
     setValidatingIndicador(true);
     setLockError(null);
     try {
-      const val = dataStore.validateIndicador(token);
+      const val = await dataStore.validateIndicador(token);
       if (val.success && val.data) {
         setValidatedIndicadorData(val.data);
         showToast(`✓ Link de indicação validado! Preencha seus dados.`);
@@ -352,7 +363,7 @@ export default function App() {
     setValidatingIndicador(true);
     setLockError(null);
     try {
-      const val = dataStore.validateIndicador(indicadorInput.trim());
+      const val = await dataStore.validateIndicador(indicadorInput.trim());
       if (val.success && val.data) {
         setValidatedIndicadorData(val.data);
         setLockError(null);
@@ -386,12 +397,14 @@ export default function App() {
       const res = await dataStore.registerParticipant({
         indicadorUsername: validatedIndicadorData.username,
         firstName: formFirstName.trim(),
-        lastName: formLastName.trim()
+        lastName: formLastName.trim(),
+        password: formPassword
       });
       if (res.success && res.result) {
-        openActionRequest(res.result.request_url);
-        setLockError('Solicitação online aberta no GitHub. Envie a issue para a Action validar e gravar o cadastro nos JSONs.');
-        showToast(`Solicitação de cadastro criada para ${res.result.full_name}.`);
+        setLoginUsername(res.result.user.username);
+        setFormPassword(''); setLoginPassword('');
+        setLoginError(`Cadastro concluído. Seu usuário é ${res.result.user.username}. Entre com a senha escolhida.`);
+        setShowDirectLoginModal(true);
       } else {
         setLockError(res.error || 'Falha ao registrar novo participante.');
       }
@@ -412,7 +425,7 @@ export default function App() {
     setAdminCreateUserLoading(true);
     setAdminCreateUserError(null);
     try {
-      const val = dataStore.validateIndicador(adminIndicadorInput.trim());
+      const val = await dataStore.validateIndicador(adminIndicadorInput.trim());
       if (val.success && val.data) {
         setAdminValidatedIndicadorData(val.data);
         showToast(`✓ Indicador validado: @${val.data.username}`);
@@ -451,16 +464,18 @@ const handleAdminCreateUser = async (e: React.FormEvent) => {
       indicadorUsername: adminValidatedIndicadorData.username,
       firstName: adminCreateFirstName.trim(),
       lastName: adminCreateLastName.trim(),
+      password: adminCreatePassword,
       actorUserId: currentUser.id,
       actorUsername: currentUser.username
     });
 
     if (res.success) {
       await applyDirectAdminState(res);
-      showToast('Usuário criado e salvo nos JSONs do repositório.');
+      showToast(`Usuário criado: @${res.result.user.username}.`);
       setAdminCreateUserError(null);
       setAdminCreateFirstName('');
       setAdminCreateLastName('');
+      setAdminCreatePassword('');
       setAdminValidatedIndicadorData(null);
     } else {
       setAdminCreateUserError(res.error || 'Falha ao criar usuário pelo painel administrativo.');
@@ -485,8 +500,8 @@ const handleAdminCreateUser = async (e: React.FormEvent) => {
     try {
       const res = await dataStore.strengthenTroncoAction(userId, treeId);
       if (res.success && res.result) {
-        openActionRequest(res.result.request_url);
-        showToast('Solicitação de fortalecimento aberta no GitHub. Envie a issue para gravar nos JSONs.');
+        await fetchState(true);
+        showToast('Fortalecimento concluído.');
       } else {
         showToast('Falha: ' + (res.error || 'Não foi possível completar o fortalecimento.'));
       }
@@ -524,10 +539,10 @@ const handleCreateTree = async (e: React.FormEvent) => {
       const treeId = (res.result as any)?.tree?.id;
       if (treeId) setSelectedAdminTreeId(treeId);
       setShowCreateTreeModal(false);
-      setAdminActionMessage('Árvore criada e salva nos JSONs do repositório.');
-      showToast('Árvore criada e salva nos JSONs do repositório.');
+      setAdminActionMessage('Árvore criada e salva no banco de dados.');
+      showToast('Árvore criada e salva no banco de dados.');
     } else {
-      const error = res.error || 'Não foi possível criar a árvore nos JSONs do repositório.';
+      const error = res.error || 'Não foi possível criar a árvore no banco de dados.';
       setAdminActionMessage(error);
       showToast('Erro: ' + error);
     }
@@ -547,7 +562,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
     return;
   }
 
-  const error = res.error || 'Não foi possível salvar a ação administrativa nos JSONs do repositório.';
+  const error = res.error || 'Não foi possível salvar a ação administrativa no banco de dados.';
   setAdminActionMessage(error);
   showToast('Erro: ' + error);
 };
@@ -569,7 +584,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
         actorUserId: currentUser?.id,
         actorUsername: currentUser?.username
       });
-      await openAdminOnlineAction(res, 'Árvore arquivada e salva nos JSONs do repositório.');
+      await openAdminOnlineAction(res, 'Árvore arquivada e salva no banco de dados.');
     } catch (e: any) {
       setAdminActionMessage('Erro ao arquivar árvore: ' + e.message);
       showToast('Erro: ' + e.message);
@@ -595,7 +610,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
         actorUserId: currentUser?.id,
         actorUsername: currentUser?.username
       });
-      await openAdminOnlineAction(res, `Membro atribuído à posição #${selectedNode.position_index} e salvo nos JSONs do repositório.`);
+      await openAdminOnlineAction(res, `Membro atribuído à posição #${selectedNode.position_index} e salvo no banco de dados.`);
     } catch (e: any) {
       setAdminActionMessage('Erro ao atribuir membro: ' + e.message);
       showToast('Erro: ' + e.message);
@@ -625,7 +640,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
         actorUserId: currentUser?.id,
         actorUsername: currentUser?.username
       });
-      await openAdminOnlineAction(res, `Posição #${selectedNode.position_index} liberada e salva nos JSONs do repositório.`);
+      await openAdminOnlineAction(res, `Posição #${selectedNode.position_index} liberada e salva no banco de dados.`);
     } catch (e: any) {
       setAdminActionMessage('Erro ao liberar posição: ' + e.message);
       showToast('Erro: ' + e.message);
@@ -1439,6 +1454,19 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
   // ==========================================
   // 0. PÁGINA PÚBLICA PRINCIPAL (LANDING EXPLICATIVA)
   // ==========================================
+  if (showDirectLoginModal) {
+    return <main className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4">
+      <form onSubmit={handleLogin} className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
+        <h1 className="font-bold">Entrar na comunidade</h1>
+        <label className="block text-sm">Usuário<input required autoComplete="username" value={loginUsername} onChange={e => setLoginUsername(e.target.value)} className="block w-full mt-1 bg-slate-950 border border-slate-700 rounded-xl p-3" /></label>
+        <label className="block text-sm">Senha<input required type="password" autoComplete="current-password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} className="block w-full mt-1 bg-slate-950 border border-slate-700 rounded-xl p-3" /></label>
+        {loginError && <p role="alert" className="text-sm text-amber-300">{loginError}</p>}
+        <button disabled={loginLoading} className="w-full bg-emerald-600 rounded-xl p-3 font-bold disabled:opacity-50">{loginLoading ? 'Entrando...' : 'Entrar'}</button>
+        <button type="button" onClick={() => { setShowDirectLoginModal(false); setLoginPassword(''); setShowLandingPage(true); }} className="w-full text-sm text-slate-400">Voltar</button>
+      </form>
+    </main>;
+  }
+
   if (showLandingPage) {
     return (
       <PublicLandingPage
@@ -1636,6 +1664,9 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                   </div>
                 </div>
 
+                <label className="block text-xs text-slate-300">Senha (mínimo 12 caracteres)
+                  <input required type="password" minLength={12} maxLength={128} autoComplete="new-password" value={formPassword} onChange={e => setFormPassword(e.target.value)} className="w-full mt-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2" />
+                </label>
                 {/* Sementes box 100% centered */}
                 <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 text-[10px] text-slate-300 text-center leading-relaxed">
                   🌱 Você receberá <strong>25 sementes gratuitas</strong> no cadastro para fortalecer o tronco e garantir sua posição na ramificação.
@@ -1657,53 +1688,6 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
             )}
           </div>
         </div>
-
-        {/* Modal: Direct Login for Existing Members */}
-        {showDirectLoginModal && (
-          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-sm w-full p-5 shadow-2xl space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
-                  <UserCheck className="w-4 h-4 text-emerald-400" />
-                  <span>Acesso de Membro da Comunidade</span>
-                </h3>
-                <button
-                  onClick={() => setShowDirectLoginModal(false)}
-                  className="text-slate-400 hover:text-white text-xs"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div className="space-y-2 text-xs">
-                <p className="text-[11px] text-slate-400 text-balance leading-relaxed">
-                  Selecione sua conta cadastrada para acessar diretamente sua árvore:
-                </p>
-
-                {allUsers.map((u) => (
-                  <button
-                    key={u.id}
-                    onClick={() => {
-                      setCurrentUser(u);
-                      setIsLocked(false);
-                      setShowLandingPage(false);
-                      setCurrentView(u.role === 'admin' ? 'admin' : 'member');
-                      setShowDirectLoginModal(false);
-                      showToast(`✓ Acesso autorizado: ${u.full_name}`);
-                    }}
-                    className="w-full p-2.5 bg-slate-950 hover:bg-slate-800 border border-slate-800 rounded-xl text-left flex items-center justify-between transition"
-                  >
-                    <div>
-                      <div className="font-bold text-slate-100">{u.full_name}</div>
-                      <div className="text-[10px] text-slate-400">@{u.username}</div>
-                    </div>
-                    <span className="text-[10px] font-mono text-emerald-400 font-bold">{u.balance} sementes</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Modal: Regras e Como Funciona na Tela de Bloqueio */}
         {showRulesModal && (
@@ -1749,7 +1733,9 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
       {/* Main App Container */}
       <div className="w-full max-w-md mx-auto flex-1 flex flex-col bg-slate-950 border-x border-slate-900 shadow-2xl relative pb-20">
         
+        {loadError && <div role="alert" className="p-4 text-sm text-rose-300">{loadError}<button onClick={() => fetchState(true)} className="block underline">Tentar novamente</button></div>}
         {/* Top App Bar & Navigation */}
+        {currentUser && <div className="flex items-center justify-between p-3 text-xs"><span>@{currentUser.username}</span><button onClick={handleLogout} className="underline">Sair</button></div>}
         <header className="sticky top-0 z-40 bg-slate-900/95 backdrop-blur border-b border-slate-800 px-4 py-3 space-y-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
@@ -1787,13 +1773,13 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
               <button
                 onClick={() => {
                   fetchState(true);
-                  showToast('✓ Dados recarregados diretamente dos arquivos JSON estáticos!');
+                  showToast('Dados atualizados.');
                 }}
-                title="Restaurar dados originais dos arquivos JSON do repositório"
+                title="Atualizar dados do servidor"
                 className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-400 text-xs flex items-center gap-1 transition"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline text-[10px]">Reset JSON</span>
+                <span className="hidden sm:inline text-[10px]">Atualizar</span>
               </button>
 
               <button
@@ -2336,7 +2322,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                             className="w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold flex items-center justify-center gap-2 transition"
                           >
                             <RefreshCw className="w-3.5 h-3.5" />
-                            <span>Recarregar JSON</span>
+                            <span>Atualizar dados</span>
                           </button>
                           <button
                             type="button"
@@ -2370,7 +2356,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                       <span>Criar usuário pelo painel</span>
                     </div>
                     <p className="text-[11px] text-slate-400 leading-relaxed">
-                      Use o mesmo passo a passo do cadastro comum: valide o usuário indicador, preencha nome e sobrenome e abra a solicitação online para gravar nos JSONs.
+                      Valide o indicador e preencha nome, sobrenome e senha para criar a conta.
                     </p>
                   </div>
 
@@ -2429,13 +2415,16 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                         </div>
                       </div>
 
+                      <label className="block text-xs text-slate-300">Senha da nova conta (mínimo 12 caracteres)
+                        <input required type="password" minLength={12} maxLength={128} autoComplete="new-password" value={adminCreatePassword} onChange={e => setAdminCreatePassword(e.target.value)} className="w-full mt-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5" />
+                      </label>
                       <button
                         type="submit"
                         disabled={adminCreateUserLoading}
                         className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-slate-950 font-black text-xs transition flex items-center justify-center gap-2"
                       >
                         {adminCreateUserLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <PlusCircle className="w-3.5 h-3.5" />}
-                        <span>Criar solicitação de usuário</span>
+                        <span>Criar usuário</span>
                       </button>
                     </form>
                   )}

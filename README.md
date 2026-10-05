@@ -1,3 +1,13 @@
+# ARBORIS — API + MySQL
+
+A branch main usa backend Node.js/TypeScript e MySQL.
+Leia [instalação, migração, segurança e testes](docs/BACKEND_MYSQL.md).
+A publicação anterior no GitHub Pages não é atualizada até configurar a API.
+
+---
+
+## Documentação histórica anterior à migração
+
 # 🌳 Arboris — Jogo Comunitário de Reflorestamento Estático
 
 > ⚠️ **AVISO FUNDAMENTAL — SISTEMA EXCLUSIVAMENTE LÚDICO / RECREATIVO:**  

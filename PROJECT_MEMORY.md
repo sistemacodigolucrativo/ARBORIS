@@ -1,3 +1,11 @@
+# Estado atual: migração para API + MySQL
+
+Pedido vigente: backend real com MySQL na main, substituindo JSON/GitHub API.
+Consulte docs/BACKEND_MYSQL.md. O frontend exige API; nenhuma senha padrão.
+Hospedagem e credenciais de produção não foram fornecidas.
+
+## Histórico anterior (não usar como arquitetura vigente)
+
 # 🧠 MEMÓRIA PERSISTENTE DO PROJETO — ARBORIS REFLORESTAMENTO
 
 > **Documento Vivo de Engenharia e Conhecimento Arquitetural**  

@@ -1,0 +1,62 @@
+name: Apply manual members nickname reservation fixes v3
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/apply-manual-members-nickname-reservation-v3.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Fix patch script syntax
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/apply-manual-members-nickname-reservation.py')
+          s = path.read_text()
+          s = s.replace('s = replace_all(s, "text-emerald-300">Posição Ativa na Árvore:", "text-rose-300">Vaga reservada na árvore:")', "s = replace_all(s, 'text-emerald-300\">Posição Ativa na Árvore:', 'text-rose-300\">Vaga reservada na árvore:')")
+          path.write_text(s)
+          PY
+      - name: Apply patch script
+        run: python scripts/apply-manual-members-nickname-reservation.py
+      - name: Update game tests for reservation rule
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/test-game-engine.ts')
+          s = path.read_text()
+          s = s.replace("assert(newWallet?.balance === 25, 'Participante recebeu 25 sementes virtuais gratuitas');", "assert(newWallet?.balance === 50, 'Participante recebeu pacote de 25 sementes + 25 sementes disponíveis');")
+          s = s.replace("assert(txRes.state.wallets.find(w => w.userId === regRes.result!.user.id)?.balance === 0, 'Saldo de quem enviou foi debitado');", "assert(txRes.state.wallets.find(w => w.userId === regRes.result!.user.id)?.balance === 25, 'Saldo de quem enviou foi debitado e manteve 25 sementes disponíveis');")
+          path.write_text(s)
+          PY
+      - name: Install dependencies
+        run: npm ci
+      - name: Typecheck
+        run: npm run lint
+      - name: Backend tests
+        run: npm run test:api
+      - name: Game tests
+        run: npm run test:game
+      - name: Build frontend
+        run: npm run build
+      - name: Commit patched files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/apply-manual-members-nickname-reservation.py scripts/test-game-engine.ts src/types/game.ts src/services/gameEngine.ts src/services/adminGameEngine.ts src/services/directAdminActions.ts src/services/dataStore.ts server/actions.ts server/db.ts server/migrations/001_initial.sql server/migrations/002_tree_nickname.sql src/App.tsx
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "fix: add manual members nickname and reservation flow"
+            git push
+          fi

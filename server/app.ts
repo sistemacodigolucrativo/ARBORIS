@@ -58,7 +58,8 @@ export function createApp(pool: DatabasePool) {
   const limited = (limit: number) => rateLimit({ windowMs: 15 * 60 * 1000, limit, standardHeaders: 'draft-8', legacyHeaders: false, message: { success: false, error: 'Muitas tentativas. Aguarde e tente novamente.' } });
   app.use('/api', limited(1000));
   const authLimit = limited(30);
-  const cookieOptions = { httpOnly: true, secure: production, sameSite: crossSite ? 'none' as const : 'lax' as const, path: '/api' };
+  const cookiePath = process.env.COOKIE_PATH || '/api';
+  const cookieOptions = { httpOnly: true, secure: production, sameSite: crossSite ? 'none' as const : 'lax' as const, path: cookiePath };
   const dummyHash = hashPassword(newToken());
   app.get('/api/health', async (_req, res) => {
     const [rows] = await pool.query<RowDataPacket[]>('SELECT id FROM game_config WHERE id=1');

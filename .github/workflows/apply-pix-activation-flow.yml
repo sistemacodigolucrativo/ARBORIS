@@ -21,6 +21,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Fix patch script anchor
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('scripts/apply-pix-activation-flow.py')
+          s = p.read_text(encoding='utf-8')
+          s = s.replace('"  const handleCreateTree = async (e: React.FormEvent) => {"', '"const handleCreateTree = async (e: React.FormEvent) => {"')
+          p.write_text(s, encoding='utf-8')
+          PY
       - name: Apply patch script
         run: python scripts/apply-pix-activation-flow.py
       - name: Install dependencies
@@ -44,4 +53,4 @@ jobs:
             git commit -m "fix: add pix activation approval flow"
             git push
           fi
-# retrigger: pix activation flow
+# retrigger: pix activation flow v2

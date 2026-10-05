@@ -4,9 +4,9 @@
   const leafUrl = new URL('arboris-leaf-node.png', scriptUrl).href;
 
   const sizeByLevel = {
-    lg: { px: 96, nameClass: 'arboris-leaf-name-lg', old: 56 },
-    md: { px: 82, nameClass: 'arboris-leaf-name-md', old: 44 },
-    sm: { px: 72, nameClass: 'arboris-leaf-name-sm', old: 32 },
+    lg: { px: 72, nameClass: 'arboris-leaf-name-lg', old: 56 },
+    md: { px: 56, nameClass: 'arboris-leaf-name-md', old: 44 },
+    sm: { px: 42, nameClass: 'arboris-leaf-name-sm', old: 32 },
   };
 
   const levelForPosition = (pos) => {
@@ -51,13 +51,13 @@
         transform: var(--arboris-leaf-transform, rotate(0deg));
         transform-origin: center center;
         pointer-events: none;
-        filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.45));
+        filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.42));
       }
       .arboris-leaf-node.arboris-leaf-current::before {
-        filter: drop-shadow(0 0 11px rgba(52, 211, 153, 0.95)) drop-shadow(0 7px 8px rgba(0, 0, 0, 0.45));
+        filter: drop-shadow(0 0 8px rgba(52, 211, 153, 0.95)) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.42));
       }
       .arboris-leaf-node.arboris-leaf-reserved::before {
-        filter: drop-shadow(0 0 10px rgba(244, 63, 94, 0.9)) drop-shadow(0 7px 8px rgba(0, 0, 0, 0.45));
+        filter: drop-shadow(0 0 8px rgba(244, 63, 94, 0.9)) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.42));
       }
       .arboris-leaf-label {
         position: relative;
@@ -66,9 +66,9 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        width: 72%;
+        width: 68%;
         min-width: 0;
-        transform: translateY(2px);
+        transform: translateY(1px);
         pointer-events: none;
       }
       .arboris-leaf-index,
@@ -83,13 +83,13 @@
           0 -1px 0 rgba(0,0,0,0.9),
           1px 0 0 rgba(0,0,0,0.9),
           -1px 0 0 rgba(0,0,0,0.9),
-          0 0 8px rgba(0,0,0,0.95),
-          0 0 13px rgba(0,0,0,0.85);
-        -webkit-text-stroke: 0.35px rgba(0,0,0,0.92);
+          0 0 7px rgba(0,0,0,0.95),
+          0 0 10px rgba(0,0,0,0.85);
+        -webkit-text-stroke: 0.3px rgba(0,0,0,0.92);
       }
       .arboris-leaf-index {
         font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-        font-size: 12px;
+        font-size: 10px;
       }
       .arboris-leaf-name {
         max-width: 100%;
@@ -97,16 +97,16 @@
         text-overflow: ellipsis;
         white-space: nowrap;
       }
-      .arboris-leaf-name-lg { font-size: 11px; max-width: 70px; }
-      .arboris-leaf-name-md { font-size: 10px; max-width: 60px; }
-      .arboris-leaf-name-sm { font-size: 9px; max-width: 52px; }
+      .arboris-leaf-name-lg { font-size: 9px; max-width: 52px; }
+      .arboris-leaf-name-md { font-size: 8px; max-width: 42px; }
+      .arboris-leaf-name-sm { font-size: 7px; max-width: 32px; }
       .arboris-leaf-you {
-        margin-top: 2px;
+        margin-top: 1px;
         border-radius: 999px;
-        padding: 1px 5px;
+        padding: 1px 4px;
         background: rgba(52, 211, 153, 0.96);
         color: #052e16 !important;
-        font-size: 8px;
+        font-size: 7px;
         font-weight: 950;
         line-height: 1;
         text-shadow: none;

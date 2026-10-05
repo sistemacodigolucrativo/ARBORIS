@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS wallets (
 ) ENGINE=InnoDB;
 CREATE TABLE IF NOT EXISTS trees (
  id INT PRIMARY KEY, categoryId INT NOT NULL, treeCode VARCHAR(100) NOT NULL UNIQUE,
- nickname VARCHAR(120) NULL, troncoUserId INT NOT NULL, status ENUM('active','completed','archived') NOT NULL,
+ troncoUserId INT NOT NULL, status ENUM('active','completed','archived') NOT NULL,
  cycleNumber INT NOT NULL, parentTreeId INT NULL, createdAt VARCHAR(30) NOT NULL, completedAt VARCHAR(30) NULL,
  FOREIGN KEY (troncoUserId) REFERENCES users(id)
 ) ENGINE=InnoDB;

@@ -120,6 +120,7 @@ export function createTreeByAdmin(
     id: nextTreeId,
     categoryId: category.id,
     treeCode,
+    nickname: null,
     troncoUserId: tronco.id,
     status: 'active',
     cycleNumber: nextCycle,
@@ -308,6 +309,41 @@ export function deleteUserByAdmin(
   });
 
   return { success: true, state, result: { userId: target.id, username: target.username, affectedTreeIds } };
+}
+
+
+export function updateTreeNicknameByAdmin(
+  originalState: GameDatabaseState,
+  params: {
+    treeId: number;
+    nickname?: string;
+    actor: AdminActor;
+    idempotencyKey: string;
+  }
+): AdminActionResult<{ treeId: number; nickname: string | null }> {
+  const state = deepClone(originalState);
+  const now = nowIso();
+
+  const adminError = assertAdmin(state, params.actor);
+  if (adminError) return { success: false, state: originalState, error: adminError };
+  if (hasConsumedIdempotencyKey(state, params.idempotencyKey)) {
+    return { success: false, state: originalState, error: 'Operação administrativa já processada.' };
+  }
+
+  const tree = state.trees.find(item => item.id === params.treeId);
+  if (!tree) return { success: false, state: originalState, error: 'Árvore não encontrada.' };
+
+  const nickname = params.nickname?.trim().slice(0, 120) || null;
+  tree.nickname = nickname;
+
+  appendAudit(state, params.actor, 'ADMIN_TREE_NICKNAME_UPDATED', 'tree', tree.id, {
+    idempotencyKey: params.idempotencyKey,
+    nickname,
+    updatedAt: now,
+    githubActor: params.actor.githubActor || null
+  });
+
+  return { success: true, state, result: { treeId: tree.id, nickname } };
 }
 
 export function assignTreePositionByAdmin(

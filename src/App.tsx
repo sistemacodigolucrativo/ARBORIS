@@ -46,7 +46,8 @@ import {
   createTreeDirect,
   createUserDirect,
   deleteTreeDirect,
-  deleteUserDirect
+  deleteUserDirect,
+  updateTreeNicknameDirect
 } from './services/directAdminActions';
 import { PublicLandingPage } from './components/PublicLandingPage';
 
@@ -87,6 +88,8 @@ interface Tree {
   tronco_username?: string;
   tronco_full_name?: string;
   category_name?: string;
+  nickname?: string | null;
+  display_name?: string | null;
   token_requirement?: number;
   occupied_count?: number;
 }
@@ -250,6 +253,9 @@ export default function App() {
   const [adminSelectedUserId, setAdminSelectedUserId] = useState<number>(2);
   const [adminActionLoading, setAdminActionLoading] = useState<boolean>(false);
   const [adminActionMessage, setAdminActionMessage] = useState<string | null>(null);
+  const [showAdminCreateMemberForm, setShowAdminCreateMemberForm] = useState<boolean>(false);
+  const [adminMembersPage, setAdminMembersPage] = useState<number>(1);
+  const [adminMembersPageSize, setAdminMembersPageSize] = useState<number>(10);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -491,6 +497,28 @@ const handleAdminCreateUser = async (e: React.FormEvent) => {
   }
 };
 
+
+  const handleReserveTreeEntry = async (treeId: number) => {
+    if (currentUser?.role === 'admin') {
+      showToast('Ação bloqueada: coordenador não participa deste fluxo.');
+      return;
+    }
+    setActivatingTronco(true);
+    try {
+      const res = await dataStore.reserveTreeEntryAction(treeId);
+      if (res.success && res.result) {
+        await fetchState(true);
+        showToast('− 25 Sementes. Sua vaga na árvore está reservada.');
+      } else {
+        showToast('Falha: ' + (res.error || 'Não foi possível reservar sua vaga.'));
+      }
+    } catch (e: any) {
+      showToast('Erro: ' + e.message);
+    } finally {
+      setActivatingTronco(false);
+    }
+  };
+
   // ATOMIC POSITION CLAIM & STRENGTHENING:
   // "Transferir 25 Sementes para fortalecer o tronco"
   // The member enters and appears in the tree ONLY AFTER clicking this button!
@@ -505,7 +533,7 @@ const handleAdminCreateUser = async (e: React.FormEvent) => {
       const res = await dataStore.strengthenTroncoAction(userId, treeId);
       if (res.success && res.result) {
         await fetchState(true);
-        showToast('Fortalecimento concluído.');
+        showToast('25 sementes enviadas ao tronco.');
       } else {
         showToast('Falha: ' + (res.error || 'Não foi possível completar o fortalecimento.'));
       }
@@ -631,6 +659,30 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
     }
   };
 
+
+  const handleUpdateTreeNickname = async () => {
+    if (!adminTree) return;
+    const currentNickname = adminTree.nickname || '';
+    const nickname = window.prompt('Digite o apelido da árvore. Deixe vazio para remover o apelido.', currentNickname);
+    if (nickname === null) return;
+    setAdminActionLoading(true);
+    setAdminActionMessage(null);
+    try {
+      const res = await updateTreeNicknameDirect({
+        treeId: adminTree.id,
+        nickname,
+        actorUserId: currentUser?.id,
+        actorUsername: currentUser?.username
+      });
+      await openAdminOnlineAction(res, nickname.trim() ? 'Apelido da árvore atualizado.' : 'Apelido da árvore removido.');
+    } catch (e: any) {
+      setAdminActionMessage('Erro ao atualizar apelido: ' + e.message);
+      showToast('Erro: ' + e.message);
+    } finally {
+      setAdminActionLoading(false);
+    }
+  };
+
   const handleAssignSelectedNode = async () => {
     if (!adminTree || !selectedNode) return;
     if (selectedNode.position_index === 0) {
@@ -721,6 +773,10 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
   const activeAssignableUsers = allUsers.filter(u => u.status === 'active' && u.role !== 'admin');
   const positionedUserIds = new Set(allPositions.filter(p => p.status === 'occupied' && p.user_id !== null).map(p => p.user_id as number));
   const orphanUsers = allUsers.filter(u => u.role !== 'admin' && !positionedUserIds.has(u.id));
+  const registeredMembers = allUsers.filter(u => u.role !== 'admin' && positionedUserIds.has(u.id));
+  const totalAdminMemberPages = Math.max(1, Math.ceil(registeredMembers.length / adminMembersPageSize));
+  const safeAdminMembersPage = Math.min(adminMembersPage, totalAdminMemberPages);
+  const paginatedRegisteredMembers = registeredMembers.slice((safeAdminMembersPage - 1) * adminMembersPageSize, safeAdminMembersPage * adminMembersPageSize);
   const allLinks: ReferralLink[] = systemState?.referral_links || [];
 
   // Active member's tree
@@ -748,6 +804,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
   // Selected tree for admin explorer
   const adminTree = allTrees.find(t => t.id === selectedAdminTreeId) || allTrees[0];
   const adminTreePositions = allPositions.filter(p => p.tree_id === selectedAdminTreeId);
+  const treeDisplayName = (tree?: Tree | null) => tree?.nickname?.trim() || tree?.display_name || tree?.category_name || (tree?.token_requirement ? `${tree.token_requirement} sementes` : 'Árvore');
 
   // Pre-formatted copy pitch (Sementes)
   const marketingPitch = `🌱 Olá! Estou participando do ecossistema comunitário independente Arboris!\n\n🌳 Nosso tabuleiro de 15 posições segue a dinâmica clássica 1–2–4–8 da Árvore:\n• 1 Tronco Central\n• 2 Guardiões Primários\n• 4 Sub-ramos\n• 8 Vagas Externas de Entrada (Nível 3)\n\nAtualmente estamos no Ciclo #${memberTree?.cycle_number || 1} e restam apenas ${slotsRemaining} vagas externas para fechar a árvore e gerar a bifurcação!\n\n✨ 100% GRATUITO: Você ganha 25 sementes virtuais logo no cadastro para fortalecer o tronco e entrar no jogo.\n❌ Sem dinheiro real, sem PIX e sem depósitos.\n\n👉 Acesse pelo meu link de convite exclusivo:\n${referralUrl}`;
@@ -811,7 +868,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                 style={style}
                 className={`absolute z-10 w-14 h-14 rounded-full flex flex-col items-center justify-center text-center cursor-pointer transition shadow-md ${
                   isUser
-                    ? 'bg-emerald-950 border-2 border-emerald-400 text-white ring-2 ring-emerald-500/50'
+                    ? 'bg-rose-950 border-2 border-rose-400 text-white ring-2 ring-rose-500/50'
                     : isOcc
                     ? 'bg-slate-900 border border-emerald-500/60 text-slate-100'
                     : 'bg-slate-950 border border-dashed border-slate-700 text-slate-500'
@@ -1278,7 +1335,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
             <Layers className="w-4 h-4 text-emerald-400" />
             <span>Topologia dos 4 Níveis (15 Posições Exatas)</span>
           </span>
-          <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800">
+          <span className="text-[10px] font-mono text-rose-300 bg-rose-950 px-2 py-0.5 rounded border border-rose-800">
             1 – 2 – 4 – 8
           </span>
         </div>
@@ -1722,7 +1779,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                 </label>
                 {/* Sementes box 100% centered */}
                 <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 text-[10px] text-slate-300 text-center leading-relaxed">
-                  🌱 Você receberá <strong>25 sementes gratuitas</strong> no cadastro para fortalecer o tronco e garantir sua posição na ramificação.
+                  🌱 Você receberá <strong>1 pacote com 25 sementes</strong> para reservar sua vaga e mais <strong>25 sementes</strong> disponíveis para envio posterior ao tronco.
                 </div>
 
                 <button
@@ -1939,7 +1996,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                     <div>
                       <div className="font-mono text-emerald-400 font-bold">{memberTree?.tree_code}</div>
                       <div className="text-[10px] text-slate-400">
-                        {memberTree?.category_name} · Ciclo #{memberTree?.cycle_number}
+                        {treeDisplayName(memberTree)} · Ciclo #{memberTree?.cycle_number}
                       </div>
                     </div>
                     <div className="text-right font-mono">
@@ -1952,38 +2009,34 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                       A pessoa só entra, só aparece na ramificação depois que ela clicar no botão.
                       Enquanto ela não clicar ela está fora! Quem clicar antes fica numa posição muito melhor! */}
                   {currentUser.role !== 'admin' && !isUserPositioned && currentUser.balance >= 25 && (
-                    <div className="bg-gradient-to-br from-amber-950/70 via-slate-900 to-emerald-950/60 border-2 border-amber-400 rounded-2xl p-4 space-y-3 shadow-2xl relative overflow-hidden animate-in fade-in">
+                    <div className="bg-gradient-to-br from-amber-950/70 via-slate-900 to-rose-950/60 border-2 border-amber-400 rounded-2xl p-4 space-y-3 shadow-2xl relative overflow-hidden animate-in fade-in">
                       <div className="flex items-center gap-2 text-amber-300 font-bold text-xs">
                         <Zap className="w-4 h-4 text-amber-400 animate-pulse shrink-0" />
-                        <span className="uppercase tracking-wider">Aguardando Sua Ativação na Árvore</span>
+                        <span className="uppercase tracking-wider">🎁 Parabéns!</span>
                       </div>
 
                       <div className="p-3 bg-slate-950/90 rounded-xl border border-slate-800 text-[11px] text-slate-300 leading-relaxed space-y-2">
+                        <p className="text-balance">Você está participando do <strong>EcoTerra Arboris</strong>.</p>
                         <p className="text-balance">
-                          <strong>Atenção:</strong> Você possui <strong>25 sementes</strong> concedidas no cadastro, mas <strong>ainda não está posicionado na ramificação</strong>.
+                          Você recebeu gratuitamente <strong>25 sementes</strong>, que serão convertidas em sementes reais de árvores que serão plantadas por voluntários.
                         </p>
-                        <p className="text-emerald-300 font-medium text-balance">
-                          ⚡ Você só entra e aparece na árvore no momento em que clicar no botão abaixo. Se outra pessoa estiver fazendo o mesmo procedimento e clicar antes de você, <strong>ela garantirá uma posição muito melhor na árvore</strong>!
+                        <p className="text-amber-300 font-medium text-balance">
+                          Ao clicar em OK, 25 sementes serão consumidas para reservar sua vaga na árvore. Elas não serão enviadas ao tronco.
                         </p>
                       </div>
 
-                      {/* THE EXACT BUTTON REQUESTED */}
                       <button
-                        onClick={() => handleStrengthenTronco(currentUser.id, memberTree.id)}
+                        onClick={() => handleReserveTreeEntry(memberTree.id)}
                         disabled={activatingTronco}
-                        className="w-full bg-gradient-to-r from-amber-500 to-emerald-500 hover:from-amber-400 hover:to-emerald-400 disabled:opacity-50 text-slate-950 font-extrabold text-xs py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 transition shadow-xl text-balance"
+                        className="w-full bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-400 hover:to-rose-400 disabled:opacity-50 text-slate-950 font-extrabold text-xs py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 transition shadow-xl text-balance"
                       >
                         {activatingTronco ? (
                           <RefreshCw className="w-4 h-4 animate-spin text-slate-950" />
                         ) : (
                           <Sprout className="w-4 h-4 text-slate-950" />
                         )}
-                        <span>Transferir 25 Sementes para fortalecer o tronco</span>
+                        <span>OK</span>
                       </button>
-
-                      <div className="text-[10px] text-center text-slate-400">
-                        Destinatário do tronco atual: <strong>{memberTree?.tronco_full_name} (@{memberTree?.tronco_username})</strong>
-                      </div>
                     </div>
                   )}
 
@@ -1993,11 +2046,11 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                   {/* If user is already positioned in tree */}
                   {isUserPositioned && (
                     <div className="space-y-2">
-                      <div className="p-3 bg-emerald-950/40 border border-emerald-500/40 rounded-2xl flex items-center justify-between text-xs">
+                      <div className="p-3 bg-rose-950/40 border border-rose-500/40 rounded-2xl flex items-center justify-between text-xs">
                         <div className="flex items-center gap-2">
                           <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                           <div>
-                            <span className="font-bold text-emerald-300">Posição Ativa na Árvore:</span>
+                            <span className="font-bold text-rose-300">Vaga reservada na árvore:</span>
                             <span className="text-slate-300 ml-1">
                               Você ocupa a <strong>vaga #{currentUser.current_position_index}</strong> ({
                                 currentUser.current_position_index === 0
@@ -2011,9 +2064,25 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                             </span>
                           </div>
                         </div>
-                        <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800 shrink-0">
-                          CONFIRMADO
+                        <span className="text-[10px] font-mono text-rose-300 bg-rose-950 px-2 py-0.5 rounded border border-rose-800 shrink-0">
+                          RESERVADA
                         </span>
+                      </div>
+
+                      <div className="p-3 bg-slate-900 border border-slate-800 rounded-2xl space-y-2 text-xs">
+                        <div className="font-bold text-rose-300">− 25 Sementes</div>
+                        <div className="text-slate-300">Sua vaga na árvore está reservada.</div>
+                        <div className="text-[11px] text-slate-400">Saldo disponível: <strong>{currentUser.balance}</strong> sementes.</div>
+                        {currentUser.balance >= 25 && (
+                          <button
+                            onClick={() => handleStrengthenTronco(currentUser.id, memberTree.id)}
+                            disabled={activatingTronco}
+                            className="w-full py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold flex items-center justify-center gap-2"
+                          >
+                            {activatingTronco ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Sprout className="w-3.5 h-3.5" />}
+                            <span>Enviar 25 sementes ao tronco</span>
+                          </button>
+                        )}
                       </div>
 
                       {/* Contextual Progression Card */}
@@ -2311,7 +2380,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                           <div className="flex items-center justify-between text-xs mb-1.5">
                             <span className="font-mono font-bold text-slate-100">{tree.tree_code}</span>
                             <span className="text-[10px] text-amber-400 font-mono bg-amber-950/80 px-2 py-0.5 rounded border border-amber-800/80">
-                              {tree.category_name}
+                              {treeDisplayName(tree)}
                             </span>
                           </div>
 
@@ -2333,7 +2402,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                     <div className="space-y-3">
                       <div className="flex items-center justify-between text-xs">
                         <span className="font-bold text-slate-200">
-                          Explorador da Árvore: <span className="text-amber-400 font-mono">{adminTree.tree_code}</span>
+                          Explorador da Árvore: <span className="text-amber-400 font-mono">{adminTree.tree_code}</span> · <span className="text-slate-300">{treeDisplayName(adminTree)}</span>
                         </span>
                         <span className="text-[10px] text-slate-400 font-mono">15 Posições</span>
                       </div>
@@ -2351,6 +2420,15 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                           >
                             <RefreshCw className="w-3.5 h-3.5" />
                             <span>Atualizar dados</span>
+                          </button>
+                          <button
+                            type="button"
+                            disabled={adminActionLoading}
+                            onClick={handleUpdateTreeNickname}
+                            className="w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-200 font-bold flex items-center justify-center gap-2 transition"
+                          >
+                            <Palette className="w-3.5 h-3.5" />
+                            <span>Apelidar árvore</span>
                           </button>
                           <button
                             type="button"
@@ -2396,6 +2474,16 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                     </p>
                   </div>
 
+                  <button
+                    type="button"
+                    onClick={() => setShowAdminCreateMemberForm(value => !value)}
+                    className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs transition flex items-center justify-center gap-2"
+                  >
+                    <PlusCircle className="w-3.5 h-3.5" />
+                    <span>Criar membro</span>
+                  </button>
+
+                  {showAdminCreateMemberForm && (
                   <form onSubmit={handleAdminCreateUser} className="p-3.5 bg-slate-900 border border-amber-800/60 rounded-2xl space-y-3">
                     <div className="grid grid-cols-1 gap-2">
                       <div className="space-y-1.5">
@@ -2430,9 +2518,10 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                       className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-slate-950 font-black text-xs transition flex items-center justify-center gap-2"
                     >
                       {adminCreateUserLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <PlusCircle className="w-3.5 h-3.5" />}
-                      <span>Criar usuário</span>
+                      <span>Criar membro</span>
                     </button>
                   </form>
+                  )}
 
                   {adminCreateUserError && (
                     <div className="p-3 bg-slate-950 border border-slate-800 rounded-xl text-[11px] text-slate-300 leading-relaxed">
@@ -2441,12 +2530,21 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                   )}
 
                   <div className="space-y-3">
-                    <div className="text-xs font-bold text-slate-200">
-                      Membros Cadastrados ({allUsers.filter(u => u.role !== 'admin').length})
+                    <div className="flex items-center justify-between gap-2 text-xs">
+                      <div className="font-bold text-slate-200">
+                        Membros Cadastrados ({registeredMembers.length})
+                      </div>
+                      <select
+                        value={adminMembersPageSize}
+                        onChange={(e) => { setAdminMembersPageSize(parseInt(e.target.value)); setAdminMembersPage(1); }}
+                        className="bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-slate-200 text-[11px]"
+                      >
+                        {[5, 10, 25, 100].map(size => <option key={size} value={size}>{size}</option>)}
+                      </select>
                     </div>
 
                     <div className="space-y-2">
-                      {allUsers.filter(user => user.role !== 'admin').map(user => (
+                      {paginatedRegisteredMembers.map(user => (
                         <div key={user.id} className="p-3 bg-slate-900 border border-slate-800 rounded-xl text-xs space-y-2">
                           <div className="flex items-center justify-between">
                             <div>
@@ -2478,6 +2576,26 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                           </div>
                         </div>
                       ))}
+                    </div>
+
+                    <div className="flex items-center justify-between text-[11px] text-slate-400">
+                      <button
+                        type="button"
+                        disabled={safeAdminMembersPage <= 1}
+                        onClick={() => setAdminMembersPage(page => Math.max(1, page - 1))}
+                        className="px-2 py-1 rounded bg-slate-900 border border-slate-800 disabled:opacity-40"
+                      >
+                        Anterior
+                      </button>
+                      <span>Página {safeAdminMembersPage} de {totalAdminMemberPages}</span>
+                      <button
+                        type="button"
+                        disabled={safeAdminMembersPage >= totalAdminMemberPages}
+                        onClick={() => setAdminMembersPage(page => Math.min(totalAdminMemberPages, page + 1))}
+                        className="px-2 py-1 rounded bg-slate-900 border border-slate-800 disabled:opacity-40"
+                      >
+                        Próxima
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -2691,7 +2809,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
             }`}
           >
             <BookOpen className="w-5 h-5" />
-            <span className="text-[10px]">Regras</span>
+            <span className="text-[10px]">Manual</span>
           </button>
 
           {currentUser?.role === 'admin' && (

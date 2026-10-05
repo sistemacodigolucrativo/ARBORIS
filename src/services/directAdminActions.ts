@@ -20,6 +20,9 @@ export function deleteTreeDirect({ treeId }: { treeId: number } & ActorParams) {
 export function deleteUserDirect({ userId }: { userId: number } & ActorParams) {
   return apiMutation('/actions', { action: 'delete_user', params: { userId } });
 }
+export function updateTreeNicknameDirect({ treeId, nickname }: { treeId: number; nickname?: string } & ActorParams) {
+  return apiMutation('/actions', { action: 'update_tree_nickname', params: { treeId, nickname } });
+}
 export function assignPositionDirect({ treeId, positionIndex, userId }: { treeId: number; positionIndex: number; userId: number } & ActorParams) {
   return apiMutation('/actions', { action: 'assign_tree_position', params: { treeId, positionIndex, userId } });
 }

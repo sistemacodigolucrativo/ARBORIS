@@ -2,7 +2,7 @@ export type UserRole = 'participant' | 'admin';
 export type UserStatus = 'active' | 'blocked';
 export type TreeStatus = 'active' | 'completed' | 'archived';
 export type PositionSide = 'root' | 'left' | 'right';
-export type LedgerEntryType = 'CONCESSAO_INICIAL_SEMENTES' | 'FORTALECIMENTO_TRONCO' | 'AJUSTE_ADMINISTRATIVO';
+export type LedgerEntryType = 'CONCESSAO_INICIAL_SEMENTES' | 'FORTALECIMENTO_TRONCO' | 'RESERVA_VAGA' | 'AJUSTE_ADMINISTRATIVO';
 
 export interface GameConfig {
   systemMode: 'active' | 'maintenance';
@@ -54,6 +54,7 @@ export interface Tree {
   id: number;
   categoryId: number;
   treeCode: string;
+  nickname?: string | null;
   troncoUserId: number;
   status: TreeStatus;
   cycleNumber: number;

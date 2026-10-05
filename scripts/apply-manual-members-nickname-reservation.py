@@ -398,7 +398,7 @@ s = replace_once(s, old_card, new_card, path, 'gift reserve card')
 
 # Positioned card red/reserved and send-tronco button
 s = replace_all(s, "p-3 bg-emerald-950/40 border border-emerald-500/40 rounded-2xl", "p-3 bg-rose-950/40 border border-rose-500/40 rounded-2xl")
-s = replace_all(s, "text-emerald-300">Posição Ativa na Árvore:", "text-rose-300">Vaga reservada na árvore:")
+s = replace_all(s, 'text-emerald-300">Posição Ativa na Árvore:', 'text-rose-300">Vaga reservada na árvore:')
 s = replace_all(s, "text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800", "text-rose-300 bg-rose-950 px-2 py-0.5 rounded border border-rose-800")
 s = replace_all(s, "CONFIRMADO", "RESERVADA")
 s = replace_once(s,

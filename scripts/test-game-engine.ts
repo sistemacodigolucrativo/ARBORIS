@@ -86,7 +86,7 @@ assert(regRes.result?.user.currentPositionIndex === null, 'Participante entra fo
 console.log('\nTEST 6: Crédito inicial de sementes virtuais');
 const stateAfterReg = regRes.state;
 const newWallet = stateAfterReg.wallets.find(w => w.userId === regRes.result?.user.id);
-assert(newWallet?.balance === 25, 'Participante recebeu 25 sementes virtuais gratuitas');
+assert(newWallet?.balance === 50, 'Participante recebeu pacote de 25 sementes + 25 sementes disponíveis');
 const initialLedger = stateAfterReg.ledger.find(l => l.toUserId === regRes.result?.user.id);
 assert(initialLedger?.type === 'CONCESSAO_INICIAL_SEMENTES', 'Registro de concessão no ledger gravado');
 
@@ -101,7 +101,7 @@ const txRes = transferSeeds(stateAfterReg, {
   idempotencyKey: 'tx_teste_seeds_1'
 });
 assert(txRes.success === true, 'Transferência de 25 sementes executada');
-assert(txRes.state.wallets.find(w => w.userId === regRes.result!.user.id)?.balance === 0, 'Saldo de quem enviou foi debitado');
+assert(txRes.state.wallets.find(w => w.userId === regRes.result!.user.id)?.balance === 25, 'Saldo de quem enviou foi debitado e manteve 25 sementes disponíveis');
 assert(txRes.state.wallets.find(w => w.userId === 2)?.balance === 50, 'Saldo do destinatário foi creditado');
 
 // TEST 8: Ocupação de posição na árvore (Strengthen Tronco)

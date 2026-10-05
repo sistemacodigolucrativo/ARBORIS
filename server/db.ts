@@ -22,7 +22,7 @@ export async function transaction<T>(pool: DatabasePool, fn: (db: PoolConnection
 const descriptors = [
   ['users','users','id','id username name githubActor role status createdAt updatedAt currentTreeId currentPositionIndex'],
   ['wallets','wallets','userId','userId balance updatedAt'],
-  ['trees','trees','id','id categoryId treeCode troncoUserId status cycleNumber parentTreeId createdAt completedAt'],
+  ['trees','trees','id','id categoryId treeCode nickname troncoUserId status cycleNumber parentTreeId createdAt completedAt'],
   ['referrals','referrals','id','id referrerUserId referredUserId treeId token clicks registrationsCount isActive createdAt'],
   ['ledger','ledger','id','id type fromUserId toUserId treeId amount reason idempotencyKey createdAt fromUsername toUsername'],
   ['auditLog','audit_log','id','id actorUserId action entity entityId metadata createdAt actorUsername']

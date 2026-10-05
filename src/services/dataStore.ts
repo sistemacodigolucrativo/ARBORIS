@@ -36,6 +36,9 @@ class DataStoreService {
   async registerParticipant(params: { indicadorUsername: string; firstName: string; lastName: string; password: string }) {
     return apiMutation('/register', params);
   }
+  async reserveTreeEntryAction(treeId: number) {
+    return apiMutation('/actions', { action: 'reserve_tree_entry', params: { treeId } });
+  }
   async strengthenTroncoAction(_userId: number, treeId: number) {
     return apiMutation('/actions', { action: 'strengthen_tronco', params: { treeId } });
   }
@@ -82,6 +85,8 @@ class DataStoreService {
         id: t.id,
         category_id: t.categoryId,
         tree_code: t.treeCode,
+        nickname: t.nickname || null,
+        display_name: t.nickname || cat?.name,
         tronco_user_id: t.troncoUserId,
         status: t.status,
         cycle_number: t.cycleNumber,

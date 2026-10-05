@@ -167,7 +167,9 @@ export function createParticipant(
   }
 
   const targetTree = refCheck.tree;
-  const initialGrant = state.config.initialSeedsGrant || 25;
+  const category = state.config.categories.find(c => c.id === targetTree.categoryId);
+  const reservationAmount = category?.tokenRequirement || state.config.initialSeedsGrant || 25;
+  const initialGrant = reservationAmount * 2;
 
   // New User
   const nextUserId = Math.max(0, ...state.users.map(u => u.id)) + 1;
@@ -223,7 +225,8 @@ export function createParticipant(
       githubActor: params.githubActor || null,
       indicador: params.indicadorUsername,
       treeId: targetTree.id,
-      initialSeeds: initialGrant
+      initialSeeds: initialGrant,
+      reservationSeeds: reservationAmount
     },
     actorUsername: cleanUsername,
     createdAt: now
@@ -319,6 +322,86 @@ export function findNextVacantPosition(tree: Tree): TreePosition | null {
   return null;
 }
 
+
+/**
+ * Reserves the next external position by consuming the first package of seeds.
+ * These seeds are burned/consumed by the system and are not transferred to the tronco.
+ */
+export function reserveTreeEntry(
+  originalState: GameDatabaseState,
+  params: {
+    userId: number;
+    treeId: number;
+    idempotencyKey?: string;
+  }
+): ActionResult<{ positionIndex: number; amountConsumed: number }> {
+  const state = deepClone(originalState);
+  const now = nowIso();
+
+  const user = state.users.find(u => u.id === params.userId && u.status === 'active');
+  if (!user) return { success: false, state: originalState, error: 'Participante não encontrado ou inativo.' };
+
+  const tree = state.trees.find(t => t.id === params.treeId && t.status === 'active');
+  if (!tree) return { success: false, state: originalState, error: 'Árvore comunitária não encontrada ou já concluída.' };
+
+  const alreadyInTree = tree.positions.some(p => p.userId === user.id && p.status === 'occupied');
+  if (alreadyInTree) return { success: false, state: originalState, error: 'Sua vaga nesta árvore já está reservada.' };
+
+  const category = state.config.categories.find(c => c.id === tree.categoryId);
+  if (!category || !category.tokenRequirement || category.tokenRequirement <= 0) {
+    return { success: false, state: originalState, error: 'Configuração da categoria inválida ou corrompida.' };
+  }
+  const requiredAmount = category.tokenRequirement;
+
+  const vacantPos = findNextVacantPosition(tree);
+  if (!vacantPos) return { success: false, state: originalState, error: 'Esta árvore já está sem vagas externas.' };
+
+  const wallet = state.wallets.find(w => w.userId === user.id);
+  if (!wallet || wallet.balance < requiredAmount) {
+    return { success: false, state: originalState, error: `Saldo insuficiente para reservar vaga. Necessário: ${requiredAmount} sementes.` };
+  }
+
+  const idempotencyKey = params.idempotencyKey || `reserve_${user.id}_tree${tree.id}_pos${vacantPos.index}_${Date.now()}`;
+  if (!validateIdempotency(state, idempotencyKey)) {
+    return { success: false, state: originalState, error: 'Reserva já processada anteriormente.' };
+  }
+
+  wallet.balance -= requiredAmount;
+  wallet.updatedAt = now;
+
+  const targetPos = tree.positions.find(p => p.index === vacantPos.index)!;
+  targetPos.status = 'occupied';
+  targetPos.userId = user.id;
+  targetPos.username = user.username;
+  targetPos.name = user.name;
+  targetPos.occupiedAt = now;
+
+  user.currentTreeId = tree.id;
+  user.currentPositionIndex = targetPos.index;
+  user.updatedAt = now;
+
+  const nextAuditId = Math.max(0, ...state.auditLog.map(a => a.id)) + 1;
+  state.auditLog.push({
+    id: nextAuditId,
+    actorUserId: user.id,
+    action: 'TREE_POSITION_RESERVED',
+    entity: 'tree_position',
+    entityId: `${tree.id}_${targetPos.index}`,
+    metadata: {
+      idempotencyKey,
+      userId: user.id,
+      treeId: tree.id,
+      positionIndex: targetPos.index,
+      amountConsumed: requiredAmount,
+      note: 'Reserva de vaga: sementes consumidas pelo sistema, sem transferência ao tronco.'
+    },
+    actorUsername: user.username,
+    createdAt: now
+  });
+
+  return { success: true, state, result: { positionIndex: targetPos.index, amountConsumed: requiredAmount } };
+}
+
 /**
  * Strengthens the Tronco (atomic operation):
  * 1. Validates user & tree
@@ -351,11 +434,9 @@ export function strengthenTronco(
     return { success: false, state: originalState, error: 'Árvore comunitária não encontrada ou já concluída.' };
   }
 
-  // Already in this tree?
-  const alreadyInTree = tree.positions.some(p => p.userId === user.id && p.status === 'occupied');
-  if (alreadyInTree) {
-    return { success: false, state: originalState, error: 'Você já ocupa uma posição ativa nesta árvore comunitária.' };
-  }
+  // If the member already reserved a position in this tree, this action only sends the remaining seeds to the tronco.
+  const existingPosition = tree.positions.find(p => p.userId === user.id && p.status === 'occupied');
+  const alreadyInTree = Boolean(existingPosition);
 
   // Strict backend amount resolution from category (CRÍTICO 1)
   const category = state.config.categories.find(c => c.id === tree.categoryId);
@@ -364,8 +445,8 @@ export function strengthenTronco(
   }
   const requiredAmount = category.tokenRequirement;
 
-  // Find next vacant external position (CRÍTICO 2)
-  const vacantPos = findNextVacantPosition(tree);
+  // Find next vacant external position only when the user has not reserved a position yet.
+  const vacantPos = existingPosition || findNextVacantPosition(tree);
   if (!vacantPos) {
     return { success: false, state: originalState, error: 'Esta árvore comunitária já está com todas as vagas externas preenchidas.' };
   }
@@ -418,6 +499,26 @@ export function strengthenTronco(
     toUsername: troncoUser?.username || `user_${tree.troncoUserId}`,
     createdAt: now
   });
+
+  if (alreadyInTree && existingPosition) {
+    const nextAuditId = Math.max(0, ...state.auditLog.map(a => a.id)) + 1;
+    state.auditLog.push({
+      id: nextAuditId,
+      actorUserId: user.id,
+      action: 'TREE_TRONCO_STRENGTHENED',
+      entity: 'tree',
+      entityId: tree.id,
+      metadata: {
+        userId: user.id,
+        treeId: tree.id,
+        positionIndex: existingPosition.index,
+        amount: requiredAmount
+      },
+      actorUsername: user.username,
+      createdAt: now
+    });
+    return { success: true, state, result: { positionIndex: existingPosition.index, bifurcated: false, newTrees: [] } };
+  }
 
   // Step 2: Occupy the position
   const targetPos = tree.positions.find(p => p.index === vacantPos.index)!;

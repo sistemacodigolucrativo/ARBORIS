@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { GameDatabaseState, User } from '../src/types/game';
-import { ActionResult, createParticipant, strengthenTronco, transferSeeds, validateReferral } from '../src/services/gameEngine';
-import { createTreeByAdmin, archiveTreeByAdmin, deleteTreeByAdmin, deleteUserByAdmin, assignTreePositionByAdmin, clearTreePositionByAdmin } from '../src/services/adminGameEngine';
+import { ActionResult, createParticipant, reserveTreeEntry, strengthenTronco, transferSeeds, validateReferral } from '../src/services/gameEngine';
+import { createTreeByAdmin, archiveTreeByAdmin, deleteTreeByAdmin, deleteUserByAdmin, updateTreeNicknameByAdmin, assignTreePositionByAdmin, clearTreePositionByAdmin } from '../src/services/adminGameEngine';
 import { HttpError, newToken } from './security';
 const id = z.number().int().positive().max(2147483647);
 const text = z.string().trim().min(1).max(80);
@@ -12,6 +12,8 @@ export const actionSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('archive_tree'), params: z.object({ treeId: id, reason: z.string().trim().max(500).optional() }).strict() }),
   z.object({ action: z.literal('delete_tree'), params: z.object({ treeId: id }).strict() }),
   z.object({ action: z.literal('delete_user'), params: z.object({ userId: id }).strict() }),
+  z.object({ action: z.literal('update_tree_nickname'), params: z.object({ treeId: id, nickname: z.string().trim().max(120).optional() }).strict() }),
+  z.object({ action: z.literal('reserve_tree_entry'), params: z.object({ treeId: id }).strict() }),
   z.object({ action: z.literal('assign_tree_position'), params: z.object({ treeId: id, positionIndex: z.number().int().min(1).max(14), userId: id }).strict() }),
   z.object({ action: z.literal('clear_tree_position'), params: z.object({ treeId: id, positionIndex: z.number().int().min(1).max(14) }).strict() }),
   z.object({ action: z.literal('toggle_user_status'), params: z.object({ userId: id }).strict() }),
@@ -49,18 +51,21 @@ export function register(state: GameDatabaseState, params: z.infer<typeof regist
 }
 export function applyAction(state: GameDatabaseState, user: User, input: z.infer<typeof actionSchema>, key: string): ActionResult {
   const actor = { actorUserId: user.id, actorUsername: user.username };
-  if (!['strengthen_tronco', 'transfer_seeds'].includes(input.action) && user.role !== 'admin') throw new HttpError(403, 'Acesso administrativo obrigatório.');
+  if (!['reserve_tree_entry', 'strengthen_tronco', 'transfer_seeds'].includes(input.action) && user.role !== 'admin') throw new HttpError(403, 'Acesso administrativo obrigatório.');
   if (state.config.systemMode !== 'active') throw new HttpError(503, 'Sistema em manutenção.');
   switch (input.action) {
     case 'create_tree': return createTreeByAdmin(state, { ...input.params, actor, idempotencyKey: key });
     case 'archive_tree': return archiveTreeByAdmin(state, { ...input.params, actor, idempotencyKey: key });
     case 'delete_tree': return deleteTreeByAdmin(state, { ...input.params, actor, idempotencyKey: key });
     case 'delete_user': return deleteUserByAdmin(state, { ...input.params, actor, idempotencyKey: key });
+    case 'update_tree_nickname': return updateTreeNicknameByAdmin(state, { ...input.params, actor, idempotencyKey: key });
+    case 'reserve_tree_entry':
+      if (user.role === 'admin') throw new HttpError(403, 'Coordenador não participa deste fluxo.');
+      return reserveTreeEntry(state, { userId: user.id, treeId: input.params.treeId, idempotencyKey: key });
     case 'assign_tree_position': return assignTreePositionByAdmin(state, { ...input.params, actor, idempotencyKey: key });
     case 'clear_tree_position': return clearTreePositionByAdmin(state, { ...input.params, actor, idempotencyKey: key });
     case 'strengthen_tronco':
       if (user.role === 'admin') throw new HttpError(403, 'Coordenador não participa deste fluxo.');
-      if (state.trees.some(t => t.status === 'active' && t.positions.some(p => p.userId === user.id && p.status === 'occupied'))) throw new HttpError(400, 'Você já ocupa uma posição em árvore ativa.');
       return strengthenTronco(state, { userId: user.id, treeId: input.params.treeId, idempotencyKey: key });
     case 'transfer_seeds': {
       if (input.params.toUserId === user.id) throw new HttpError(400, 'Escolha outro destinatário.');

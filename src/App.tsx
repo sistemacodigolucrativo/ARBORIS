@@ -1085,14 +1085,14 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
 
           {/* SVG Connection Lines from Center to Levels */}
           <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 330 330">
-            <line x1="165" y1="165" x2="95" y2="165" stroke="#f59e0b" strokeWidth="2.5" strokeDasharray="3 3" opacity="0.6" />
-            <line x1="165" y1="165" x2="235" y2="165" stroke="#f59e0b" strokeWidth="2.5" strokeDasharray="3 3" opacity="0.6" />
+            <line x1="165" y1="165" x2="88" y2="163" stroke="#f59e0b" strokeWidth="2.5" strokeDasharray="3 3" opacity="0.6" />
+            <line x1="165" y1="165" x2="242" y2="163" stroke="#f59e0b" strokeWidth="2.5" strokeDasharray="3 3" opacity="0.6" />
 
-            <path d="M 95 165 Q 65 140 45 110" fill="none" stroke="#10b981" strokeWidth="1.5" opacity="0.7" />
-            <path d="M 95 165 Q 65 190 45 220" fill="none" stroke="#10b981" strokeWidth="1.5" opacity="0.7" />
+            <path d="M 88 163 Q 90 125 94 94" fill="none" stroke="#10b981" strokeWidth="1.5" opacity="0.7" />
+            <path d="M 88 163 Q 90 202 94 236" fill="none" stroke="#10b981" strokeWidth="1.5" opacity="0.7" />
 
-            <path d="M 235 165 Q 265 140 285 110" fill="none" stroke="#10b981" strokeWidth="1.5" opacity="0.7" />
-            <path d="M 235 165 Q 265 190 285 220" fill="none" stroke="#10b981" strokeWidth="1.5" opacity="0.7" />
+            <path d="M 242 163 Q 240 125 236 94" fill="none" stroke="#10b981" strokeWidth="1.5" opacity="0.7" />
+            <path d="M 242 163 Q 240 202 236 236" fill="none" stroke="#10b981" strokeWidth="1.5" opacity="0.7" />
           </svg>
 
           {/* CENTER: O TRONCO (#0) */}
@@ -1147,10 +1147,10 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
             const isOcc = p.status === 'occupied';
             const isReserved = isOcc && p.activation_status === 'reserved';
             let posStyle: React.CSSProperties = {};
-            if (p.position_index === 3) posStyle = { left: '25px', top: '80px' };
-            if (p.position_index === 4) posStyle = { left: '25px', bottom: '80px' };
-            if (p.position_index === 5) posStyle = { right: '25px', top: '80px' };
-            if (p.position_index === 6) posStyle = { right: '25px', bottom: '80px' };
+            if (p.position_index === 3) posStyle = { left: '72px', top: '72px' };
+            if (p.position_index === 4) posStyle = { left: '72px', bottom: '72px' };
+            if (p.position_index === 5) posStyle = { right: '72px', top: '72px' };
+            if (p.position_index === 6) posStyle = { right: '72px', bottom: '72px' };
 
             return (
               <div

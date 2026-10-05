@@ -206,6 +206,110 @@ export function archiveTreeByAdmin(
   return { success: true, state, result: { treeId: tree.id } };
 }
 
+export function deleteTreeByAdmin(
+  originalState: GameDatabaseState,
+  params: {
+    treeId: number;
+    actor: AdminActor;
+    idempotencyKey: string;
+  }
+): AdminActionResult<{ treeId: number; affectedUserIds: number[]; nextTreeId: number | null }> {
+  const state = deepClone(originalState);
+  const now = nowIso();
+
+  const adminError = assertAdmin(state, params.actor);
+  if (adminError) return { success: false, state: originalState, error: adminError };
+  if (hasConsumedIdempotencyKey(state, params.idempotencyKey)) {
+    return { success: false, state: originalState, error: 'Operação administrativa já processada.' };
+  }
+
+  const tree = state.trees.find(item => item.id === params.treeId);
+  if (!tree) return { success: false, state: originalState, error: 'Árvore não encontrada.' };
+
+  const affectedUserIds = Array.from(new Set(tree.positions.filter(pos => pos.userId).map(pos => pos.userId as number)));
+  for (const user of state.users) {
+    if (affectedUserIds.includes(user.id) && user.currentTreeId === tree.id) {
+      user.currentTreeId = null;
+      user.currentPositionIndex = null;
+      user.updatedAt = now;
+    }
+  }
+
+  state.referrals = state.referrals.filter(ref => ref.treeId !== tree.id);
+  state.ledger = state.ledger.filter(entry => entry.treeId !== tree.id);
+  state.trees = state.trees.filter(item => item.id !== tree.id);
+  const nextTreeId = state.trees[0]?.id ?? null;
+
+  appendAudit(state, params.actor, 'ADMIN_TREE_DELETED', 'tree', tree.id, {
+    idempotencyKey: params.idempotencyKey,
+    treeCode: tree.treeCode,
+    affectedUserIds,
+    deletedAt: now,
+    githubActor: params.actor.githubActor || null
+  });
+
+  return { success: true, state, result: { treeId: tree.id, affectedUserIds, nextTreeId } };
+}
+
+export function deleteUserByAdmin(
+  originalState: GameDatabaseState,
+  params: {
+    userId: number;
+    actor: AdminActor;
+    idempotencyKey: string;
+  }
+): AdminActionResult<{ userId: number; username: string; affectedTreeIds: number[] }> {
+  const state = deepClone(originalState);
+  const now = nowIso();
+
+  const adminError = assertAdmin(state, params.actor);
+  if (adminError) return { success: false, state: originalState, error: adminError };
+  if (hasConsumedIdempotencyKey(state, params.idempotencyKey)) {
+    return { success: false, state: originalState, error: 'Operação administrativa já processada.' };
+  }
+
+  const target = state.users.find(user => user.id === params.userId);
+  if (!target) return { success: false, state: originalState, error: 'Usuário não encontrado.' };
+  if (target.role === 'admin') return { success: false, state: originalState, error: 'Coordenador/admin não pode ser excluído por este painel.' };
+
+  const trunkTrees = state.trees.filter(tree => tree.troncoUserId === target.id);
+  if (trunkTrees.length > 0) {
+    return { success: false, state: originalState, error: 'Este usuário é tronco de árvore. Exclua a árvore antes de excluir o membro.' };
+  }
+
+  const affectedTreeIds: number[] = [];
+  for (const tree of state.trees) {
+    let touched = false;
+    for (const position of tree.positions) {
+      if (position.userId === target.id) {
+        position.userId = null;
+        position.status = 'vacant';
+        position.occupiedAt = null;
+        position.username = null;
+        position.name = null;
+        touched = true;
+      }
+    }
+    if (touched) affectedTreeIds.push(tree.id);
+  }
+
+  state.referrals = state.referrals.filter(ref => ref.referrerUserId !== target.id && ref.referredUserId !== target.id);
+  state.ledger = state.ledger.filter(entry => entry.fromUserId !== target.id && entry.toUserId !== target.id);
+  state.wallets = state.wallets.filter(wallet => wallet.userId !== target.id);
+  state.users = state.users.filter(user => user.id !== target.id);
+
+  appendAudit(state, params.actor, 'ADMIN_USER_DELETED', 'user', target.id, {
+    idempotencyKey: params.idempotencyKey,
+    username: target.username,
+    name: target.name,
+    affectedTreeIds,
+    deletedAt: now,
+    githubActor: params.actor.githubActor || null
+  });
+
+  return { success: true, state, result: { userId: target.id, username: target.username, affectedTreeIds } };
+}
+
 export function assignTreePositionByAdmin(
   originalState: GameDatabaseState,
   params: {

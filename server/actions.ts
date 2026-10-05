@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { GameDatabaseState, User } from '../src/types/game';
 import { ActionResult, createParticipant, strengthenTronco, transferSeeds, validateReferral } from '../src/services/gameEngine';
-import { createTreeByAdmin, archiveTreeByAdmin, assignTreePositionByAdmin, clearTreePositionByAdmin } from '../src/services/adminGameEngine';
+import { createTreeByAdmin, archiveTreeByAdmin, deleteTreeByAdmin, deleteUserByAdmin, assignTreePositionByAdmin, clearTreePositionByAdmin } from '../src/services/adminGameEngine';
 import { HttpError, newToken } from './security';
 const id = z.number().int().positive().max(2147483647);
 const text = z.string().trim().min(1).max(80);
@@ -10,6 +10,8 @@ export const registrationSchema = z.object({ firstName: text, lastName: text, in
 export const actionSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('create_tree'), params: z.object({ categoryId: id, troncoUserId: id }).strict() }),
   z.object({ action: z.literal('archive_tree'), params: z.object({ treeId: id, reason: z.string().trim().max(500).optional() }).strict() }),
+  z.object({ action: z.literal('delete_tree'), params: z.object({ treeId: id }).strict() }),
+  z.object({ action: z.literal('delete_user'), params: z.object({ userId: id }).strict() }),
   z.object({ action: z.literal('assign_tree_position'), params: z.object({ treeId: id, positionIndex: z.number().int().min(1).max(14), userId: id }).strict() }),
   z.object({ action: z.literal('clear_tree_position'), params: z.object({ treeId: id, positionIndex: z.number().int().min(1).max(14) }).strict() }),
   z.object({ action: z.literal('toggle_user_status'), params: z.object({ userId: id }).strict() }),
@@ -52,6 +54,8 @@ export function applyAction(state: GameDatabaseState, user: User, input: z.infer
   switch (input.action) {
     case 'create_tree': return createTreeByAdmin(state, { ...input.params, actor, idempotencyKey: key });
     case 'archive_tree': return archiveTreeByAdmin(state, { ...input.params, actor, idempotencyKey: key });
+    case 'delete_tree': return deleteTreeByAdmin(state, { ...input.params, actor, idempotencyKey: key });
+    case 'delete_user': return deleteUserByAdmin(state, { ...input.params, actor, idempotencyKey: key });
     case 'assign_tree_position': return assignTreePositionByAdmin(state, { ...input.params, actor, idempotencyKey: key });
     case 'clear_tree_position': return clearTreePositionByAdmin(state, { ...input.params, actor, idempotencyKey: key });
     case 'strengthen_tronco':

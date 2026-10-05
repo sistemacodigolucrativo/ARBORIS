@@ -44,7 +44,9 @@ import {
   assignPositionDirect,
   clearPositionDirect,
   createTreeDirect,
-  createUserDirect
+  createUserDirect,
+  deleteTreeDirect,
+  deleteUserDirect
 } from './services/directAdminActions';
 import { PublicLandingPage } from './components/PublicLandingPage';
 
@@ -140,7 +142,7 @@ type StoredUiState = {
   currentView?: 'member' | 'public' | 'admin';
   selectedTreeModel?: number;
   memberTab?: 'my_tree' | 'marketing' | 'wallet';
-  adminTab?: 'global_trees' | 'create_user' | 'members' | 'settings' | 'audit';
+  adminTab?: 'global_trees' | 'create_user' | 'members' | 'orphans' | 'settings' | 'audit';
   selectedAdminTreeId?: number;
 };
 
@@ -208,11 +210,11 @@ export default function App() {
   });
   
   // Admin sub-tabs: global_trees, members, settings, audit
-  const [adminTab, setAdminTab] = useState<'global_trees' | 'create_user' | 'members' | 'settings' | 'audit'>(() => {
+  const [adminTab, setAdminTab] = useState<'global_trees' | 'create_user' | 'members' | 'orphans' | 'settings' | 'audit'>(() => {
     const stored = initialUiState.adminTab;
     if (stored === 'members') return 'create_user';
     if (stored === 'audit') return 'global_trees';
-    return stored === 'global_trees' || stored === 'create_user' || stored === 'settings' ? stored : 'global_trees';
+    return stored === 'global_trees' || stored === 'create_user' || stored === 'orphans' || stored === 'settings' ? stored : 'global_trees';
   });
   
   // Identity comes exclusively from the authenticated server session.
@@ -595,6 +597,40 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
     }
   };
 
+  const handleDeleteSelectedTree = async () => {
+    if (!adminTree) return;
+    const affectedCount = adminTreePositions.filter(pos => pos.status === 'occupied' && pos.user_id !== null).length;
+    if (!window.confirm(`Excluir definitivamente a árvore ${adminTree.tree_code}? ${affectedCount} membro(s) ficarão sem posição nesta árvore.`)) return;
+    if (!window.confirm('Confirma a exclusão definitiva? Essa ação remove a árvore do banco de dados.')) return;
+
+    setAdminActionLoading(true);
+    setAdminActionMessage(null);
+    try {
+      const res = await deleteTreeDirect({
+        treeId: adminTree.id,
+        actorUserId: currentUser?.id,
+        actorUsername: currentUser?.username
+      });
+      if (res.success) {
+        const nextTreeId = res.result?.nextTreeId;
+        await applyDirectAdminState(res);
+        setSelectedNode(null);
+        if (nextTreeId) setSelectedAdminTreeId(nextTreeId);
+        setAdminActionMessage('Árvore excluída definitivamente. Os membros afetados ficaram sem posição nesta árvore.');
+        showToast('Árvore excluída definitivamente.');
+      } else {
+        const error = res.error || 'Não foi possível excluir a árvore.';
+        setAdminActionMessage(error);
+        showToast('Erro: ' + error);
+      }
+    } catch (e: any) {
+      setAdminActionMessage('Erro ao excluir árvore: ' + e.message);
+      showToast('Erro: ' + e.message);
+    } finally {
+      setAdminActionLoading(false);
+    }
+  };
+
   const handleAssignSelectedNode = async () => {
     if (!adminTree || !selectedNode) return;
     if (selectedNode.position_index === 0) {
@@ -651,17 +687,30 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
     }
   };
 
-  const handleToggleUserStatus = async (userId: number) => {
+  const handleDeleteUser = async (userId: number, label: string) => {
+    if (!window.confirm(`Excluir definitivamente o membro ${label}?`)) return;
+    if (!window.confirm('Confirma a exclusão definitiva? Essa ação remove o membro do banco de dados.')) return;
+    setAdminActionLoading(true);
     try {
-      const res = await dataStore.toggleUserStatusAction(userId);
+      const res = await deleteUserDirect({
+        userId,
+        actorUserId: currentUser?.id,
+        actorUsername: currentUser?.username
+      });
       if (res.success) {
-        showToast(`✓ Status atualizado para: ${res.newStatus}`);
-        await fetchState();
+        await applyDirectAdminState(res);
+        setAdminActionMessage('Membro excluído definitivamente.');
+        showToast('Membro excluído definitivamente.');
       } else {
-        showToast('Erro: ' + res.error);
+        const error = res.error || 'Não foi possível excluir o membro.';
+        setAdminActionMessage(error);
+        showToast('Erro: ' + error);
       }
     } catch (e: any) {
+      setAdminActionMessage('Erro ao excluir membro: ' + e.message);
       showToast('Erro: ' + e.message);
+    } finally {
+      setAdminActionLoading(false);
     }
   };
 
@@ -670,6 +719,8 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
   const allPositions: Position[] = systemState?.positions || [];
   const allUsers: User[] = systemState?.users || [];
   const activeAssignableUsers = allUsers.filter(u => u.status === 'active' && u.role !== 'admin');
+  const positionedUserIds = new Set(allPositions.filter(p => p.status === 'occupied' && p.user_id !== null).map(p => p.user_id as number));
+  const orphanUsers = allUsers.filter(u => u.role !== 'admin' && !positionedUserIds.has(u.id));
   const allLinks: ReferralLink[] = systemState?.referral_links || [];
 
   // Active member's tree
@@ -2212,6 +2263,16 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                 </button>
 
                 <button
+                  onClick={() => setAdminTab('orphans')}
+                  className={`flex-1 py-1.5 rounded-lg font-medium transition text-center flex items-center justify-center gap-1 ${
+                    adminTab === 'orphans' ? 'bg-slate-800 text-amber-400 shadow-sm' : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <Users className="w-3.5 h-3.5" />
+                  <span>Órfãos</span>
+                </button>
+
+                <button
                   onClick={() => setAdminTab('settings')}
                   className={`flex-1 py-1.5 rounded-lg font-medium transition text-center flex items-center justify-center gap-1 ${
                     adminTab === 'settings' ? 'bg-slate-800 text-amber-400 shadow-sm' : 'text-slate-400 hover:text-slate-200'
@@ -2300,6 +2361,15 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                             <Lock className="w-3.5 h-3.5" />
                             <span>{adminTree.status === 'active' ? 'Arquivar árvore' : `Status: ${adminTree.status}`}</span>
                           </button>
+                          <button
+                            type="button"
+                            disabled={adminActionLoading}
+                            onClick={handleDeleteSelectedTree}
+                            className="w-full py-2 rounded-xl bg-red-950/80 hover:bg-red-900 disabled:opacity-50 border border-red-800 text-red-200 font-bold flex items-center justify-center gap-2 transition"
+                          >
+                            <AlertCircle className="w-3.5 h-3.5" />
+                            <span>Excluir árvore definitivamente</span>
+                          </button>
                         </div>
                         {adminActionMessage && (
                           <div className="p-2 bg-slate-950 border border-slate-800 rounded-xl text-[11px] text-slate-300 leading-relaxed">
@@ -2372,11 +2442,11 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
 
                   <div className="space-y-3">
                     <div className="text-xs font-bold text-slate-200">
-                      Membros Cadastrados ({allUsers.length})
+                      Membros Cadastrados ({allUsers.filter(u => u.role !== 'admin').length})
                     </div>
 
                     <div className="space-y-2">
-                      {allUsers.map(user => (
+                      {allUsers.filter(user => user.role !== 'admin').map(user => (
                         <div key={user.id} className="p-3 bg-slate-900 border border-slate-800 rounded-xl text-xs space-y-2">
                           <div className="flex items-center justify-between">
                             <div>
@@ -2398,16 +2468,59 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
 
                             {user.id !== 1 && (
                               <button
-                                onClick={() => handleToggleUserStatus(user.id)}
-                                className="text-slate-400 hover:text-white underline"
+                                disabled={adminActionLoading}
+                                onClick={() => handleDeleteUser(user.id, user.full_name || `@${user.username}`)}
+                                className="text-rose-400 hover:text-rose-200 underline disabled:opacity-50"
                               >
-                                {user.status === 'active' ? 'Suspender Membro' : 'Ativar Membro'}
+                                Excluir definitivamente
                               </button>
                             )}
                           </div>
                         </div>
                       ))}
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {/* SUB-TAB: ÓRFÃOS */}
+              {adminTab === 'orphans' && (
+                <div className="space-y-4">
+                  <div className="p-3.5 bg-slate-900 border border-slate-800 rounded-2xl space-y-1">
+                    <div className="text-xs font-bold text-slate-100 flex items-center gap-1.5">
+                      <Users className="w-4 h-4 text-amber-400" />
+                      <span>Membros órfãos</span>
+                    </div>
+                    <p className="text-[11px] text-slate-400 leading-relaxed">
+                      Membros sem posição em nenhuma árvore ativa ou cadastrada.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    {orphanUsers.length === 0 ? (
+                      <div className="p-3 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-400">
+                        Nenhum membro órfão encontrado.
+                      </div>
+                    ) : orphanUsers.map(user => (
+                      <div key={user.id} className="p-3 bg-slate-900 border border-slate-800 rounded-xl text-xs space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="font-bold text-slate-100">{user.full_name || user.username}</div>
+                            <div className="text-[10px] text-slate-400">@{user.username}</div>
+                          </div>
+                          <span className="px-2 py-0.5 rounded font-mono bg-slate-950 text-amber-300 border border-amber-800 text-[10px]">
+                            sem árvore
+                          </span>
+                        </div>
+                        <button
+                          disabled={adminActionLoading}
+                          onClick={() => handleDeleteUser(user.id, user.full_name || `@${user.username}`)}
+                          className="w-full py-2 rounded-xl bg-red-950/70 hover:bg-red-900 disabled:opacity-50 border border-red-800 text-red-200 font-bold transition"
+                        >
+                          Excluir definitivamente
+                        </button>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}

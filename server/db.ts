@@ -48,10 +48,40 @@ async function upsert(db: PoolConnection, table: string, columns: string[], row:
   const values = columns.map(c => jsonFields.has(c) ? JSON.stringify(row[c]) : row[c] ?? null);
   await db.execute(`INSERT INTO \`${table}\` (${cols.join(',')}) VALUES (${columns.map(() => '?').join(',')}) ON DUPLICATE KEY UPDATE ${cols.map(c => `${c}=VALUES(${c})`).join(',')}`, values);
 }
+async function executeForIds(db: PoolConnection, sqlPrefix: string, ids: number[], sqlSuffix = '') {
+  if (!ids.length) return;
+  await db.execute(`${sqlPrefix} (${ids.map(() => '?').join(',')})${sqlSuffix}`, ids);
+}
+
+async function deleteRemovedRows(db: PoolConnection, state: GameDatabaseState, previous: GameDatabaseState) {
+  const nextTreeIds = new Set(state.trees.map(tree => tree.id));
+  const removedTreeIds = previous.trees.filter(tree => !nextTreeIds.has(tree.id)).map(tree => tree.id);
+  if (removedTreeIds.length) {
+    await executeForIds(db, 'DELETE FROM tree_positions WHERE treeId IN', removedTreeIds);
+    await executeForIds(db, 'DELETE FROM referrals WHERE treeId IN', removedTreeIds);
+    await executeForIds(db, 'DELETE FROM ledger WHERE treeId IN', removedTreeIds);
+    await executeForIds(db, 'DELETE FROM trees WHERE id IN', removedTreeIds);
+  }
+
+  const nextUserIds = new Set(state.users.map(user => user.id));
+  const removedUserIds = previous.users.filter(user => !nextUserIds.has(user.id)).map(user => user.id);
+  if (removedUserIds.length) {
+    await executeForIds(db, 'DELETE FROM sessions WHERE userId IN', removedUserIds);
+    await executeForIds(db, 'DELETE FROM credentials WHERE userId IN', removedUserIds);
+    await executeForIds(db, 'DELETE FROM wallets WHERE userId IN', removedUserIds);
+    const placeholders = removedUserIds.map(() => '?').join(',');
+    await db.execute(`DELETE FROM referrals WHERE referrerUserId IN (${placeholders}) OR referredUserId IN (${placeholders})`, [...removedUserIds, ...removedUserIds]);
+    await db.execute(`DELETE FROM ledger WHERE fromUserId IN (${placeholders}) OR toUserId IN (${placeholders})`, [...removedUserIds, ...removedUserIds]);
+    await executeForIds(db, "UPDATE tree_positions SET userId=NULL,status='vacant',occupiedAt=NULL,username=NULL,name=NULL WHERE userId IN", removedUserIds);
+    await executeForIds(db, 'DELETE FROM users WHERE id IN', removedUserIds);
+  }
+}
+
 export async function saveState(db: PoolConnection, state: GameDatabaseState, previous?: GameDatabaseState) {
   if (!previous || JSON.stringify(previous.config) !== JSON.stringify(state.config)) {
     await db.execute('INSERT INTO game_config (id,config) VALUES (1,?) ON DUPLICATE KEY UPDATE config=VALUES(config)', [JSON.stringify(state.config)]);
   }
+  if (previous) await deleteRemovedRows(db, state, previous);
   for (const [key, table, primary, fields] of descriptors) {
     const before = new Map((previous?.[key] as any[] || []).map(r => [r[primary], r]));
     for (const row of state[key] as any[]) {

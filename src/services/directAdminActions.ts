@@ -14,6 +14,12 @@ export function createUserDirect({ indicadorUsername, firstName, lastName, passw
 export function archiveTreeDirect({ treeId, reason }: { treeId: number; reason?: string } & ActorParams) {
   return apiMutation('/actions', { action: 'archive_tree', params: { treeId, reason } });
 }
+export function deleteTreeDirect({ treeId }: { treeId: number } & ActorParams) {
+  return apiMutation('/actions', { action: 'delete_tree', params: { treeId } });
+}
+export function deleteUserDirect({ userId }: { userId: number } & ActorParams) {
+  return apiMutation('/actions', { action: 'delete_user', params: { userId } });
+}
 export function assignPositionDirect({ treeId, positionIndex, userId }: { treeId: number; positionIndex: number; userId: number } & ActorParams) {
   return apiMutation('/actions', { action: 'assign_tree_position', params: { treeId, positionIndex, userId } });
 }

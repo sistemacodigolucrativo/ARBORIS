@@ -2559,15 +2559,17 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
 
         {/* Persistent Bottom Bar */}
         <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-slate-900/95 backdrop-blur border-t border-slate-800 flex items-center justify-around py-2 px-1 z-40">
-          <button
-            onClick={() => setCurrentView('member')}
-            className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition ${
-              currentView === 'member' ? 'text-emerald-400 font-bold' : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Users className="w-5 h-5" />
-            <span className="text-[10px]">Membro</span>
-          </button>
+          {currentUser?.role !== 'admin' && (
+            <button
+              onClick={() => setCurrentView('member')}
+              className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition ${
+                currentView === 'member' ? 'text-emerald-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Users className="w-5 h-5" />
+              <span className="text-[10px]">Membro</span>
+            </button>
+          )}
 
           <button
             onClick={() => setCurrentView('public')}

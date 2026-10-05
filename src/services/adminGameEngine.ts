@@ -109,12 +109,8 @@ export function createTreeByAdmin(
   if (!tronco) return { success: false, state: originalState, error: 'Usuário do tronco inexistente ou inativo.' };
   if (tronco.role === 'admin') return { success: false, state: originalState, error: 'Admin técnico não pode ocupar tronco de árvore de jogo.' };
 
-  const alreadyInActiveTree = state.trees.some(tree =>
-    tree.status === 'active' && tree.positions.some(pos => pos.userId === tronco.id && pos.status === 'occupied')
-  );
-  if (alreadyInActiveTree) {
-    return { success: false, state: originalState, error: 'Usuário já ocupa posição em árvore ativa.' };
-  }
+  // Regra administrativa: o mesmo participante pode ocupar uma posição em várias árvores.
+  // O bloqueio global por qualquer árvore ativa impedia a criação de novas árvores com troncos válidos.
 
   const nextTreeId = nextId(state.trees);
   const nextCycle = Math.max(0, ...state.trees.map(tree => tree.cycleNumber || 0)) + 1;
@@ -242,12 +238,8 @@ export function assignTreePositionByAdmin(
   if (!user) return { success: false, state: originalState, error: 'Usuário inexistente ou inativo.' };
   if (user.role === 'admin') return { success: false, state: originalState, error: 'Admin técnico não pode ocupar posição de jogo.' };
 
-  const currentActiveTree = state.trees.find(item =>
-    item.status === 'active' && item.positions.some(pos => pos.userId === user.id && pos.status === 'occupied')
-  );
-  if (currentActiveTree && currentActiveTree.id !== tree.id) {
-    return { success: false, state: originalState, error: 'Usuário já ocupa posição em outra árvore ativa.' };
-  }
+  // Regra administrativa: impedir apenas duplicidade dentro da mesma árvore.
+  // Participar de outra árvore ativa não bloqueia atribuição nesta árvore.
 
   const currentPosition = tree.positions.find(pos => pos.userId === user.id && pos.status === 'occupied');
   if (currentPosition?.index === 0 && targetPosition.index !== 0) {

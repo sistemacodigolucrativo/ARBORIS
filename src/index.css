@@ -107,3 +107,16 @@
     }
   }
 }
+
+/*
+  ARBORIS tree explorer background.
+  Applies only to the radial tree card that contains the 330x330 visual canvas.
+*/
+#root div[class*="bg-slate-900/90"][class*="rounded-2xl"][class*="overflow-hidden"]:has(> div[class*="w-[330px]"][class*="h-[330px]"]) {
+  background-image:
+    linear-gradient(rgba(2, 6, 23, 0.08), rgba(2, 6, 23, 0.18)),
+    url('/assets/arboris-tree-background.svg') !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+}

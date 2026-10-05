@@ -120,3 +120,74 @@
   background-position: center !important;
   background-repeat: no-repeat !important;
 }
+
+/*
+  ARBORIS radial position leaves.
+  Replaces only the non-tronco radial position circles with the transparent leaf asset.
+  The central tronco remains a circle; labels stay above the leaf cluster.
+*/
+#root div[class*="w-[330px]"][class*="h-[330px]"] > div[class*="absolute"][class*="z-10"][class*="rounded-full"][style] {
+  overflow: visible !important;
+  isolation: isolate !important;
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  color: #f8fafc !important;
+  text-shadow:
+    0 2px 3px rgba(2, 6, 23, 0.98),
+    0 0 6px rgba(2, 6, 23, 0.95),
+    0 0 10px rgba(2, 6, 23, 0.85) !important;
+  -webkit-text-stroke: 0.25px rgba(2, 6, 23, 0.95);
+}
+
+#root div[class*="w-[330px]"][class*="h-[330px]"] > div[class*="absolute"][class*="z-10"][class*="rounded-full"][style]::before {
+  content: "";
+  position: absolute;
+  inset: -14px;
+  z-index: -1;
+  background-image: url('/ARBORIS/assets/arboris-position-leaves.png');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  filter:
+    drop-shadow(0 5px 8px rgba(2, 6, 23, 0.75))
+    drop-shadow(0 0 5px rgba(16, 185, 129, 0.35));
+  transform: rotate(-5deg);
+  transform-origin: center;
+  pointer-events: none;
+}
+
+#root div[class*="w-[330px]"][class*="h-[330px]"] > div[class*="absolute"][class*="z-10"][class*="rounded-full"][style]:nth-of-type(even)::before {
+  transform: scaleX(-1) rotate(5deg);
+}
+
+#root div[class*="w-[330px]"][class*="h-[330px]"] > div[class*="absolute"][class*="z-10"][class*="rounded-full"][style]:nth-of-type(3n)::before {
+  transform: rotate(8deg);
+}
+
+#root div[class*="w-[330px]"][class*="h-[330px]"] > div[class*="absolute"][class*="z-10"][class*="rounded-full"][style][class*="rose"]::before {
+  filter:
+    drop-shadow(0 5px 8px rgba(2, 6, 23, 0.75))
+    drop-shadow(0 0 7px rgba(244, 63, 94, 0.85));
+}
+
+#root div[class*="w-[330px]"][class*="h-[330px]"] > div[class*="absolute"][class*="z-10"][class*="rounded-full"][style][class*="emerald"]::before {
+  filter:
+    drop-shadow(0 5px 8px rgba(2, 6, 23, 0.75))
+    drop-shadow(0 0 7px rgba(52, 211, 153, 0.75));
+}
+
+#root div[class*="w-[330px]"][class*="h-[330px]"] > div[class*="absolute"][class*="z-10"][class*="rounded-full"][style][class*="dashed"]::before {
+  opacity: 0.62;
+  filter:
+    grayscale(0.18)
+    drop-shadow(0 4px 7px rgba(2, 6, 23, 0.65));
+}
+
+#root div[class*="w-[330px]"][class*="h-[330px]"] > div[class*="absolute"][class*="z-10"][class*="rounded-full"][style] > span,
+#root div[class*="w-[330px]"][class*="h-[330px]"] > div[class*="absolute"][class*="z-10"][class*="rounded-full"][style] > * {
+  position: relative;
+  z-index: 1;
+  color: #f8fafc !important;
+  font-weight: 800 !important;
+}

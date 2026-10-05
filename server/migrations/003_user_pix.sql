@@ -1,0 +1,3 @@
+ALTER TABLE users ADD COLUMN IF NOT EXISTS pixHolderName VARCHAR(200) NULL AFTER currentPositionIndex;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS pixKeyType ENUM('random','email','phone') NULL AFTER pixHolderName;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS pixKey VARCHAR(200) NULL AFTER pixKeyType;

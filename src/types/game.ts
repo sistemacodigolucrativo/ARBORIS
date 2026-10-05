@@ -31,6 +31,9 @@ export interface User {
   updatedAt: string;
   currentTreeId?: number | null;
   currentPositionIndex?: number | null;
+  pixHolderName?: string | null;
+  pixKeyType?: 'random' | 'email' | 'phone' | null;
+  pixKey?: string | null;
 }
 
 export interface Wallet {

@@ -73,6 +73,9 @@ interface User {
   balance: number;
   current_tree_id?: number | null;
   current_position_index?: number | null;
+  pixHolderName?: string | null;
+  pixKeyType?: 'random' | 'email' | 'phone' | null;
+  pixKey?: string | null;
 }
 
 interface Tree {
@@ -256,6 +259,10 @@ export default function App() {
   const [showAdminCreateMemberForm, setShowAdminCreateMemberForm] = useState<boolean>(false);
   const [adminMembersPage, setAdminMembersPage] = useState<number>(1);
   const [adminMembersPageSize, setAdminMembersPageSize] = useState<number>(10);
+  const [pixHolderName, setPixHolderName] = useState<string>('');
+  const [pixKeyType, setPixKeyType] = useState<'random' | 'email' | 'phone'>('random');
+  const [pixKey, setPixKey] = useState<string>('');
+  const [pixSaving, setPixSaving] = useState<boolean>(false);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -321,6 +328,12 @@ export default function App() {
       setCurrentView('admin');
     }
   }, [currentUser, currentView]);
+
+  useEffect(() => {
+    setPixHolderName(currentUser?.pixHolderName || currentUser?.full_name || '');
+    setPixKeyType(currentUser?.pixKeyType || 'random');
+    setPixKey(currentUser?.pixKey || '');
+  }, [currentUser?.id, currentUser?.pixHolderName, currentUser?.pixKeyType, currentUser?.pixKey, currentUser?.full_name]);
 
   useEffect(() => {
     try {
@@ -766,6 +779,51 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
     }
   };
 
+
+  const handleSavePix = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pixHolderName.trim() || !pixKey.trim()) {
+      showToast('Preencha titular e chave Pix.');
+      return;
+    }
+    setPixSaving(true);
+    try {
+      const res = await dataStore.updatePixAction({
+        holderName: pixHolderName.trim(),
+        keyType: pixKeyType,
+        key: pixKey.trim()
+      });
+      if (res.success) {
+        await fetchState(true);
+        showToast('Chave Pix salva.');
+      } else {
+        showToast('Erro: ' + (res.error || 'Não foi possível salvar Pix.'));
+      }
+    } catch (e: any) {
+      showToast('Erro: ' + e.message);
+    } finally {
+      setPixSaving(false);
+    }
+  };
+
+  const handleClearPix = async () => {
+    if (!window.confirm('Remover sua chave Pix cadastrada?')) return;
+    setPixSaving(true);
+    try {
+      const res = await dataStore.clearPixAction();
+      if (res.success) {
+        await fetchState(true);
+        showToast('Chave Pix removida.');
+      } else {
+        showToast('Erro: ' + (res.error || 'Não foi possível remover Pix.'));
+      }
+    } catch (e: any) {
+      showToast('Erro: ' + e.message);
+    } finally {
+      setPixSaving(false);
+    }
+  };
+
   // Helper collections
   const allTrees: Tree[] = systemState?.trees || [];
   const allPositions: Position[] = systemState?.positions || [];
@@ -807,7 +865,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
   const treeDisplayName = (tree?: Tree | null) => tree?.nickname?.trim() || tree?.display_name || tree?.category_name || (tree?.token_requirement ? `${tree.token_requirement} sementes` : 'Árvore');
 
   // Pre-formatted copy pitch (Sementes)
-  const marketingPitch = `🌱 Olá! Estou participando do ecossistema comunitário independente Arboris!\n\n🌳 Nosso tabuleiro de 15 posições segue a dinâmica clássica 1–2–4–8 da Árvore:\n• 1 Tronco Central\n• 2 Guardiões Primários\n• 4 Sub-ramos\n• 8 Vagas Externas de Entrada (Nível 3)\n\nAtualmente estamos no Ciclo #${memberTree?.cycle_number || 1} e restam apenas ${slotsRemaining} vagas externas para fechar a árvore e gerar a bifurcação!\n\n✨ 100% GRATUITO: Você ganha 25 sementes virtuais logo no cadastro para fortalecer o tronco e entrar no jogo.\n❌ Sem dinheiro real, sem PIX e sem depósitos.\n\n👉 Acesse pelo meu link de convite exclusivo:\n${referralUrl}`;
+  const marketingPitch = `🌱 Olá! Estou participando do ecossistema comunitário independente Arboris!\n\n🌳 Nosso tabuleiro de 15 posições segue a dinâmica clássica 1–2–4–8 da Árvore:\n• 1 Tronco Central\n• 2 Guardiões Primários\n• 4 Sub-ramos\n• 8 Vagas Externas de Entrada (Nível 3)\n\nAtualmente estamos no Ciclo #${memberTree?.cycle_number || 1} e restam apenas ${slotsRemaining} vagas externas para fechar a árvore e gerar a bifurcação!\n\n✨ 100% GRATUITO: Você ganha 25 sementes virtuais logo no cadastro para fortalecer o tronco e entrar no jogo.\n❌ Sem taxas obrigatórias, sem depósitos no sistema e sem promessa financeira.\n\n👉 Acesse pelo meu link de convite exclusivo:\n${referralUrl}`;
 
   // ==========================================
   // TREE VISUALIZATION RENDERERS (MODELS 1 TO 4)
@@ -1539,7 +1597,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
           <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
             <strong className="text-slate-100 block">Preciso pagar algum valor ou taxa?</strong>
             <span className="text-slate-400 text-balance block leading-relaxed">
-              Não. O Arboris é um jogo comunitário e recreativo. Não aceita dinheiro, depósitos bancários, PIX ou saques. Todas as sementes são pontos virtuais internos.
+              Não. O Arboris é um jogo comunitário e recreativo. O sistema não processa pagamentos nem depósitos internos. A chave Pix é apenas uma informação cadastral do participante, e as sementes continuam sendo pontos virtuais internos.
             </span>
           </div>
 
@@ -2252,6 +2310,64 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
 
                   <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
                     <div className="flex items-center justify-between text-xs">
+                      <span className="font-bold text-slate-200">Minha chave Pix</span>
+                      <span className="text-[10px] text-slate-500 font-mono">Cadastro do participante</span>
+                    </div>
+                    <form onSubmit={handleSavePix} className="space-y-2 text-xs">
+                      <label className="block text-slate-300">Titular
+                        <input
+                          required
+                          value={pixHolderName}
+                          onChange={(e) => setPixHolderName(e.target.value)}
+                          className="w-full mt-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 focus:outline-none focus:border-emerald-500"
+                          placeholder="Nome do titular"
+                        />
+                      </label>
+                      <label className="block text-slate-300">Tipo da chave
+                        <select
+                          value={pixKeyType}
+                          onChange={(e) => setPixKeyType(e.target.value as 'random' | 'email' | 'phone')}
+                          className="w-full mt-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 focus:outline-none focus:border-emerald-500"
+                        >
+                          <option value="random">Aleatória</option>
+                          <option value="email">E-mail</option>
+                          <option value="phone">Telefone</option>
+                        </select>
+                      </label>
+                      <label className="block text-slate-300">Chave Pix
+                        <input
+                          required
+                          value={pixKey}
+                          onChange={(e) => setPixKey(e.target.value)}
+                          className="w-full mt-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 focus:outline-none focus:border-emerald-500"
+                          placeholder={pixKeyType === 'email' ? 'nome@email.com' : pixKeyType === 'phone' ? '+5531999999999' : 'chave aleatória'}
+                        />
+                      </label>
+                      <div className="grid grid-cols-1 gap-2">
+                        <button
+                          type="submit"
+                          disabled={pixSaving}
+                          className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold flex items-center justify-center gap-2"
+                        >
+                          {pixSaving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                          <span>Salvar chave Pix</span>
+                        </button>
+                        {currentUser.pixKey && (
+                          <button
+                            type="button"
+                            disabled={pixSaving}
+                            onClick={handleClearPix}
+                            className="w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-200 font-bold"
+                          >
+                            Remover chave Pix
+                          </button>
+                        )}
+                      </div>
+                    </form>
+                  </div>
+
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
+                    <div className="flex items-center justify-between text-xs">
                       <span className="font-bold text-slate-200">Extrato Comunitário (Ledger)</span>
                       <span className="text-[10px] text-slate-500 font-mono">Imutável</span>
                     </div>
@@ -2407,12 +2523,14 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                         <span className="text-[10px] text-slate-400 font-mono">15 Posições</span>
                       </div>
 
-                      <div className="p-3 bg-slate-900 border border-slate-800 rounded-2xl space-y-2 text-xs">
-                        <div className="font-bold text-slate-200 flex items-center gap-1.5">
+                      {renderActiveModel(adminTreePositions)}
+
+                      <details className="p-3 bg-slate-900 border border-slate-800 rounded-2xl space-y-2 text-xs">
+                        <summary className="font-bold text-slate-200 flex items-center gap-1.5 cursor-pointer select-none">
                           <Shield className="w-3.5 h-3.5 text-amber-400" />
                           <span>Ações administrativas da árvore</span>
-                        </div>
-                        <div className="grid grid-cols-1 gap-2">
+                        </summary>
+                        <div className="grid grid-cols-1 gap-2 pt-2">
                           <button
                             type="button"
                             onClick={() => fetchState(true)}
@@ -2450,13 +2568,11 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                           </button>
                         </div>
                         {adminActionMessage && (
-                          <div className="p-2 bg-slate-950 border border-slate-800 rounded-xl text-[11px] text-slate-300 leading-relaxed">
+                          <div className="p-2 bg-slate-950 border border-slate-800 rounded-xl text-[11px] text-slate-300 leading-relaxed mt-2">
                             {adminActionMessage}
                           </div>
                         )}
-                      </div>
-
-                      {renderActiveModel(adminTreePositions)}
+                      </details>
                     </div>
                   )}
                 </div>

@@ -20,7 +20,7 @@ export async function transaction<T>(pool: DatabasePool, fn: (db: PoolConnection
   finally { db.release(); }
 }
 const descriptors = [
-  ['users','users','id','id username name githubActor role status createdAt updatedAt currentTreeId currentPositionIndex'],
+  ['users','users','id','id username name githubActor role status createdAt updatedAt currentTreeId currentPositionIndex pixHolderName pixKeyType pixKey'],
   ['wallets','wallets','userId','userId balance updatedAt'],
   ['trees','trees','id','id categoryId treeCode nickname troncoUserId status cycleNumber parentTreeId createdAt completedAt'],
   ['referrals','referrals','id','id referrerUserId referredUserId treeId token clicks registrationsCount isActive createdAt'],

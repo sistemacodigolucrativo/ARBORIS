@@ -5,6 +5,9 @@ import { createTreeByAdmin, archiveTreeByAdmin, deleteTreeByAdmin, deleteUserByA
 import { HttpError, newToken } from './security';
 const id = z.number().int().positive().max(2147483647);
 const text = z.string().trim().min(1).max(80);
+const pixKeyTypeSchema = z.enum(['random', 'email', 'phone']);
+const pixHolderSchema = z.string().trim().min(1).max(120);
+const pixKeySchema = z.string().trim().min(1).max(200);
 export const passwordSchema = z.string().min(12, 'A senha precisa ter pelo menos 12 caracteres.').max(128);
 export const registrationSchema = z.object({ firstName: text, lastName: text, indicadorUsername: z.string().trim().min(1).max(200).optional(), password: passwordSchema }).strict();
 export const actionSchema = z.discriminatedUnion('action', [
@@ -14,6 +17,8 @@ export const actionSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('delete_user'), params: z.object({ userId: id }).strict() }),
   z.object({ action: z.literal('update_tree_nickname'), params: z.object({ treeId: id, nickname: z.string().trim().max(120).optional() }).strict() }),
   z.object({ action: z.literal('reserve_tree_entry'), params: z.object({ treeId: id }).strict() }),
+  z.object({ action: z.literal('update_pix'), params: z.object({ holderName: pixHolderSchema, keyType: pixKeyTypeSchema, key: pixKeySchema }).strict() }),
+  z.object({ action: z.literal('clear_pix'), params: z.object({}).strict() }),
   z.object({ action: z.literal('assign_tree_position'), params: z.object({ treeId: id, positionIndex: z.number().int().min(1).max(14), userId: id }).strict() }),
   z.object({ action: z.literal('clear_tree_position'), params: z.object({ treeId: id, positionIndex: z.number().int().min(1).max(14) }).strict() }),
   z.object({ action: z.literal('toggle_user_status'), params: z.object({ userId: id }).strict() }),
@@ -51,7 +56,7 @@ export function register(state: GameDatabaseState, params: z.infer<typeof regist
 }
 export function applyAction(state: GameDatabaseState, user: User, input: z.infer<typeof actionSchema>, key: string): ActionResult {
   const actor = { actorUserId: user.id, actorUsername: user.username };
-  if (!['reserve_tree_entry', 'strengthen_tronco', 'transfer_seeds'].includes(input.action) && user.role !== 'admin') throw new HttpError(403, 'Acesso administrativo obrigatório.');
+  if (!['reserve_tree_entry', 'strengthen_tronco', 'transfer_seeds', 'update_pix', 'clear_pix'].includes(input.action) && user.role !== 'admin') throw new HttpError(403, 'Acesso administrativo obrigatório.');
   if (state.config.systemMode !== 'active') throw new HttpError(503, 'Sistema em manutenção.');
   switch (input.action) {
     case 'create_tree': return createTreeByAdmin(state, { ...input.params, actor, idempotencyKey: key });
@@ -62,6 +67,46 @@ export function applyAction(state: GameDatabaseState, user: User, input: z.infer
     case 'reserve_tree_entry':
       if (user.role === 'admin') throw new HttpError(403, 'Coordenador não participa deste fluxo.');
       return reserveTreeEntry(state, { userId: user.id, treeId: input.params.treeId, idempotencyKey: key });
+    case 'update_pix': {
+      const next = structuredClone(state);
+      const target = next.users.find(u => u.id === user.id);
+      if (!target || target.status !== 'active') throw new HttpError(400, 'Participante inativo ou inexistente.');
+      target.pixHolderName = input.params.holderName;
+      target.pixKeyType = input.params.keyType;
+      target.pixKey = input.params.key;
+      target.updatedAt = new Date().toISOString();
+      next.auditLog.push({
+        id: Math.max(0, ...next.auditLog.map(a => a.id)) + 1,
+        actorUserId: user.id,
+        actorUsername: user.username,
+        action: 'USER_PIX_UPDATED',
+        entity: 'user',
+        entityId: user.id,
+        metadata: { idempotencyKey: key, keyType: input.params.keyType },
+        createdAt: target.updatedAt
+      });
+      return { success: true, state: next, result: { pixHolderName: target.pixHolderName, pixKeyType: target.pixKeyType, pixKey: target.pixKey } };
+    }
+    case 'clear_pix': {
+      const next = structuredClone(state);
+      const target = next.users.find(u => u.id === user.id);
+      if (!target || target.status !== 'active') throw new HttpError(400, 'Participante inativo ou inexistente.');
+      target.pixHolderName = null;
+      target.pixKeyType = null;
+      target.pixKey = null;
+      target.updatedAt = new Date().toISOString();
+      next.auditLog.push({
+        id: Math.max(0, ...next.auditLog.map(a => a.id)) + 1,
+        actorUserId: user.id,
+        actorUsername: user.username,
+        action: 'USER_PIX_CLEARED',
+        entity: 'user',
+        entityId: user.id,
+        metadata: { idempotencyKey: key },
+        createdAt: target.updatedAt
+      });
+      return { success: true, state: next, result: { pixHolderName: null, pixKeyType: null, pixKey: null } };
+    }
     case 'assign_tree_position': return assignTreePositionByAdmin(state, { ...input.params, actor, idempotencyKey: key });
     case 'clear_tree_position': return clearTreePositionByAdmin(state, { ...input.params, actor, idempotencyKey: key });
     case 'strengthen_tronco':

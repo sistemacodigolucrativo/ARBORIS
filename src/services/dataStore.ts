@@ -42,6 +42,12 @@ class DataStoreService {
   async strengthenTroncoAction(_userId: number, treeId: number) {
     return apiMutation('/actions', { action: 'strengthen_tronco', params: { treeId } });
   }
+  async updatePixAction(params: { holderName: string; keyType: 'random' | 'email' | 'phone'; key: string }) {
+    return apiMutation('/actions', { action: 'update_pix', params });
+  }
+  async clearPixAction() {
+    return apiMutation('/actions', { action: 'clear_pix', params: {} });
+  }
   async toggleUserStatusAction(userId: number) {
     const res = await apiMutation('/actions', { action: 'toggle_user_status', params: { userId } });
     return { ...res, newStatus: res.result.newStatus };
@@ -58,7 +64,10 @@ class DataStoreService {
         current_position_index: u.currentPositionIndex,
         email: `${u.username}@arboris.local`,
         full_name: u.name,
-        balance: wallet ? wallet.balance : 0
+        balance: wallet ? wallet.balance : 0,
+        pixHolderName: u.pixHolderName || null,
+        pixKeyType: u.pixKeyType || null,
+        pixKey: u.pixKey || null
       };
     });
 

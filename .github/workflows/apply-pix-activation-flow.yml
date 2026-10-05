@@ -44,3 +44,4 @@ jobs:
             git commit -m "fix: add pix activation approval flow"
             git push
           fi
+# retrigger: pix activation flow

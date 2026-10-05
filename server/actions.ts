@@ -32,7 +32,7 @@ export function register(state: GameDatabaseState, params: z.infer<typeof regist
   while (state.users.some(u => u.username === username)) username = `${base}_${suffix++}`;
   const ref = validateReferral(state, indicadorUsername);
   if (!ref.valid || !ref.referrer || !ref.tree) throw new HttpError(400, ref.error || 'Indicador inválido.');
-  const res = createParticipant(state, { username, name: `${params.firstName} ${params.lastName}`, indicadorUsername: params.indicadorUsername, idempotencyKey: key });
+  const res = createParticipant(state, { username, name: `${params.firstName} ${params.lastName}`, indicadorUsername, idempotencyKey: key });
   if (!res.success || !res.result) throw new HttpError(400, res.error || 'Cadastro rejeitado.');
   const own = res.state.referrals.find(r => r.id === ref.referral?.id);
   if (own) { own.registrationsCount++; own.referredUserId ??= res.result.user.id; }

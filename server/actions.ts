@@ -8,6 +8,10 @@ const text = z.string().trim().min(1).max(80);
 const pixKeyTypeSchema = z.enum(['random', 'email', 'phone']);
 const pixHolderSchema = z.string().trim().min(1).max(120);
 const pixKeySchema = z.string().trim().min(1).max(200);
+const adminMemberNameSchema = z.string().trim().min(1).max(120);
+const adminMemberUsernameSchema = z.string().trim().min(3).max(80);
+const adminMemberPixHolderSchema = z.string().trim().max(120).optional();
+const adminMemberPixKeySchema = z.string().trim().max(200).optional();
 export const passwordSchema = z.string().min(12, 'A senha precisa ter pelo menos 12 caracteres.').max(128);
 export const registrationSchema = z.object({ firstName: text, lastName: text, indicadorUsername: z.string().trim().min(1).max(200).optional(), password: passwordSchema }).strict();
 export const actionSchema = z.discriminatedUnion('action', [
@@ -19,6 +23,7 @@ export const actionSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('reserve_tree_entry'), params: z.object({ treeId: id }).strict() }),
   z.object({ action: z.literal('update_pix'), params: z.object({ holderName: pixHolderSchema, keyType: pixKeyTypeSchema, key: pixKeySchema }).strict() }),
   z.object({ action: z.literal('clear_pix'), params: z.object({}).strict() }),
+  z.object({ action: z.literal('admin_update_member'), params: z.object({ userId: id, name: adminMemberNameSchema, username: adminMemberUsernameSchema, pixHolderName: adminMemberPixHolderSchema, pixKeyType: pixKeyTypeSchema.nullable().optional(), pixKey: adminMemberPixKeySchema }).strict() }),
   z.object({ action: z.literal('request_activation'), params: z.object({ treeId: id }).strict() }),
   z.object({ action: z.literal('approve_activation_request'), params: z.object({ requestId: id }).strict() }),
   z.object({ action: z.literal('reject_activation_request'), params: z.object({ requestId: id, reason: z.string().trim().max(300).optional() }).strict() }),
@@ -124,6 +129,73 @@ export function applyAction(state: GameDatabaseState, user: User, input: z.infer
         createdAt: target.updatedAt
       });
       return { success: true, state: next, result: { pixHolderName: null, pixKeyType: null, pixKey: null } };
+    }
+
+    case 'admin_update_member': {
+      if (user.role !== 'admin') throw new HttpError(403, 'Acesso administrativo obrigatório.');
+      const next = structuredClone(state);
+      const target = next.users.find(u => u.id === input.params.userId);
+      if (!target || target.role === 'admin') return { success: false, state, error: 'Membro inexistente ou protegido.' };
+
+      const cleanUsername = input.params.username.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
+      if (cleanUsername.length < 3) return { success: false, state, error: 'Arroba inválido. Use pelo menos 3 caracteres.' };
+      if (next.users.some(u => u.id !== target.id && u.username.toLowerCase() === cleanUsername)) {
+        return { success: false, state, error: `O arroba @${cleanUsername} já está em uso.` };
+      }
+
+      const cleanName = input.params.name.trim();
+      const pixHolderName = input.params.pixHolderName?.trim() || null;
+      const pixKey = input.params.pixKey?.trim() || null;
+      const pixKeyType = pixKey ? (input.params.pixKeyType || 'random') : null;
+      const hasAnyPixField = Boolean(input.params.pixHolderName?.trim() || input.params.pixKeyType || input.params.pixKey?.trim());
+      if (hasAnyPixField && (!pixHolderName || !pixKey || !pixKeyType)) {
+        return { success: false, state, error: 'Para salvar Pix, informe titular, tipo e chave. Para remover Pix, deixe os campos em branco.' };
+      }
+
+      const previous = {
+        username: target.username,
+        name: target.name,
+        pixKeyType: target.pixKeyType || null
+      };
+      const now = new Date().toISOString();
+      target.username = cleanUsername;
+      target.name = cleanName;
+      target.pixHolderName = pixHolderName;
+      target.pixKeyType = pixKeyType;
+      target.pixKey = pixKey;
+      target.updatedAt = now;
+
+      for (const tree of next.trees) {
+        for (const position of tree.positions) {
+          if (position.userId === target.id) {
+            position.username = cleanUsername;
+            position.name = cleanName;
+          }
+        }
+      }
+
+      for (const request of next.activationRequests || []) {
+        if (request.requesterUserId === target.id) request.requesterUsername = cleanUsername;
+        if (request.troncoUserId === target.id) request.troncoUsername = cleanUsername;
+      }
+
+      for (const entry of next.ledger) {
+        if (entry.fromUserId === target.id) entry.fromUsername = cleanUsername;
+        if (entry.toUserId === target.id) entry.toUsername = cleanUsername;
+      }
+
+      next.auditLog.push({
+        id: nextLocalId(next.auditLog),
+        actorUserId: user.id,
+        actorUsername: user.username,
+        action: 'ADMIN_MEMBER_UPDATED',
+        entity: 'user',
+        entityId: target.id,
+        metadata: { idempotencyKey: key, previous, next: { username: cleanUsername, name: cleanName, pixKeyType } },
+        createdAt: now
+      });
+
+      return { success: true, state: next, result: { userId: target.id, username: target.username, name: target.name, pixHolderName: target.pixHolderName, pixKeyType: target.pixKeyType, pixKey: target.pixKey } };
     }
     case 'request_activation': {
       if (user.role === 'admin') throw new HttpError(403, 'Coordenador não participa deste fluxo.');

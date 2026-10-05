@@ -29,3 +29,7 @@ export function assignPositionDirect({ treeId, positionIndex, userId }: { treeId
 export function clearPositionDirect({ treeId, positionIndex }: { treeId: number; positionIndex: number } & ActorParams) {
   return apiMutation('/actions', { action: 'clear_tree_position', params: { treeId, positionIndex } });
 }
+
+export function adminUpdateMemberDirect({ userId, name, username, pixHolderName, pixKeyType, pixKey }: { userId: number; name: string; username: string; pixHolderName?: string; pixKeyType?: 'random' | 'email' | 'phone' | null; pixKey?: string } & ActorParams) {
+  return apiMutation('/actions', { action: 'admin_update_member', params: { userId, name, username, pixHolderName, pixKeyType, pixKey } });
+}

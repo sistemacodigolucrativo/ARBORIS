@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   Trees,
   Sprout,
+  DollarSign,
   Crown,
   Copy,
   Check,
@@ -47,7 +48,8 @@ import {
   createUserDirect,
   deleteTreeDirect,
   deleteUserDirect,
-  updateTreeNicknameDirect
+  updateTreeNicknameDirect,
+  adminUpdateMemberDirect
 } from './services/directAdminActions';
 import { PublicLandingPage } from './components/PublicLandingPage';
 
@@ -277,6 +279,12 @@ export default function App() {
   const [showAdminCreateMemberForm, setShowAdminCreateMemberForm] = useState<boolean>(false);
   const [adminMembersPage, setAdminMembersPage] = useState<number>(1);
   const [adminMembersPageSize, setAdminMembersPageSize] = useState<number>(10);
+  const [adminEditingMemberId, setAdminEditingMemberId] = useState<number | null>(null);
+  const [adminEditName, setAdminEditName] = useState<string>('');
+  const [adminEditUsername, setAdminEditUsername] = useState<string>('');
+  const [adminEditPixHolderName, setAdminEditPixHolderName] = useState<string>('');
+  const [adminEditPixKeyType, setAdminEditPixKeyType] = useState<'random' | 'email' | 'phone'>('random');
+  const [adminEditPixKey, setAdminEditPixKey] = useState<string>('');
   const [pixHolderName, setPixHolderName] = useState<string>('');
   const [pixKeyType, setPixKeyType] = useState<'random' | 'email' | 'phone'>('random');
   const [pixKey, setPixKey] = useState<string>('');
@@ -530,6 +538,61 @@ const handleAdminCreateUser = async (e: React.FormEvent) => {
   }
 };
 
+
+
+const openAdminMemberEditor = (user: User) => {
+  setAdminEditingMemberId(user.id);
+  setAdminEditName(user.full_name || user.username);
+  setAdminEditUsername(user.username);
+  setAdminEditPixHolderName(user.pixHolderName || '');
+  setAdminEditPixKeyType(user.pixKeyType || 'random');
+  setAdminEditPixKey(user.pixKey || '');
+  setAdminActionMessage(null);
+};
+
+const handleAdminUpdateMember = async (e: React.FormEvent) => {
+  e.preventDefault();
+  if (!adminEditingMemberId) return;
+  if (currentUser?.role !== 'admin') {
+    showToast('Erro: somente o coordenador pode editar membros.');
+    return;
+  }
+  if (!adminEditName.trim() || !adminEditUsername.trim()) {
+    showToast('Informe nome e arroba do membro.');
+    return;
+  }
+
+  setAdminActionLoading(true);
+  setAdminActionMessage(null);
+  try {
+    const hasPix = Boolean(adminEditPixHolderName.trim() || adminEditPixKey.trim());
+    const res = await adminUpdateMemberDirect({
+      userId: adminEditingMemberId,
+      name: adminEditName.trim(),
+      username: adminEditUsername.trim(),
+      pixHolderName: hasPix ? adminEditPixHolderName.trim() : '',
+      pixKeyType: hasPix ? adminEditPixKeyType : null,
+      pixKey: hasPix ? adminEditPixKey.trim() : '',
+      actorUserId: currentUser.id,
+      actorUsername: currentUser.username
+    });
+    if (res.success) {
+      await applyDirectAdminState(res);
+      setAdminEditingMemberId(null);
+      setAdminActionMessage('Dados do membro atualizados.');
+      showToast('Dados do membro atualizados.');
+    } else {
+      const error = res.error || 'Não foi possível atualizar o membro.';
+      setAdminActionMessage(error);
+      showToast('Erro: ' + error);
+    }
+  } catch (e: any) {
+    setAdminActionMessage('Erro ao atualizar membro: ' + e.message);
+    showToast('Erro: ' + e.message);
+  } finally {
+    setAdminActionLoading(false);
+  }
+};
 
   const handleReserveTreeEntry = async (treeId: number) => {
     if (currentUser?.role === 'admin') {
@@ -2212,8 +2275,8 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                     memberTab === 'wallet' ? 'bg-slate-800 text-emerald-400 shadow-sm' : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
-                  <Sprout className="w-3.5 h-3.5" />
-                  <span>Sementes</span>
+                  <DollarSign className="w-3.5 h-3.5" />
+                  <span>Doação</span>
                 </button>
               </div>
 
@@ -2294,7 +2357,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                           Você recebeu gratuitamente <strong>25 sementes</strong>, que serão convertidas em sementes reais de árvores que serão plantadas por voluntários.
                         </p>
                         <p className="text-amber-300 font-medium text-balance">
-                          Ao clicar em OK, 25 sementes serão consumidas para reservar sua vaga na árvore. Elas não serão enviadas ao tronco.
+                          Ao clicar em OK, 25 sementes serão consumidas para reservar sua vaga na árvore.
                         </p>
                       </div>
 
@@ -2884,7 +2947,13 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                         <div key={user.id} className="p-3 bg-slate-900 border border-slate-800 rounded-xl text-xs space-y-2">
                           <div className="flex items-center justify-between">
                             <div>
-                              <div className="font-bold text-slate-100">{user.full_name || user.username}</div>
+                              <button
+                                type="button"
+                                onClick={() => openAdminMemberEditor(user)}
+                                className="font-bold text-slate-100 hover:text-amber-300 underline-offset-2 hover:underline text-left"
+                              >
+                                {user.full_name || user.username}
+                              </button>
                               <div className="text-[10px] text-slate-400">@{user.username}</div>
                             </div>
                             <div className="text-right font-mono">
@@ -2892,6 +2961,70 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                               <span className="text-[9px] text-slate-500 block">sementes</span>
                             </div>
                           </div>
+
+                          {adminEditingMemberId === user.id && (
+                            <form onSubmit={handleAdminUpdateMember} className="p-3 bg-slate-950 border border-amber-800/60 rounded-xl space-y-3">
+                              <div className="grid grid-cols-1 gap-2">
+                                <label className="block text-[10px] text-slate-300 font-bold uppercase tracking-wide">Nome do membro
+                                  <input
+                                    required
+                                    value={adminEditName}
+                                    onChange={(e) => setAdminEditName(e.target.value)}
+                                    className="w-full mt-1 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 outline-none focus:border-amber-500"
+                                  />
+                                </label>
+                                <label className="block text-[10px] text-slate-300 font-bold uppercase tracking-wide">Arroba / username
+                                  <div className="relative mt-1">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">@</span>
+                                    <input
+                                      required
+                                      value={adminEditUsername}
+                                      onChange={(e) => setAdminEditUsername(e.target.value)}
+                                      className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-7 pr-3 py-2 text-slate-100 font-mono outline-none focus:border-amber-500"
+                                    />
+                                  </div>
+                                </label>
+                                <label className="block text-[10px] text-slate-300 font-bold uppercase tracking-wide">Titular Pix
+                                  <input
+                                    value={adminEditPixHolderName}
+                                    onChange={(e) => setAdminEditPixHolderName(e.target.value)}
+                                    placeholder="Nome do titular"
+                                    className="w-full mt-1 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 outline-none focus:border-amber-500"
+                                  />
+                                </label>
+                                <label className="block text-[10px] text-slate-300 font-bold uppercase tracking-wide">Tipo da chave Pix
+                                  <select
+                                    value={adminEditPixKeyType}
+                                    onChange={(e) => setAdminEditPixKeyType(e.target.value as 'random' | 'email' | 'phone')}
+                                    className="w-full mt-1 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 outline-none focus:border-amber-500"
+                                  >
+                                    <option value="random">Aleatória</option>
+                                    <option value="email">E-mail</option>
+                                    <option value="phone">Telefone</option>
+                                  </select>
+                                </label>
+                                <label className="block text-[10px] text-slate-300 font-bold uppercase tracking-wide">Chave Pix
+                                  <input
+                                    value={adminEditPixKey}
+                                    onChange={(e) => setAdminEditPixKey(e.target.value)}
+                                    placeholder={adminEditPixKeyType === 'email' ? 'nome@email.com' : adminEditPixKeyType === 'phone' ? '+5531999999999' : 'chave aleatória'}
+                                    className="w-full mt-1 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 outline-none focus:border-amber-500"
+                                  />
+                                </label>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                <button type="submit" disabled={adminActionLoading} className="py-2 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 font-black">
+                                  Salvar
+                                </button>
+                                <button type="button" disabled={adminActionLoading} onClick={() => setAdminEditingMemberId(null)} className="py-2 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-200 font-bold">
+                                  Cancelar
+                                </button>
+                              </div>
+                              <div className="text-[10px] text-slate-500 leading-relaxed">
+                                Para remover os dados Pix, deixe titular e chave Pix em branco e salve.
+                              </div>
+                            </form>
+                          )}
 
                           <div className="flex items-center justify-between pt-2 border-t border-slate-800 text-[10px]">
                             <span className={`px-2 py-0.5 rounded font-mono ${

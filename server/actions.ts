@@ -351,11 +351,21 @@ export function visibleState(state: GameDatabaseState, user: User | null): GameD
   if (user?.role === 'admin') return state;
   const trees = user ? state.trees.filter(t => t.id === user.currentTreeId) : [];
   const ids = new Set([user?.id, ...trees.flatMap(t => t.positions.map(p => p.userId))]);
+  const plantingBag = user && state.plantingBag ? {
+    balance: state.plantingBag.balance,
+    threshold: state.plantingBag.threshold,
+    selectionCount: state.plantingBag.selectionCount,
+    entries: state.plantingBag.entries.filter(entry => entry.userId === user.id),
+    draws: state.plantingBag.draws.filter(draw => draw.selectedUserIds.includes(user.id)),
+    assignments: state.plantingBag.assignments.filter(assignment => assignment.userId === user.id),
+    updatedAt: state.plantingBag.updatedAt
+  } : undefined;
   return { config: state.config, trees,
     users: user ? state.users.filter(u => ids.has(u.id)).map(({ githubActor, ...u }) => u) : [],
     wallets: state.wallets.filter(w => w.userId === user?.id),
     referrals: state.referrals.filter(r => r.referrerUserId === user?.id),
     ledger: state.ledger.filter(l => l.toUserId === user?.id || l.fromUserId === user?.id),
     activationRequests: state.activationRequests?.filter(r => r.requesterUserId === user?.id || r.troncoUserId === user?.id) || [],
+    plantingBag,
     auditLog: [] };
 }

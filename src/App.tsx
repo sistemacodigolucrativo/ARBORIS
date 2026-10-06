@@ -37,7 +37,8 @@ import {
   User as UserIcon,
   AlertCircle,
   Zap,
-  RotateCcw
+  RotateCcw,
+  Bell
 } from 'lucide-react';
 import { dataStore } from './services/dataStore';
 import {
@@ -162,6 +163,26 @@ interface ActivationRequest {
   decision_note?: string | null;
 }
 
+interface PlantingAssignment {
+  id: number;
+  drawId: number;
+  userId: number;
+  username: string;
+  treeId: number;
+  status: 'pending';
+  createdAt: string;
+}
+
+interface PlantingBagView {
+  balance: number;
+  threshold: number;
+  selection_count: number;
+  entries: Array<{ id: number; userId: number; treeId: number; amount: number; createdAt: string; username?: string }>;
+  draws: Array<{ id: number; threshold: number; amountConsumed: number; selectedUserIds: number[]; selectedTreeIds: number[]; createdAt: string }>;
+  assignments: PlantingAssignment[];
+  updated_at: string | null;
+}
+
 type StoredUiState = {
   showLandingPage?: boolean;
   isLocked?: boolean;
@@ -195,8 +216,7 @@ const persistStoredUiState = (state: StoredUiState) => {
 
 export default function App() {
   const initialUiState = readStoredUiState();
-  // Public landing page is the default entry point!
-  const [showLandingPage, setShowLandingPage] = useState<boolean>(() => initialUiState.showLandingPage ?? true);
+  const [showLandingPage, setShowLandingPage] = useState<boolean>(false);
   const [isLocked, setIsLocked] = useState<boolean>(() => initialUiState.isLocked ?? false);
   
   // Lock Screen state
@@ -259,7 +279,7 @@ export default function App() {
   const [selectedNode, setSelectedNode] = useState<Position | null>(null);
   const [selectedAdminTreeId, setSelectedAdminTreeId] = useState<number>(() => initialUiState.selectedAdminTreeId ?? 1);
   const [showCreateTreeModal, setShowCreateTreeModal] = useState<boolean>(false);
-  const [showDirectLoginModal, setShowDirectLoginModal] = useState<boolean>(false);
+  const [showDirectLoginModal, setShowDirectLoginModal] = useState<boolean>(true);
   const [showRulesModal, setShowRulesModal] = useState<boolean>(false);
 
   // Create tree form (organizador)
@@ -292,6 +312,7 @@ export default function App() {
   const [pixSaving, setPixSaving] = useState<boolean>(false);
   const [activationModalData, setActivationModalData] = useState<any | null>(null);
   const [activationRequestLoading, setActivationRequestLoading] = useState<boolean>(false);
+  const [showPlantingAlertLog, setShowPlantingAlertLog] = useState<boolean>(false);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -316,7 +337,7 @@ export default function App() {
   const handleLogout = async () => {
     try {
       await dataStore.logout(); setCurrentUser(null); setSystemState(null);
-      setShowLandingPage(true); setCurrentView('member');
+      setShowLandingPage(false); setShowDirectLoginModal(true); setIsLocked(false); setCurrentView('member');
     } catch (error: any) { showToast(error.message); }
   };
 
@@ -330,6 +351,7 @@ export default function App() {
         setSystemState(stateView);
         const fresh = stateView.users.find((u: User) => u.id === dataStore.getSessionUser()?.id);
         setCurrentUser(fresh || null);
+        if (fresh) setShowDirectLoginModal(false);
         if (!fresh) setCurrentView('public');
       }
     } catch (e: any) {
@@ -385,6 +407,7 @@ export default function App() {
         if (val.success && val.data) {
           setValidatedIndicadorData(val.data);
           setShowLandingPage(false);
+          setShowDirectLoginModal(false);
           setIsLocked(true); // Direct to step 2 (fill in data)
           showToast(`✓ Link de indicação aceito! Preencha seus dados para entrar.`);
         }
@@ -1011,6 +1034,8 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
   const paginatedRegisteredMembers = registeredMembers.slice((safeAdminMembersPage - 1) * adminMembersPageSize, safeAdminMembersPage * adminMembersPageSize);
   const allLinks: ReferralLink[] = systemState?.referral_links || [];
   const allActivationRequests: ActivationRequest[] = systemState?.activation_requests || [];
+  const plantingBag: PlantingBagView | null = systemState?.planting_bag || null;
+  const pendingPlantingAssignments = plantingBag?.assignments.filter(item => item.status === 'pending') || [];
 
   // Active member's tree
   const memberTreeId = currentUser?.current_tree_id || (allTrees[0]?.id ?? 1);
@@ -1679,7 +1704,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
   );
 
   // ==========================================
-  // 0. PÁGINA PÚBLICA PRINCIPAL (LANDING EXPLICATIVA)
+  // 0. LOGIN E APRESENTAÇÃO PÚBLICA
   // ==========================================
   if (showDirectLoginModal) {
     return <main className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4">
@@ -1689,7 +1714,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
         <label className="block text-sm">Senha<input required type="password" autoComplete="current-password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} className="block w-full mt-1 bg-slate-950 border border-slate-700 rounded-xl p-3" /></label>
         {loginError && <p role="alert" className="text-sm text-amber-300">{loginError}</p>}
         <button disabled={loginLoading} className="w-full bg-emerald-600 rounded-xl p-3 font-bold disabled:opacity-50">{loginLoading ? 'Entrando...' : 'Entrar'}</button>
-        <button type="button" onClick={() => { setShowDirectLoginModal(false); setLoginPassword(''); setShowLandingPage(true); }} className="w-full text-sm text-slate-400">Voltar</button>
+        <button type="button" onClick={() => { setShowDirectLoginModal(false); setLoginPassword(''); setShowLandingPage(true); }} className="w-full text-sm text-slate-400">Conhecer o projeto</button>
       </form>
     </main>;
   }
@@ -1981,17 +2006,56 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
             <div className="flex items-center gap-1.5">
 
               {currentView === 'admin' && (
-                <button
-                  onClick={() => {
-                    fetchState(true);
-                    showToast('Dados atualizados.');
-                  }}
-                  title="Atualizar dados do servidor"
-                  className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-400 text-xs flex items-center gap-1 transition"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline text-[10px]">Atualizar</span>
-                </button>
+                <>
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowPlantingAlertLog(value => !value)}
+                      title="Sorteios da bag de plantio"
+                      className="relative p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs flex items-center gap-1 transition"
+                    >
+                      <Bell className="w-3.5 h-3.5" />
+                      {pendingPlantingAssignments.length > 0 && (
+                        <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] leading-4 font-bold text-center">
+                          {pendingPlantingAssignments.length}
+                        </span>
+                      )}
+                    </button>
+                    {showPlantingAlertLog && (
+                      <div className="absolute right-0 mt-2 w-72 max-w-[calc(100vw-2rem)] bg-slate-950 border border-amber-800/70 rounded-2xl shadow-2xl p-3 space-y-2 text-xs">
+                        <div className="font-bold text-amber-300 flex items-center justify-between">
+                          <span>Bag de plantio</span>
+                          <span className="font-mono text-[10px] text-slate-400">{plantingBag?.balance ?? 0}/{plantingBag?.threshold ?? 500}</span>
+                        </div>
+                        <div className="space-y-1.5 max-h-72 overflow-y-auto">
+                          {pendingPlantingAssignments.length === 0 ? (
+                            <div className="text-[11px] text-slate-500 p-2 bg-slate-900 rounded-xl border border-slate-800">
+                              Nenhum sorteio de plantio gerado ainda.
+                            </div>
+                          ) : pendingPlantingAssignments.map(assignment => (
+                            <div key={assignment.id} className="p-2 bg-slate-900 border border-slate-800 rounded-xl">
+                              <div className="font-bold text-slate-100">@{assignment.username}</div>
+                              <div className="text-[10px] text-slate-500 font-mono">Sorteio #{assignment.drawId} · Árvore #{assignment.treeId}</div>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="text-[10px] text-slate-500 leading-relaxed">
+                          Entre em contato com os sorteados. Se não fizerem o plantio, remova o cadastro pelo painel de membros.
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => {
+                      fetchState(true);
+                      showToast('Dados atualizados.');
+                    }}
+                    title="Atualizar dados do servidor"
+                    className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-400 text-xs flex items-center gap-1 transition"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline text-[10px]">Atualizar</span>
+                  </button>
+                </>
               )}
 
               <button
@@ -2248,7 +2312,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                       <div className="p-3 bg-slate-950/90 rounded-xl border border-slate-800 text-[11px] text-slate-300 leading-relaxed space-y-2">
                         <p className="text-balance">Você está participando do <strong>EcoTerra Arboris</strong>.</p>
                         <p className="text-balance">
-                          As sementes do cadastro são registros internos para reserva e ativação. Elas não comprovam compra de mudas ou plantio; a bag e o sorteio ambiental propostos ainda não estão implementados nesta versão.
+                          As sementes do cadastro são registros internos para reserva e ativação. A reserva alimenta a bag de plantio, que seleciona participantes para plantar árvores quando acumula 500 sementes.
                         </p>
                         <p className="text-amber-300 font-medium text-balance">
                           Ao clicar em OK, a quantidade de sementes definida para esta árvore será consumida para reservar sua vaga.
@@ -3015,6 +3079,50 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
               {/* SUB-TAB: REGRAS */}
               {adminTab === 'settings' && (
                 <div className="space-y-3">
+                  <div className="p-3.5 bg-slate-900 border border-emerald-800/50 rounded-2xl space-y-3">
+                    <div className="flex items-center justify-between text-xs">
+                      <div className="font-bold text-slate-100 flex items-center gap-1.5">
+                        <Sprout className="w-4 h-4 text-emerald-400" />
+                        <span>Bag de plantio</span>
+                      </div>
+                      <span className="text-[10px] text-emerald-300 font-mono bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800">
+                        {plantingBag?.balance ?? 0}/{plantingBag?.threshold ?? 500}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 text-center text-[11px]">
+                      <div className="p-2 rounded-xl bg-slate-950 border border-slate-800">
+                        <div className="font-mono text-emerald-400 font-bold">{plantingBag?.entries.length ?? 0}</div>
+                        <div className="text-slate-500">entradas</div>
+                      </div>
+                      <div className="p-2 rounded-xl bg-slate-950 border border-slate-800">
+                        <div className="font-mono text-amber-300 font-bold">{plantingBag?.draws.length ?? 0}</div>
+                        <div className="text-slate-500">sorteios</div>
+                      </div>
+                      <div className="p-2 rounded-xl bg-slate-950 border border-slate-800">
+                        <div className="font-mono text-rose-300 font-bold">{pendingPlantingAssignments.length}</div>
+                        <div className="text-slate-500">avisos</div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="text-[11px] font-bold text-slate-300">Sorteados para contato</div>
+                      {pendingPlantingAssignments.length === 0 ? (
+                        <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-[11px] text-slate-500">
+                          Nenhum sorteio de plantio gerado ainda.
+                        </div>
+                      ) : pendingPlantingAssignments.map(assignment => (
+                        <div key={assignment.id} className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs flex items-center justify-between gap-2">
+                          <div>
+                            <div className="font-bold text-slate-100">@{assignment.username}</div>
+                            <div className="text-[10px] text-slate-500 font-mono">Sorteio #{assignment.drawId} · Árvore #{assignment.treeId}</div>
+                          </div>
+                          <span className="text-[10px] text-amber-300 font-mono">contatar</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
                   <div className="text-xs font-bold text-slate-200">
                     Parâmetros Comunitários (PENDENTE DE DEFINIÇÃO)
                   </div>

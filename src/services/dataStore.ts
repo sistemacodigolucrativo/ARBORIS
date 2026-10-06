@@ -196,6 +196,15 @@ class DataStoreService {
         decided_at: r.decidedAt,
         decision_note: r.decisionNote
       })),
+      planting_bag: this.state.plantingBag ? {
+        balance: this.state.plantingBag.balance,
+        threshold: this.state.plantingBag.threshold,
+        selection_count: this.state.plantingBag.selectionCount,
+        entries: this.state.plantingBag.entries,
+        draws: this.state.plantingBag.draws,
+        assignments: this.state.plantingBag.assignments,
+        updated_at: this.state.plantingBag.updatedAt
+      } : null,
       categories: this.state.config.categories.map(c => ({
         id: c.id,
         code: c.code,

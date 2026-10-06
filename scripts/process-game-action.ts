@@ -37,7 +37,10 @@ function loadState(): GameDatabaseState {
     trees: JSON.parse(fs.readFileSync(path.join(dataDir, 'trees.json'), 'utf8')),
     referrals: JSON.parse(fs.readFileSync(path.join(dataDir, 'referrals.json'), 'utf8')),
     ledger: JSON.parse(fs.readFileSync(path.join(dataDir, 'ledger.json'), 'utf8')),
-    auditLog: JSON.parse(fs.readFileSync(path.join(dataDir, 'audit-log.json'), 'utf8'))
+    auditLog: JSON.parse(fs.readFileSync(path.join(dataDir, 'audit-log.json'), 'utf8')),
+    plantingBag: fs.existsSync(path.join(dataDir, 'planting-bag.json'))
+      ? JSON.parse(fs.readFileSync(path.join(dataDir, 'planting-bag.json'), 'utf8'))
+      : undefined
   };
 }
 
@@ -49,10 +52,12 @@ function saveState(state: GameDatabaseState) {
     'trees.json': state.trees,
     'referrals.json': state.referrals,
     'ledger.json': state.ledger,
-    'audit-log.json': state.auditLog
+    'audit-log.json': state.auditLog,
+    'planting-bag.json': state.plantingBag
   };
 
   for (const [file, content] of Object.entries(files)) {
+    if (content === undefined) continue;
     const formatted = JSON.stringify(content, null, 2) + '\n';
     fs.writeFileSync(path.join(dataDir, file), formatted, 'utf8');
     if (fs.existsSync(publicDataDir)) {

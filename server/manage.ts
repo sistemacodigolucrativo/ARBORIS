@@ -1,4 +1,5 @@
 import { readFile, readdir } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { resolve } from 'node:path';
 import { createPool, transaction, saveState } from './db';
@@ -29,6 +30,8 @@ try {
     for (const [key, file] of Object.entries({ config: 'config', users: 'users', wallets: 'wallets', trees: 'trees', referrals: 'referrals', ledger: 'ledger', auditLog: 'audit-log' })) {
       state[key] = JSON.parse(await readFile(resolve(process.env.IMPORT_DATA_DIR || 'data', `${file}.json`), 'utf8'));
     }
+    const bagPath = resolve(process.env.IMPORT_DATA_DIR || 'data', 'planting-bag.json');
+    if (existsSync(bagPath)) state.plantingBag = JSON.parse(await readFile(bagPath, 'utf8'));
     await transaction(pool, async db => {
       const [rows] = await db.query<RowDataPacket[]>('SELECT id FROM game_config LIMIT 1');
       const [users] = await db.query<RowDataPacket[]>('SELECT id FROM users LIMIT 1');

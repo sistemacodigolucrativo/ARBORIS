@@ -1,0 +1,4 @@
+CREATE TABLE IF NOT EXISTS planting_bag_state (
+ id INT PRIMARY KEY,
+ data JSON NOT NULL
+) ENGINE=InnoDB;

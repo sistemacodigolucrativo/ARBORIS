@@ -1,5 +1,7 @@
 type Replacement = readonly [RegExp, string];
 
+type SanitizableRoot = Node & ParentNode;
+
 const replacements: Replacement[] = [
   [
     /✨\s*100%\s*GRATUITO:\s*Você ganha 25 sementes virtuais logo no cadastro para fortalecer o tronco e entrar no jogo\.\s*❌\s*Sem taxas obrigatórias, sem depósitos no sistema e sem promessa financeira\./gi,
@@ -77,7 +79,7 @@ const sanitizeElement = (element: Element) => {
   }
 };
 
-const sanitizeSubtree = (root: ParentNode) => {
+const sanitizeSubtree = (root: SanitizableRoot) => {
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   let node = walker.nextNode();
   while (node) {
@@ -86,7 +88,7 @@ const sanitizeSubtree = (root: ParentNode) => {
   }
 
   if (root instanceof Element) sanitizeElement(root);
-  root.querySelectorAll?.('[href], [title], [aria-label], [placeholder]').forEach(sanitizeElement);
+  root.querySelectorAll('[href], [title], [aria-label], [placeholder]').forEach(sanitizeElement);
 };
 
 const patchClipboard = () => {

@@ -8,11 +8,11 @@
   border-radius: 18px;
   background: #20a5ef;
   color: #f8fafc;
-  touch-action: none;
   overscroll-behavior: contain;
   user-select: none;
   -webkit-user-select: none;
 }
+.arboris-tree-board--scroll-locked { cursor: grabbing; }
 .arboris-tree-art,
 .arboris-tree-connections {
   position: absolute;

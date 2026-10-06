@@ -5,7 +5,7 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
-    base: '/ARBORIS/',
+    base: process.env.NODE_ENV === 'production' ? '/ARBORIS/' : '/',
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
@@ -14,6 +14,7 @@ export default defineConfig(() => {
     },
     server: {
       port: 3000,
+      allowedHosts: true as const,
       proxy: { '/api': 'http://localhost:3001' },
       host: '0.0.0.0',
       // HMR is disabled in AI Studio via DISABLE_HMR env var.

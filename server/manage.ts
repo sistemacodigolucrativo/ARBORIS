@@ -21,7 +21,20 @@ try {
         const checksum = createHash('sha256').update(sql).digest('hex');
         const [rows] = await db.execute<RowDataPacket[]>('SELECT checksum FROM schema_migrations WHERE name=?', [file]);
         if (rows.length) { if (rows[0].checksum !== checksum) throw new Error(`Migração alterada após aplicação: ${file}`); continue; }
-        for (const statement of sql.split(';').map(s => s.trim()).filter(Boolean)) await db.query(statement);
+        for (const statement of sql.split(';').map(s => s.trim()).filter(Boolean)) {
+          const addColumnIfMissing = statement.match(/^ALTER TABLE ([a-zA-Z0-9_]+) ADD COLUMN IF NOT EXISTS ([a-zA-Z0-9_]+) /i);
+          if (!addColumnIfMissing) {
+            await db.query(statement);
+            continue;
+          }
+
+          const [, table, column] = addColumnIfMissing;
+          const [columns] = await db.execute<RowDataPacket[]>(
+            'SELECT 1 FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=? AND column_name=? LIMIT 1',
+            [table, column]
+          );
+          if (!columns.length) await db.query(statement.replace(/ADD COLUMN IF NOT EXISTS/i, 'ADD COLUMN'));
+        }
         await db.execute('INSERT INTO schema_migrations (name,checksum) VALUES (?,?)', [file, checksum]);
       }
     } finally { await db.query("SELECT RELEASE_LOCK('arboris_migrations')"); db.release(); }

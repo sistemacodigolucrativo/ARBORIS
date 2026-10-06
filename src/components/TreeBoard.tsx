@@ -287,19 +287,20 @@ export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, onSel
     dragMovedRef.current = false;
     setDraggingIndex(position.position_index);
     setDropTargetIndex(position.position_index);
-    event.currentTarget.setPointerCapture(event.pointerId);
   };
 
   const handleNodePointerMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (!dragSourceRef.current) return;
-    event.preventDefault();
 
     const start = dragStartRef.current;
     if (start && !dragMovedRef.current) {
       const distance = Math.hypot(event.clientX - start.x, event.clientY - start.y);
-      if (distance > 6) dragMovedRef.current = true;
+      if (distance <= 8) return;
+      dragMovedRef.current = true;
+      event.currentTarget.setPointerCapture(event.pointerId);
     }
 
+    event.preventDefault();
     const hoveredPosition = getPositionAtPointer(boardPositions, event.clientX, event.clientY);
     setDropTargetIndex(hoveredPosition?.position_index ?? null);
   };
@@ -308,12 +309,12 @@ export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, onSel
     const source = dragSourceRef.current;
     if (!source) return;
 
-    event.preventDefault();
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
 
     const wasDragged = dragMovedRef.current;
+    if (wasDragged) event.preventDefault();
     const target = getPositionAtPointer(boardPositions, event.clientX, event.clientY);
     if (wasDragged) {
       suppressNextClickRef.current = true;

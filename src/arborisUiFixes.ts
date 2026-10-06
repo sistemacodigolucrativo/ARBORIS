@@ -304,16 +304,24 @@ function addBackButtons(root: ParentNode = document) {
   }
 }
 
+function isAppShellElement(element: HTMLElement) {
+  if (element.id === "root") return true;
+  if (element === document.body || element === document.documentElement) return true;
+  const className = String(element.className || "");
+  return className.includes("min-h-screen") || className.includes("flex-col justify-between") || className.includes("max-w-md mx-auto");
+}
+
 function findCardContainer(source: HTMLElement, requiredTexts: string[]) {
   let current: HTMLElement | null = source;
   for (let i = 0; current && i < 9; i += 1) {
+    if (isAppShellElement(current)) return null;
     const text = elementText(current);
-    const className = String(current.className || '');
-    const looksLikeCard = className.includes('rounded') || className.includes('border') || className.includes('bg-') || current.tagName === 'SECTION';
+    const className = String(current.className || "");
+    const looksLikeCard = className.includes("rounded") || className.includes("border") || className.includes("bg-") || current.tagName === "SECTION" || current.tagName === "ARTICLE";
     if (requiredTexts.every(item => text.includes(item)) && looksLikeCard) return current;
     current = current.parentElement;
   }
-  return source.closest<HTMLElement>('div');
+  return null;
 }
 
 function hideRedundantActiveCard() {
@@ -321,7 +329,7 @@ function hideRedundantActiveCard() {
     const text = elementText(el);
     if (!text.includes('vaga ativada') || !text.includes('arvore')) return;
     const card = findCardContainer(el, ['vaga ativada', 'arvore']);
-    if (card) card.style.display = 'none';
+    if (card && !isAppShellElement(card)) card.style.display = "none";
   });
 }
 
@@ -382,7 +390,7 @@ function consolidateReservedCard() {
     if (text.includes('vaga reservada') && text.includes('arvore')) return false;
     return text.includes('solicitacao pix') || text.includes('saldo disponivel') || text.includes('ativar 25') || (text.includes('sua vaga') && text.includes('reservada'));
   });
-  const sourceCard = instructionMarker ? findCardContainer(instructionMarker, []) || instructionMarker : null;
+  const sourceCard = instructionMarker ? findCardContainer(instructionMarker, []) : null;
 
   ensureReservedExtra(reservedCard, sourceCard && sourceCard !== reservedCard ? sourceCard : null);
 
@@ -455,24 +463,23 @@ function runEnhancements(root: ParentNode = document) {
   enhanceLoginRecovery(root);
   enhanceRegistrationPin(root);
   addBackButtons(root);
-  hideRedundantActiveCard();
-  consolidateReservedCard();
+  // Reserved-card layout is rendered by React. Avoid DOM rewrites that can freeze reserved members.
   filterPositionDropdowns();
   centerNotificationCards();
 }
 
 if (isBrowser) {
   patchFetch();
-  runEnhancements();
-  const observer = new MutationObserver(records => {
-    for (const record of records) {
-      if (record.type === 'childList') {
-        record.addedNodes.forEach(node => {
-          if (node instanceof HTMLElement) runEnhancements(node);
-        });
-      }
-    }
-    runEnhancements();
-  });
+  let enhancementScheduled = false;
+  const scheduleEnhancements = () => {
+    if (enhancementScheduled) return;
+    enhancementScheduled = true;
+    window.setTimeout(() => {
+      enhancementScheduled = false;
+      runEnhancements();
+    }, 60);
+  };
+  scheduleEnhancements();
+  const observer = new MutationObserver(() => scheduleEnhancements());
   observer.observe(document.documentElement, { childList: true, subtree: true });
 }

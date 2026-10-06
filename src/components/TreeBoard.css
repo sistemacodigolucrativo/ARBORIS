@@ -124,7 +124,7 @@
   line-height: 1.05;
   box-shadow: 0 0 0 .4cqw #05291e, 0 .5cqw 1cqw rgb(0 0 0 / 45%);
   transition: filter 120ms ease, opacity 120ms ease, outline-color 120ms ease, left 180ms ease, top 180ms ease;
-  touch-action: none;
+  touch-action: pan-y;
 }
 .arboris-tree-node:hover { filter: brightness(1.15); }
 .arboris-tree-node:focus-visible { outline: 3px solid white; outline-offset: 3px; z-index: 4; }
@@ -135,7 +135,7 @@
 }
 .arboris-tree-node--reserved { background: linear-gradient(145deg, #800b43, #3c122f); border: .75cqw solid #ff0060; color: #fff1f7; }
 .arboris-tree-node--vacant { background: #071c2c; border: .65cqw dashed #8098b5; color: #adbed5; }
-.arboris-tree-node--draggable { cursor: grab; }
+.arboris-tree-node--draggable { cursor: grab; touch-action: none; }
 .arboris-tree-node--dragging { cursor: grabbing; z-index: 6; opacity: .82; filter: brightness(1.2); }
 .arboris-tree-node--drop-target { z-index: 7; outline: .7cqw solid #facc15; outline-offset: .7cqw; }
 .arboris-tree-node--locked { pointer-events: none; }

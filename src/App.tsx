@@ -1088,7 +1088,8 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
   const treeDisplayName = (tree?: Tree | null) => tree?.nickname?.trim() || tree?.display_name || tree?.category_name || (tree?.token_requirement ? `${tree.token_requirement} sementes` : 'Árvore');
 
   // Pre-formatted copy pitch (Sementes)
-  const marketingPitch = `ÁRBORIS — informações sobre minha árvore.\n\nO cadastro é por indicação. A ativação exige doação Pix ao Tronco no valor definido para a árvore, após a reserva da posição. A progressão depende de novas entradas e não há garantia de receber doações.\n\nLeia as condições antes de participar:\n${referralUrl}`;
+  const botReferralUsername = memberTree?.tronco_username || currentUser?.username || 'tronco';
+  const marketingPitch = `ÁRBORIS — informações sobre minha árvore.\n\nPara participar, entre pelo Bot Telegram do ARBORIS, abra o Mini App, escolha "Quero participar" e informe o arroba do tronco/indicador: @${botReferralUsername}.\n\nÁrvore: ${memberTree?.tree_code || 'ARBORIS'}. A ativação exige doação Pix ao Tronco no valor definido para a árvore, após a reserva da posição. A progressão depende de novas entradas e não há garantia de receber doações.`;
 
   // ==========================================
   // TREE VISUALIZATION RENDERERS (MODELS 1 TO 4)
@@ -2455,33 +2456,23 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                     </div>
                   </div>
 
-                  {/* Exclusive Referral Link for Member's Tree */}
+                  {/* Bot-first sharing guidance */}
                   <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="font-bold text-slate-200">Link de Indicação da Sua Árvore</span>
+                      <span className="font-bold text-slate-200">Divulgação pelo Bot Telegram</span>
                       <span className="text-[10px] font-mono text-emerald-400">{memberTree?.tree_code}</span>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        readOnly
-                        value={referralUrl}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-[11px] font-mono text-slate-300"
-                      />
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(referralUrl);
-                          setCopiedLink(true);
-                          setTimeout(() => setCopiedLink(false), 2000);
-                        }}
-                        className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-xl text-xs font-semibold shrink-0 transition"
-                      >
-                        {copiedLink ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                      </button>
+                    <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 text-[11px] text-slate-300 leading-relaxed space-y-2">
+                      <p>
+                        O participante deve entrar pelo Bot Telegram do ARBORIS, abrir o Mini App, tocar em <strong>Quero participar</strong> e informar o arroba do tronco/indicador.
+                      </p>
+                      <div className="flex items-center justify-between gap-2 rounded-xl border border-emerald-900/50 bg-emerald-950/20 px-3 py-2">
+                        <span className="text-slate-400">Arroba para informar</span>
+                        <strong className="font-mono text-emerald-300">@{botReferralUsername}</strong>
+                      </div>
                     </div>
 
-                    {/* Social Media Sharing */}
                     <div className="grid grid-cols-2 gap-2 pt-1">
                       <a
                         href={`https://api.whatsapp.com/send?text=${encodeURIComponent(marketingPitch)}`}
@@ -2494,7 +2485,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                       </a>
 
                       <a
-                        href={`https://t.me/share/url?url=${encodeURIComponent(referralUrl)}&text=${encodeURIComponent('Conheça as regras da minha árvore no ÁRBORIS. A ativação exige doação Pix ao Tronco, sem garantia de recebimento futuro.')}`}
+                        href={`https://t.me/share/url?text=${encodeURIComponent(marketingPitch)}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="bg-sky-600/20 hover:bg-sky-600/30 border border-sky-500/40 text-sky-300 p-2.5 rounded-xl flex items-center justify-center gap-2 text-xs font-semibold transition"

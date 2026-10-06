@@ -16,6 +16,7 @@ declare global {
 const OVERLAY_ID = 'arboris-bot-entry-flow';
 const SUPPRESS_KEY = 'arboris_bot_entry_suppressed_v1';
 const PARTICIPANT_QUERY_FLAG = 'entry';
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || "/api").replace(/\/$/, "");
 
 const isBrowser = typeof window !== 'undefined' && typeof document !== 'undefined';
 
@@ -144,7 +145,7 @@ function showTroncoForm() {
     submit.disabled = true;
     status.textContent = 'Validando árvore...';
     try {
-      const response = await fetch(`/api/referrals/validate?value=${encodeURIComponent(tronco)}`, {
+      const response = await fetch(`${API_BASE}/referrals/validate?value=${encodeURIComponent(tronco)}`, {
         credentials: 'include',
         cache: 'no-store'
       });
@@ -171,7 +172,9 @@ function shouldShowEntryOverlay(): boolean {
   if (window.sessionStorage.getItem(SUPPRESS_KEY)) return false;
   if (hasReferralIntent()) return false;
   if (hasAuthenticatedSurface()) return false;
-  return isLoginScreenVisible();
+  // The login form is already visible on the page; do not cover it with the entry modal.
+  if (isLoginScreenVisible()) return false;
+  return false;
 }
 
 function mountOverlayIfNeeded() {

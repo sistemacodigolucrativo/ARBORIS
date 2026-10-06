@@ -17,8 +17,8 @@ function shouldGuardLoginRequest(input: RequestInfo | URL, init?: RequestInit) {
   const url = getUrl(input);
   const method = getMethod(input, init);
   return (
-    (method === 'POST' && /\/api\/auth\/login(?:\?|$)/.test(url)) ||
-    (method === 'GET' && /\/api\/state(?:\?|$)/.test(url))
+    (method === 'POST' && /\/(?:api|arboris-api)\/auth\/login(?:\?|$)/.test(url)) ||
+    (method === 'GET' && /\/(?:api|arboris-api)\/state(?:\?|$)/.test(url))
   );
 }
 

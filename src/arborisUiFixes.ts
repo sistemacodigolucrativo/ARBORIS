@@ -3,8 +3,14 @@ export {};
 const RECOVERY_PIN_STORAGE_KEY = 'arboris_next_recovery_pin_v1';
 let patchedFetch = false;
 let modalReady = false;
+let cachedUserIds = new Set<number>();
+let cachedOrphanUserIds = new Set<number>();
 
 const isBrowser = typeof window !== 'undefined' && typeof document !== 'undefined';
+
+function normalizeText(value: string) {
+  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+}
 
 function ensureStyles() {
   if (!isBrowser || document.getElementById('arboris-ui-fixes-style')) return;
@@ -63,8 +69,38 @@ function ensureStyles() {
       transform: translate(-50%, -50%) !important; z-index: 9997 !important; width: min(92vw, 420px) !important;
       max-height: 76vh !important; overflow: auto !important;
     }
+    .arboris-reserved-card-consolidated {
+      order: -1 !important;
+      margin-bottom: .85rem !important;
+      box-shadow: 0 16px 40px rgb(127 29 29 / .32) !important;
+    }
+    .arboris-reserved-card-consolidated .arboris-reserved-extra {
+      margin-top: .65rem; padding-top: .65rem; border-top: 1px solid rgb(251 113 133 / .35);
+    }
+    .arboris-position-select-filtered option[hidden] { display: none !important; }
   `;
   document.head.appendChild(style);
+}
+
+function updateCachedState(payload: any) {
+  try {
+    const state = payload?.state || payload?.data?.state;
+    const users = Array.isArray(state?.users) ? state.users : [];
+    const trees = Array.isArray(state?.trees) ? state.trees : [];
+    const positioned = new Set<number>();
+    for (const tree of trees) {
+      for (const position of tree.positions || []) {
+        const userId = Number(position.userId ?? position.user_id);
+        if (Number.isInteger(userId) && userId > 0 && position.status === 'occupied') positioned.add(userId);
+      }
+    }
+    cachedUserIds = new Set(users.map((user: any) => Number(user.id)).filter((id: number) => Number.isInteger(id) && id > 0));
+    cachedOrphanUserIds = new Set(users
+      .filter((user: any) => user.role !== 'admin' && user.status === 'active' && !positioned.has(Number(user.id)))
+      .map((user: any) => Number(user.id)));
+  } catch {
+    // UI filtering is progressive; do not block state loading.
+  }
 }
 
 function patchFetch() {
@@ -84,10 +120,14 @@ function patchFetch() {
           init = { ...init, body: JSON.stringify(body) };
         }
       }
-    } catch {
-      // Keep original request if parsing fails.
+      const response = await originalFetch(input, init);
+      if (method === 'GET' && /\/api\/state(?:\?|$)/.test(rawUrl)) {
+        response.clone().json().then(updateCachedState).catch(() => null);
+      }
+      return response;
+    } catch (error) {
+      return originalFetch(input, init);
     }
-    return originalFetch(input, init);
   };
 }
 
@@ -186,7 +226,7 @@ function enhancePasswordInputs(root: ParentNode = document) {
 }
 
 function formText(form: HTMLFormElement) {
-  return (form.textContent || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  return normalizeText(form.textContent || '');
 }
 
 function enhanceLoginRecovery(root: ParentNode = document) {
@@ -241,8 +281,8 @@ function addBackButtons(root: ParentNode = document) {
     button.textContent = '← Voltar';
     button.addEventListener('click', () => {
       const candidates = Array.from(document.querySelectorAll<HTMLButtonElement>('button')).filter(item => {
-        const label = (item.textContent || '').toLowerCase();
-        return label.includes('árvore') || label.includes('arvore') || label.includes('minha árvore') || label.includes('minha arvore');
+        const label = normalizeText(item.textContent || '');
+        return label.includes('arvore') || label.includes('minha arvore');
       });
       candidates[0]?.click();
       if (!candidates.length && history.length > 1) history.back();
@@ -255,16 +295,99 @@ function hideRedundantActiveCard() {
   document.querySelectorAll<HTMLElement>('div').forEach(el => {
     const text = el.textContent || '';
     if (!text.includes('Vaga ativada na árvore:')) return;
-    const card = el.closest<HTMLElement>('.bg-rose-950\/40, .border-rose-500\/40, div');
-    const host = card && (card.className || '').includes('rose') ? card : el.closest<HTMLElement>('div');
-    if (host) host.style.display = 'none';
+    const card = findCardContainer(el, ['Vaga ativada na árvore:']);
+    if (card) card.style.display = 'none';
   });
+}
+
+function findCardContainer(source: HTMLElement, requiredTexts: string[]) {
+  let current: HTMLElement | null = source;
+  for (let i = 0; current && i < 8; i += 1) {
+    const text = current.textContent || '';
+    const className = String(current.className || '');
+    if (requiredTexts.every(item => text.includes(item)) && (className.includes('rounded') || className.includes('border'))) return current;
+    current = current.parentElement;
+  }
+  return source.closest<HTMLElement>('div');
+}
+
+function consolidateReservedCard() {
+  const treeBoard = document.querySelector<HTMLElement>('.arboris-tree-board');
+  if (!treeBoard) return;
+  const reservedMarker = Array.from(document.querySelectorAll<HTMLElement>('div,span')).find(el => (el.textContent || '').includes('Vaga reservada na árvore:'));
+  if (!reservedMarker) return;
+  const reservedCard = findCardContainer(reservedMarker, ['Vaga reservada na árvore:']);
+  if (!reservedCard) return;
+
+  reservedCard.classList.add('arboris-reserved-card-consolidated');
+  reservedCard.style.display = '';
+  if (!reservedCard.parentElement?.contains(treeBoard) || reservedCard.compareDocumentPosition(treeBoard) & Node.DOCUMENT_POSITION_PRECEDING) {
+    treeBoard.parentElement?.insertBefore(reservedCard, treeBoard);
+  }
+
+  const instructionCard = Array.from(document.querySelectorAll<HTMLElement>('div')).find(el => {
+    if (el === reservedCard || reservedCard.contains(el)) return false;
+    const text = el.textContent || '';
+    return text.includes('Sua vaga na árvore está reservada. Envie a solicitação Pix para ativar.') || text.includes('Ativar 25 sementes via Pix');
+  });
+  const sourceCard = instructionCard ? findCardContainer(instructionCard, ['Sua vaga na árvore está reservada']) || instructionCard : null;
+  if (!sourceCard || sourceCard === reservedCard || sourceCard.dataset.arborisMergedIntoReserved === 'true') return;
+
+  if (!reservedCard.querySelector('.arboris-reserved-extra')) {
+    const extra = document.createElement('div');
+    extra.className = 'arboris-reserved-extra';
+    const messages = Array.from(sourceCard.querySelectorAll<HTMLElement>('div,p,span')).filter(item => {
+      const text = item.textContent || '';
+      return text.includes('Sua vaga na árvore está reservada') || text.includes('Saldo disponível') || text.includes('Aguardando confirmação');
+    });
+    for (const message of messages.slice(0, 3)) {
+      const clone = message.cloneNode(true) as HTMLElement;
+      clone.classList.add('arboris-reserved-extra-line');
+      extra.appendChild(clone);
+    }
+    const actionButton = Array.from(sourceCard.querySelectorAll<HTMLButtonElement>('button')).find(button => normalizeText(button.textContent || '').includes('ativar'));
+    if (actionButton) extra.appendChild(actionButton);
+    if (extra.childNodes.length) reservedCard.appendChild(extra);
+  }
+  sourceCard.dataset.arborisMergedIntoReserved = 'true';
+  sourceCard.style.display = 'none';
+}
+
+function filterPositionDropdowns() {
+  if (!cachedUserIds.size) return;
+  const orphanIds = cachedOrphanUserIds;
+  for (const select of Array.from(document.querySelectorAll<HTMLSelectElement>('select'))) {
+    const options = Array.from(select.options);
+    const userOptionCount = options.filter(option => cachedUserIds.has(Number(option.value))).length;
+    if (userOptionCount < 2) continue;
+    const context = normalizeText(select.closest<HTMLElement>('form,details,.space-y-2,.space-y-3,.space-y-4,div')?.textContent || '');
+    const looksLikePositionControl = context.includes('posicao') || context.includes('atribuir') || context.includes('membro') || context.includes('arvore');
+    if (!looksLikePositionControl) continue;
+
+    select.classList.add('arboris-position-select-filtered');
+    let visibleSelected = false;
+    for (const option of options) {
+      const userId = Number(option.value);
+      if (!cachedUserIds.has(userId)) continue;
+      const isOrphan = orphanIds.has(userId);
+      option.hidden = !isOrphan;
+      option.disabled = !isOrphan;
+      if (option.selected && isOrphan) visibleSelected = true;
+    }
+    if (!visibleSelected) {
+      const next = options.find(option => !option.disabled && !option.hidden && cachedUserIds.has(Number(option.value)));
+      if (next && select.value !== next.value) {
+        select.value = next.value;
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    }
+  }
 }
 
 function centerNotificationCards() {
   const candidates = Array.from(document.querySelectorAll<HTMLElement>('div')).filter(el => {
     if (el.classList.contains('arboris-centered-notification')) return false;
-    const text = (el.textContent || '').toLowerCase();
+    const text = normalizeText(el.textContent || '');
     const style = getComputedStyle(el);
     const positioned = style.position === 'absolute' || style.position === 'fixed';
     if (!positioned) return false;
@@ -294,6 +417,8 @@ function runEnhancements(root: ParentNode = document) {
   enhanceRegistrationPin(root);
   addBackButtons(root);
   hideRedundantActiveCard();
+  consolidateReservedCard();
+  filterPositionDropdowns();
   centerNotificationCards();
 }
 

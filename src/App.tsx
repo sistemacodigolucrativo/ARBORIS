@@ -1063,7 +1063,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
   const treeDisplayName = (tree?: Tree | null) => tree?.nickname?.trim() || tree?.display_name || tree?.category_name || (tree?.token_requirement ? `${tree.token_requirement} sementes` : 'Árvore');
 
   // Pre-formatted copy pitch (Sementes)
-  const marketingPitch = `🌱 Olá! Estou participando do ecossistema comunitário independente Arboris!\n\n🌳 Nosso tabuleiro de 15 posições segue a dinâmica clássica 1–2–4–8 da Árvore:\n• 1 Tronco Central\n• 2 Guardiões Primários\n• 4 Sub-ramos\n• 8 Vagas Externas de Entrada (Nível 3)\n\nAtualmente estamos no Ciclo #${memberTree?.cycle_number || 1} e restam apenas ${slotsRemaining} vagas externas para fechar a árvore e gerar a bifurcação!\n\n✨ 100% GRATUITO: Você ganha 25 sementes virtuais logo no cadastro para fortalecer o tronco e entrar no jogo.\n❌ Sem taxas obrigatórias, sem depósitos no sistema e sem promessa financeira.\n\n👉 Acesse pelo meu link de convite exclusivo:\n${referralUrl}`;
+  const marketingPitch = `ÁRBORIS — informações sobre minha árvore.\n\nO cadastro é por indicação. A ativação exige doação Pix ao Tronco no valor definido para a árvore, após a reserva da posição. A progressão depende de novas entradas e não há garantia de receber doações.\n\nLeia as condições antes de participar:\n${referralUrl}`;
 
   // ==========================================
   // TREE VISUALIZATION RENDERERS (MODELS 1 TO 4)
@@ -1403,7 +1403,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
           Dinâmica Estrutural 1–2–4–8 da Árvore Arboris
         </h2>
         <p className="text-slate-300 leading-relaxed text-[11px] text-balance">
-          O Arboris é um ecossistema recreativo comunitário de rotação matemática em árvore binária de 15 posições, com progressão gerada exclusivamente por bifurcação e sustentada por sementes virtuais gratuitas.
+          O ÁRBORIS organiza participantes em árvores de 15 posições. A ativação exige doação Pix ao Tronco e confirmação manual. A progressão depende de novas entradas e ativações; não há garantia de concluir um ciclo ou receber doações.
         </p>
       </div>
 
@@ -1433,13 +1433,13 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
           <div className="flex items-start gap-2 text-emerald-300">
             <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
             <span className="text-balance">
-              <strong>100% Gratuito & Recreativo:</strong> Todo participante recebe suas sementes gratuitamente no cadastro para participar das rodadas.
+              <strong>Cadastro e reserva:</strong> O cadastro concede o dobro das sementes exigidas pela árvore. Metade é consumida na reserva; a outra metade é debitada na ativação e creditada ao Tronco como registro interno.
             </span>
           </div>
           <div className="flex items-start gap-2 text-rose-300">
             <span className="font-bold shrink-0">❌</span>
             <span className="text-balance">
-              <strong>Sem dinheiro real:</strong> Não existem depósitos, transferências PIX, saques, mensalidades ou qualquer promessa de rendimento financeiro. As sementes são pontos virtuais internos.
+              <strong>Doação exigida para ativação:</strong> O Pix é enviado diretamente ao Tronco. Pela regra informada pelo projeto, uma árvore de 25 sementes exige R$ 25. As sementes internas não são saldo bancário nem comprovante de plantio.
             </span>
           </div>
         </div>
@@ -1476,7 +1476,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
             <div>
               <div className="font-bold text-amber-200 text-xs">Nível 0 · 1 Tronco Central (Posição 0)</div>
               <div className="text-[11px] text-slate-300 mt-0.5 leading-relaxed text-balance">
-                O <em>Participante da Vez</em> que recebe as sementes da rodada. Ao completar as 8 vagas externas, conclui seu ciclo vitorioso.
+                O participante que recebe as doações das novas entradas. O fechamento exige as 15 posições ativas, incluindo as 8 Folhas; apenas reservar as vagas não conclui o ciclo.
               </div>
             </div>
           </div>
@@ -1536,7 +1536,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
             • Novos participantes entram <strong>EXCLUSIVAMENTE nas 8 posições externas: 7, 8, 9, 10, 11, 12, 13 e 14</strong>.
           </p>
           <p className="text-balance text-amber-300 font-medium">
-            • Quem confirma a transferência de sementes antes garante a menor vaga disponível (da esquerda para a direita).
+            • A reserva ocupa a primeira Folha disponível, das posições 7 a 14. A ativação é uma etapa posterior, sujeita à confirmação da doação.
           </p>
         </div>
       </div>
@@ -1552,7 +1552,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
         </div>
 
         <p className="text-[11px] text-slate-300 leading-relaxed text-balance">
-          Quando a 14ª vaga externa é ocupada (totalizando 15 participantes), o ciclo da árvore mãe termina imediatamente e ela <strong>bifurca em duas novas árvores completas</strong>:
+          Quando as 15 posições estão ativas, o ciclo da árvore mãe termina e ela <strong>se divide em duas novas árvores, cada uma com 7 participantes e 8 vagas</strong>:
         </p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -1603,7 +1603,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
               1
             </span>
             <span className="text-slate-300 text-balance">
-              <strong>Entrada no Nível 3:</strong> Você entra numa das 8 vagas externas (7 a 14) e fortalece o tronco.
+              <strong>Entrada no Nível 3:</strong> Você reserva uma das 8 Folhas (7 a 14), faz a doação ao Tronco e solicita a ativação.
             </span>
           </div>
 
@@ -1612,7 +1612,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
               2
             </span>
             <span className="text-slate-300 text-balance">
-              <strong>1ª Divisão da Árvore:</strong> Com a árvore cheia, ela bifurca e você sobe automaticamente para o <strong>Nível 2</strong>.
+              <strong>1ª Divisão da Árvore:</strong> Com as 15 posições ativas, a árvore se divide e você sobe automaticamente para o <strong>Nível 2</strong>.
             </span>
           </div>
 
@@ -1621,7 +1621,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
               3
             </span>
             <span className="text-slate-300 text-balance">
-              <strong>2ª Divisão da Árvore:</strong> A nova árvore atinge 15 e bifurca novamente; você sobe para o <strong>Nível 1 (Guardião)</strong>.
+              <strong>2ª Divisão da Árvore:</strong> Se a nova árvore atingir 15 posições ativas, ela se divide novamente; você sobe para o <strong>Nível 1 (Guardião)</strong>.
             </span>
           </div>
 
@@ -1639,7 +1639,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
               ✓
             </span>
             <span className="text-slate-300 text-balance">
-              <strong>Conclusão do Ciclo:</strong> Sua árvore como Tronco recebe as 8 contribuições externas e conclui o ciclo vitorioso!
+              <strong>Conclusão do Ciclo:</strong> O ciclo só conclui com todas as 15 posições ativas. As doações dependem de novas entradas; a árvore pode permanecer incompleta.
             </span>
           </div>
         </div>
@@ -1656,21 +1656,21 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
           <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
             <strong className="text-slate-100 block">Preciso pagar algum valor ou taxa?</strong>
             <span className="text-slate-400 text-balance block leading-relaxed">
-              Não. O Arboris é um jogo comunitário e recreativo. O sistema não processa pagamentos nem depósitos internos. A chave Pix é apenas uma informação cadastral do participante, e as sementes continuam sendo pontos virtuais internos.
+              Existe doação Pix real, exigida para ativar a posição. Ela é enviada ao Tronco, que confirma manualmente o recebimento. O sistema registra essa aprovação, mas não verifica a transferência bancária. Não há garantia de recebimento futuro.
             </span>
           </div>
 
           <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
             <strong className="text-slate-100 block">Como funciona o link de indicação?</strong>
             <span className="text-slate-400 text-balance block leading-relaxed">
-              Cada participante possui um link criptográfico exclusivo. Ao convidar amigos, eles são direcionados para a mesma árvore ativa em que você estiver posicionado.
+              O link de indicação identifica uma árvore ativa. Confira a árvore apresentada antes do cadastro: links de árvores concluídas são desativados.
             </span>
           </div>
 
           <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
             <strong className="text-slate-100 block">O que acontece quando o Tronco conclui?</strong>
             <span className="text-slate-400 text-balance block leading-relaxed">
-              O participante celebra a conclusão vitoriosa daquele ciclo. A árvore se divide em duas e ele pode, se desejar, iniciar um novo ciclo em outra árvore do sistema.
+              O Tronco deixa aquela árvore. Os outros 14 participantes formam duas novas árvores, com 7 posições ocupadas e 8 vagas em cada uma. Uma eventual reentrada depende das condições de acesso e reserva; não é automática.
             </span>
           </div>
         </div>
@@ -1762,6 +1762,10 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                 Comunidade Independente
               </div>
             </div>
+
+            <p className="text-xs text-amber-200 leading-relaxed rounded-xl border border-amber-500/30 bg-amber-950/30 p-3">
+              O cadastro não ativa sua posição. A ativação exige doação Pix ao Tronco no valor da árvore e confirmação manual. Você pode doar e não receber doações futuras. Confira as condições antes de continuar.
+            </p>
 
             {/* Error Message if any */}
             {lockError && (
@@ -2244,10 +2248,10 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                       <div className="p-3 bg-slate-950/90 rounded-xl border border-slate-800 text-[11px] text-slate-300 leading-relaxed space-y-2">
                         <p className="text-balance">Você está participando do <strong>EcoTerra Arboris</strong>.</p>
                         <p className="text-balance">
-                          Você recebeu gratuitamente <strong>25 sementes</strong>, que serão convertidas em sementes reais de árvores que serão plantadas por voluntários.
+                          As sementes do cadastro são registros internos para reserva e ativação. Elas não comprovam compra de mudas ou plantio; a bag e o sorteio ambiental propostos ainda não estão implementados nesta versão.
                         </p>
                         <p className="text-amber-300 font-medium text-balance">
-                          Ao clicar em OK, 25 sementes serão consumidas para reservar sua vaga na árvore.
+                          Ao clicar em OK, a quantidade de sementes definida para esta árvore será consumida para reservar sua vaga.
                         </p>
                       </div>
 
@@ -2330,7 +2334,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                         <div className="text-[11px] text-slate-300 leading-relaxed">
                           {currentUser.current_position_index === 0 && (
                             <span>
-                              👑 <strong>Você é o Tronco da Vez:</strong> Quando todas as 8 vagas externas (7 a 14) forem preenchidas, você concluirá vitoriosamente seu ciclo e a árvore se dividirá em duas!
+                              👑 <strong>Você é o Tronco da Vez:</strong> O ciclo só conclui quando as 15 posições estão ativas, incluindo as 8 Folhas (7 a 14). A divisão depende de novas entradas e ativações.
                             </span>
                           )}
                           {(currentUser.current_position_index === 1 || currentUser.current_position_index === 2) && (
@@ -2364,7 +2368,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                         <TrendingUp className="w-4 h-4 text-emerald-400" />
                         <span>Desempenho da Minha Divulgação</span>
                       </span>
-                      <span className="text-[10px] text-slate-400 font-mono">Sem ganhos financeiros</span>
+                      <span className="text-[10px] text-slate-400 font-mono">Sem recebimento garantido</span>
                     </div>
 
                     <div className="grid grid-cols-3 gap-2 text-center">
@@ -2426,7 +2430,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                       </a>
 
                       <a
-                        href={`https://t.me/share/url?url=${encodeURIComponent(referralUrl)}&text=${encodeURIComponent('Participe da minha árvore no ecossistema comunitário gratuito Arboris!')}`}
+                        href={`https://t.me/share/url?url=${encodeURIComponent(referralUrl)}&text=${encodeURIComponent('Conheça as regras da minha árvore no ÁRBORIS. A ativação exige doação Pix ao Tronco, sem garantia de recebimento futuro.')}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="bg-sky-600/20 hover:bg-sky-600/30 border border-sky-500/40 text-sky-300 p-2.5 rounded-xl flex items-center justify-center gap-2 text-xs font-semibold transition"
@@ -2478,7 +2482,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                         <span className="text-xs text-slate-400 font-normal">sementes</span>
                       </div>
                       <div className="text-[10px] text-slate-500 mt-1 leading-relaxed text-balance">
-                        100% comunitário · Sem valor financeiro fiduciário
+                        Sementes internas · Sem saque bancário
                       </div>
                     </div>
                     <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold text-xl">

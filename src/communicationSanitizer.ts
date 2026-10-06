@@ -5,11 +5,11 @@ type SanitizableRoot = Node & ParentNode;
 const replacements: Replacement[] = [
   [
     /✨\s*100%\s*GRATUITO:\s*Você ganha 25 sementes virtuais logo no cadastro para fortalecer o tronco e entrar no jogo\.\s*❌\s*Sem taxas obrigatórias, sem depósitos no sistema e sem promessa financeira\./gi,
-    '🌱 Participação comunitária: o ARBORIS organiza convites, registros e acompanhamento da árvore. 🤝 Doações ou transferências, quando ocorrerem, são feitas diretamente entre participantes, sem intermediação do ARBORIS.'
+    'A ativação exige doação Pix diretamente ao Tronco e confirmação manual. O sistema registra a aprovação. Não há garantia de recebimento futuro.'
   ],
   [
     /100%\s*GRATUITO:\s*Você ganha 25 sementes virtuais logo no cadastro para fortalecer o tronco e entrar no jogo\./gi,
-    'Participação comunitária: o ARBORIS organiza convites, registros e acompanhamento da árvore.'
+    'Participação com doação Pix exigida para ativação, sujeita à confirmação manual.'
   ],
   [
     /100%\s*Gratuito\s*&\s*Recreativo:/gi,
@@ -17,7 +17,7 @@ const replacements: Replacement[] = [
   ],
   [
     /Todo participante recebe suas sementes gratuitamente no cadastro para participar das rodadas\./gi,
-    'As sementes organizam a participação e os registros internos da árvore.'
+    'As sementes são registros internos; a ativação exige doação Pix ao Tronco.'
   ],
   [
     /O Arboris é um ecossistema recreativo comunitário de rotação matemática em árvore binária de 15 posições, com progressão gerada exclusivamente por bifurcação e sustentada por sementes virtuais gratuitas\./gi,
@@ -25,7 +25,7 @@ const replacements: Replacement[] = [
   ],
   [
     /Sem dinheiro real:\s*Não existem depósitos, transferências PIX, saques, mensalidades ou qualquer promessa de rendimento financeiro\. As sementes são pontos virtuais internos\./gi,
-    'Sem intermediação financeira: o ARBORIS não recebe, coleta, custodia, intermedeia ou administra valores. Eventuais doações ou transferências acontecem diretamente entre participantes.'
+    'Doação Pix exigida para ativação: a transferência é feita diretamente ao Tronco, e o sistema registra sua confirmação manual. Não há garantia de recebimento futuro.'
   ],
   [
     /Você recebeu gratuitamente\s*25 sementes/gi,
@@ -37,7 +37,7 @@ const replacements: Replacement[] = [
   ],
   [
     /100% comunitário · Sem valor financeiro fiduciário/gi,
-    'Comunidade · Sem valor financeiro fiduciário'
+    'Sementes internas · Sem saque bancário'
   ]
 ];
 

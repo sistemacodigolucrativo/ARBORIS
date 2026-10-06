@@ -25,41 +25,53 @@ interface PublicLandingPageProps {
 
 const highlights = [
   {
-    icon: Sprout,
-    title: 'Plante árvores',
-    text: 'Participe de uma causa ambiental simples, visual e fácil de compartilhar.'
-  },
-  {
     icon: Users,
-    title: 'Entre por convite',
-    text: 'Cada árvore tem vagas limitadas e a entrada acontece por indicação.'
+    title: 'Cadastro por indicação',
+    text: 'O link recebido identifica a árvore. O cadastro e a reserva são etapas anteriores à ativação.'
   },
   {
     icon: HeartHandshake,
-    title: 'Receba apoio',
-    text: 'Membros podem fazer doações diretamente uns aos outros.'
+    title: 'Doação para ativar',
+    text: 'A ativação exige uma doação Pix ao Tronco, no valor definido para a árvore, e a confirmação do recebimento.'
+  },
+  {
+    icon: Sprout,
+    title: 'Proposta de arborização',
+    text: 'O projeto propõe ações de plantio. A participação na árvore virtual não comprova que uma árvore foi plantada.'
   }
 ];
 
 const responsibilityPoints = [
-  'Doações acontecem diretamente entre participantes.',
-  'O ARBORIS não recebe, guarda ou intermedeia valores.',
-  'Não existe promessa de recebimento, lucro ou retorno garantido.',
-  'Cada participante é responsável pelas relações que fizer dentro da comunidade.'
+  'O Pix é enviado diretamente à conta do participante no Tronco. O sistema registra a solicitação e a aprovação da ativação.',
+  'A progressão depende do preenchimento e da ativação das posições por outros participantes.',
+  'Você pode doar e não chegar ao Tronco nem receber doações. Não há prazo ou recebimento garantido.',
+  'Antes de transferir, confira valor, destinatário e condições. A confirmação é manual; o sistema não verifica o Pix no banco.'
 ];
 
 const faqs = [
   {
-    q: 'Como alguém pode receber doações?',
-    a: 'Pela ajuda mútua entre participantes. Membros podem apoiar outros membros diretamente, conforme a participação na comunidade e as regras apresentadas após o convite.'
+    q: 'Quanto preciso doar?',
+    a: 'O valor depende da árvore. Pela regra de participação informada pelo projeto, 1 semente corresponde a R$ 1 para definir a doação: uma árvore de 25 sementes exige R$ 25 ao Tronco. Esse exemplo não fixa o valor de todas as árvores. Confirme o valor da sua antes de transferir.'
   },
   {
-    q: 'O ARBORIS paga participantes?',
-    a: 'Não. O ARBORIS não paga, não recebe dinheiro e não administra doações. Qualquer apoio financeiro acontece diretamente entre os próprios participantes.'
+    q: 'Receber 50 sementes significa receber R$ 50?',
+    a: 'Não. Em uma árvore de 25 sementes, o cadastro concede 50 unidades internas: 25 são consumidas na reserva e 25 saem do seu saldo na ativação. Na versão atual, estas últimas são creditadas ao saldo de sementes do Tronco. O Pix de R$ 25 é uma transferência separada; as sementes não são saldo bancário nem dinheiro disponível para saque.'
   },
   {
-    q: 'Preciso entender tudo antes de entrar?',
-    a: 'Não. A página pública mostra o essencial. O convite apresenta a próxima etapa, a árvore disponível e as regras de participação.'
+    q: 'Quando alguém pode receber doações?',
+    a: 'Ao ocupar o Tronco, o participante é o destinatário das doações de novas entradas naquela árvore. Chegar a essa posição depende dos ciclos e de outras pessoas entrarem e ativarem suas posições. Plantar uma árvore não dá direito a receber, e fazer uma doação não garante recebimentos futuros.'
+  },
+  {
+    q: 'O que acontece quando uma árvore fica completa?',
+    a: 'Com as 15 posições ativas, a árvore se divide em duas. O Tronco conclui sua participação naquela árvore; os outros 14 participantes são redistribuídos em dois grupos de 7. Cada nova árvore abre 8 vagas. Se não houver novas entradas e ativações, o ciclo pode não se completar.'
+  },
+  {
+    q: 'Como funciona a proposta de plantio?',
+    a: 'A proposta informada pelo projeto prevê acumular as sementes da reserva em uma bag virtual e, a cada 500, sortear 10 participantes para plantar. Esse mecanismo ainda não está implementado nesta versão. Também não estão definidos aqui o custeio, a seleção e a comprovação do plantio. Não considere a reserva ou a doação como prova de reflorestamento realizado.'
+  },
+  {
+    q: 'O que conferir antes de participar?',
+    a: 'Confira a árvore vinculada ao convite, o valor exigido, quem recebe o Pix e como solicitar a ativação. Esclareça com o responsável as condições de desistência e eventual devolução antes de doar. Não participe contando com recebimentos futuros para recuperar o valor transferido.'
   }
 ];
 
@@ -106,7 +118,7 @@ export const PublicLandingPage: React.FC<PublicLandingPageProps> = ({
                 onClick={onOpenDirectLogin}
                 className="hidden sm:inline-flex text-xs font-semibold text-slate-300 hover:text-emerald-300 transition-colors px-3 py-2 rounded-lg hover:bg-slate-900"
               >
-                Já tenho acesso
+                Já tenho cadastro
               </button>
             )}
             <button
@@ -124,7 +136,7 @@ export const PublicLandingPage: React.FC<PublicLandingPageProps> = ({
               className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-bold text-xs sm:text-sm rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-2 active:scale-[0.98]"
             >
               <Sprout className="w-4 h-4" aria-hidden="true" />
-              <span>Entrar</span>
+              <span>Acessar</span>
             </button>
           </div>
         </div>
@@ -142,7 +154,7 @@ export const PublicLandingPage: React.FC<PublicLandingPageProps> = ({
               onClick={onOpenEntry}
               className="px-3 py-1 bg-emerald-500 text-slate-950 font-bold text-xs rounded-lg hover:bg-emerald-400 transition-all shadow"
             >
-              Entrar por este convite
+              Continuar com este convite
             </button>
           </div>
         </div>
@@ -156,11 +168,11 @@ export const PublicLandingPage: React.FC<PublicLandingPageProps> = ({
           </div>
 
           <h1 className="text-4xl sm:text-6xl md:text-7xl font-black tracking-tight leading-tight text-slate-100 max-w-4xl mx-auto">
-            Receba doações por plantar árvores
+            Entenda a participação no ÁRBORIS
           </h1>
 
           <p className="text-slate-300 text-base sm:text-xl leading-relaxed max-w-3xl mx-auto">
-            Entre em uma árvore ativa, participe de uma causa ambiental e receba apoio direto de outros membros da comunidade.
+            O ÁRBORIS organiza participantes em árvores de ajuda mútua e propõe ações de arborização. A ativação de uma posição exige doação direta ao Tronco; a progressão depende de novas entradas.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
@@ -170,7 +182,7 @@ export const PublicLandingPage: React.FC<PublicLandingPageProps> = ({
               className="w-full sm:w-auto px-7 py-4 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-extrabold text-sm sm:text-base rounded-2xl shadow-xl shadow-emerald-500/25 transition-all flex items-center justify-center gap-2.5 active:scale-[0.98]"
             >
               <Sprout className="w-5 h-5" aria-hidden="true" />
-              <span>Entrar com convite</span>
+              <span>Acessar com convite</span>
               <ArrowRight className="w-4 h-4" aria-hidden="true" />
             </button>
             <button
@@ -179,7 +191,7 @@ export const PublicLandingPage: React.FC<PublicLandingPageProps> = ({
               className="w-full sm:w-auto px-7 py-4 bg-slate-900/90 hover:bg-slate-800/90 border border-slate-700/80 text-slate-200 font-semibold text-sm sm:text-base rounded-2xl shadow-md transition-all flex items-center justify-center gap-2.5"
             >
               <Trees className="w-5 h-5 text-emerald-400" aria-hidden="true" />
-              <span>Ver árvore</span>
+              <span>Visualizar árvore</span>
             </button>
           </div>
 
@@ -199,7 +211,7 @@ export const PublicLandingPage: React.FC<PublicLandingPageProps> = ({
           </div>
         </section>
 
-        <section className="grid grid-cols-1 lg:grid-cols-[1fr_0.9fr] gap-5 items-stretch" aria-label="Como funciona de forma pública">
+        <section className="grid grid-cols-1 lg:grid-cols-[1fr_0.9fr] gap-5 items-stretch" aria-label="Etapas e condições de participação">
           <div className="bg-gradient-to-br from-emerald-950/80 via-slate-900 to-slate-950 border border-emerald-500/20 rounded-3xl p-6 sm:p-8 space-y-4 relative overflow-hidden">
             <div className="absolute -right-12 -top-12 w-48 h-48 bg-emerald-400/10 rounded-full blur-3xl" />
             <div className="relative z-10 space-y-4">
@@ -207,13 +219,13 @@ export const PublicLandingPage: React.FC<PublicLandingPageProps> = ({
                 O essencial
               </div>
               <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-100">
-                Plante. Convide. Participe da árvore.
+                Do convite à posição ativa
               </h2>
               <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
-                O ARBORIS une plantio de árvores, participação por convite e ajuda mútua direta entre pessoas. A página pública mostra o essencial; os detalhes aparecem na próxima etapa.
+                Cadastre-se pelo link de indicação e reserve uma posição disponível. Depois, confira os dados do Tronco, faça a doação Pix no valor da árvore e solicite a ativação. A posição só fica ativa após a aprovação.
               </p>
               <div className="rounded-2xl bg-slate-950/60 border border-slate-800/80 p-4 text-sm text-slate-300 leading-relaxed">
-                Cada árvore possui vagas limitadas. Quem recebe um convite acessa a árvore disponível e acompanha sua participação dentro da comunidade.
+                Exemplo: árvore de 25 sementes → 50 sementes internas no cadastro → 25 consumidas na reserva → doação Pix de R$ 25 ao Tronco → confirmação e débito das 25 sementes restantes. O cadastro, sozinho, não ativa a posição.
               </div>
             </div>
           </div>
@@ -224,7 +236,7 @@ export const PublicLandingPage: React.FC<PublicLandingPageProps> = ({
               Transparência
             </div>
             <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-100">
-              Doação não é promessa
+              Condições antes de doar
             </h2>
             <div className="space-y-3">
               {responsibilityPoints.map((item) => (
@@ -254,12 +266,13 @@ export const PublicLandingPage: React.FC<PublicLandingPageProps> = ({
                   onClick={() => toggleFaq(index)}
                   className="w-full px-4 py-4 text-left flex items-center justify-between gap-3 hover:bg-slate-900 transition-colors"
                   aria-expanded={openFaq === index}
+                  aria-controls={`public-faq-${index}`}
                 >
                   <span className="text-sm font-bold text-slate-100">{faq.q}</span>
                   <ChevronDown className={`w-4 h-4 text-emerald-400 transition-transform ${openFaq === index ? 'rotate-180' : ''}`} aria-hidden="true" />
                 </button>
                 {openFaq === index && (
-                  <div className="px-4 pb-4 text-xs sm:text-sm text-slate-400 leading-relaxed border-t border-slate-800/60 pt-3">
+                  <div id={`public-faq-${index}`} className="px-4 pb-4 text-xs sm:text-sm text-slate-400 leading-relaxed border-t border-slate-800/60 pt-3">
                     {faq.a}
                   </div>
                 )}
@@ -273,10 +286,10 @@ export const PublicLandingPage: React.FC<PublicLandingPageProps> = ({
             <Sprout className="w-6 h-6" aria-hidden="true" />
           </div>
           <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-100">
-            Entre enquanto houver árvore ativa
+            Confira as condições do seu convite
           </h2>
           <p className="text-sm text-slate-300 max-w-2xl mx-auto leading-relaxed">
-            Participe de uma comunidade que une plantio, convite e ajuda mútua direta entre pessoas.
+            O próximo passo abre o acesso por indicação. A doação é exigida para ativar a posição, e você pode não receber doações futuras.
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-3 pt-2">
             <button
@@ -284,7 +297,7 @@ export const PublicLandingPage: React.FC<PublicLandingPageProps> = ({
               onClick={onOpenEntry}
               className="px-6 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold flex items-center justify-center gap-2"
             >
-              <span>Entrar com convite</span>
+              <span>Acessar com convite</span>
               <ArrowRight className="w-4 h-4" aria-hidden="true" />
             </button>
             {onOpenDirectLogin && (

@@ -25,19 +25,26 @@ type PendingMove = {
   userId: number;
 };
 
-// One coordinate system for artwork, connections and all 15 interactive positions.
-// Percentages keep the full crown and roots visible at every viewport width.
+// Visual matrix derived from the Arboris 1 → 2 → 4 → 8 hierarchy.
+// The coordinate order is not merely numeric: each child is placed under its parent.
 const layout = [
-  { x: 50, y: 45, size: 26 },
-  { x: 25, y: 45, size: 18 }, { x: 75, y: 45, size: 18 },
-  { x: 39, y: 31, size: 12 }, { x: 36, y: 58, size: 12 },
-  { x: 61, y: 31, size: 12 }, { x: 64, y: 58, size: 12 },
-  { x: 14, y: 33, size: 14 }, { x: 31, y: 21, size: 14 },
-  { x: 69, y: 21, size: 14 }, { x: 86, y: 33, size: 14 },
-  { x: 87, y: 57, size: 14 }, { x: 73, y: 70, size: 14 },
-  { x: 27, y: 70, size: 14 }, { x: 13, y: 57, size: 14 },
+  { x: 50, y: 27, size: 21 },
+  { x: 32, y: 43, size: 16 }, { x: 68, y: 43, size: 16 },
+  { x: 20, y: 58, size: 12 }, { x: 44, y: 58, size: 12 },
+  { x: 56, y: 58, size: 12 }, { x: 80, y: 58, size: 12 },
+  { x: 10, y: 73, size: 11 }, { x: 22, y: 73, size: 11 },
+  { x: 34, y: 73, size: 11 }, { x: 46, y: 73, size: 11 },
+  { x: 54, y: 73, size: 11 }, { x: 66, y: 73, size: 11 },
+  { x: 78, y: 73, size: 11 }, { x: 90, y: 73, size: 11 },
 ];
-const connections = [[0,1],[0,2],[1,3],[1,4],[2,5],[2,6],[3,7],[3,8],[4,13],[4,14],[5,9],[5,10],[6,11],[6,12]];
+
+const connections = [
+  [0, 1], [0, 2],
+  [1, 3], [1, 4], [2, 5], [2, 6],
+  [3, 7], [3, 8], [4, 9], [4, 10],
+  [5, 11], [5, 12], [6, 13], [6, 14]
+];
+
 const ARBORIS_UI_STATE_KEY = 'arboris_ui_state_v1';
 
 function isCoordinatorTreeContext() {
@@ -246,7 +253,8 @@ export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, onSel
       <svg className="arboris-tree-connections" viewBox="0 0 1000 1500" aria-hidden="true">
         {connections.map(([from, to]) => {
           const a = layout[from], b = layout[to];
-          const path = `M ${a.x * 10} ${a.y * 15} Q ${(a.x + b.x) * 5} ${a.y * 15} ${b.x * 10} ${b.y * 15}`;
+          const controlY = Math.min(a.y, b.y) * 15 + Math.abs(a.x - b.x) * 1.6;
+          const path = `M ${a.x * 10} ${a.y * 15} Q ${(a.x + b.x) * 5} ${controlY} ${b.x * 10} ${b.y * 15}`;
           return <g key={`${from}-${to}`}><path className="arboris-branch-glow" d={path} /><path className="arboris-branch-core" d={path} /></g>;
         })}
       </svg>
@@ -254,7 +262,6 @@ export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, onSel
         const point = layout[position.position_index];
         if (!point) return null;
         const root = position.position_index === 0;
-        // Direction follows the visible side of the tree, including positions 13–14.
         const leafDirection = point.x < 50 ? 'left' : 'right';
         const occupied = position.status === 'occupied';
         const reserved = occupied && position.activation_status === 'reserved';
@@ -272,6 +279,7 @@ export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, onSel
             data-position={position.position_index}
             data-arboris-position="true"
             data-state={state}
+            data-arboris-user-id={position.user_id ?? ''}
             aria-grabbed={isDragging || undefined}
             aria-label={`${root ? 'Tronco' : 'Posição'} #${position.position_index}: ${name}. ${statusLabel}${mine ? '. Você' : ''}${draggableNode ? '. Arraste para reorganizar.' : ''}`}
             title={`${name} · ${statusLabel}${draggableNode ? ' · arraste para mover' : ''}`}

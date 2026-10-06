@@ -133,7 +133,7 @@ function showTroncoForm() {
   overlay.querySelector('[data-entry-back]')?.addEventListener('click', showChoice);
   overlay.querySelector<HTMLFormElement>('[data-entry-form]')?.addEventListener('submit', async event => {
     event.preventDefault();
-    const form = event.currentTarget;
+    const form = event.currentTarget as HTMLFormElement;
     const status = form.querySelector<HTMLElement>('.arboris-entry-status')!;
     const submit = form.querySelector<HTMLButtonElement>('button[type="submit"]')!;
     const tronco = normalizeReferralInput(new FormData(form).get('tronco') as string || '');

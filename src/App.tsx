@@ -216,7 +216,15 @@ const persistStoredUiState = (state: StoredUiState) => {
 
 export default function App() {
   const initialUiState = readStoredUiState();
-  const [showLandingPage, setShowLandingPage] = useState<boolean>(false);
+  const requestedPreview = import.meta.env.DEV ? new URLSearchParams(window.location.search).get('preview') : null;
+  const devPreviewMode: 'admin' | 'member' | 'public' | null = !import.meta.env.DEV
+    ? null
+    : requestedPreview === null
+      ? 'admin'
+      : requestedPreview === 'admin' || requestedPreview === 'member' || requestedPreview === 'public'
+        ? requestedPreview
+        : null;
+  const [showLandingPage, setShowLandingPage] = useState<boolean>(devPreviewMode === 'public');
   const [isLocked, setIsLocked] = useState<boolean>(() => initialUiState.isLocked ?? false);
   
   // Lock Screen state
@@ -242,6 +250,7 @@ export default function App() {
 
   // Navigation: member, public, admin
   const [currentView, setCurrentView] = useState<'member' | 'public' | 'admin'>(() => {
+    if (devPreviewMode) return devPreviewMode;
     const stored = initialUiState.currentView;
     return stored === 'member' || stored === 'public' || stored === 'admin' ? stored : 'member';
   });
@@ -279,7 +288,7 @@ export default function App() {
   const [selectedNode, setSelectedNode] = useState<Position | null>(null);
   const [selectedAdminTreeId, setSelectedAdminTreeId] = useState<number>(() => initialUiState.selectedAdminTreeId ?? 1);
   const [showCreateTreeModal, setShowCreateTreeModal] = useState<boolean>(false);
-  const [showDirectLoginModal, setShowDirectLoginModal] = useState<boolean>(true);
+  const [showDirectLoginModal, setShowDirectLoginModal] = useState<boolean>(devPreviewMode === null);
   const [showRulesModal, setShowRulesModal] = useState<boolean>(false);
 
   // Create tree form (organizador)
@@ -351,8 +360,14 @@ export default function App() {
         setSystemState(stateView);
         const fresh = stateView.users.find((u: User) => u.id === dataStore.getSessionUser()?.id);
         setCurrentUser(fresh || null);
-        if (fresh) setShowDirectLoginModal(false);
-        if (!fresh) setCurrentView('public');
+        if (fresh) {
+          setShowDirectLoginModal(false);
+          if (devPreviewMode === 'admin' || devPreviewMode === 'member') setCurrentView(devPreviewMode);
+        }
+        if (!fresh) {
+          setCurrentView('public');
+          if (devPreviewMode === 'public') setShowLandingPage(true);
+        }
       }
     } catch (e: any) {
       setLoadError(e.message);

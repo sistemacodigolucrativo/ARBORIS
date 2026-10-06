@@ -50,9 +50,14 @@ export function createApp(pool: DatabasePool) {
     const origin = req.get('Origin');
     if (origin && !origins.includes(origin)) return next(new HttpError(403, 'Origem não autorizada.'));
     if (origin) { res.set('Access-Control-Allow-Origin', origin); res.set('Access-Control-Allow-Credentials', 'true'); res.vary('Origin'); }
-    res.set('Access-Control-Allow-Headers', 'Content-Type, X-Arboris-Client, Idempotency-Key');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, X-Arboris-Client, Idempotency-Key, X-Arboris-Visual-Preview');
     res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     if (req.method === 'OPTIONS') { res.sendStatus(204); return; }
+    const visualPreview = req.get('X-Arboris-Visual-Preview') === 'true';
+    if (visualPreview && (process.env.NODE_ENV !== 'development' || process.env.ARBORIS_VISUAL_PREVIEW !== 'true')) {
+      return next(new HttpError(403, 'Prévia visual indisponível.'));
+    }
+    if (visualPreview && req.method !== 'GET') return next(new HttpError(403, 'A prévia visual é somente para leitura.'));
     if (req.method !== 'GET' && (req.get('X-Arboris-Client') !== 'web' || !req.is('application/json'))) return next(new HttpError(403, 'Cabeçalhos da requisição inválidos.'));
     next();
   });
@@ -70,7 +75,17 @@ export function createApp(pool: DatabasePool) {
   });
   app.get('/api/state', async (req, res) => {
     res.json(await transaction(pool, async db => {
-      const user = await authenticated(db, req, false), state = await loadState(db);
+      const state = await loadState(db);
+      const previewRole = process.env.NODE_ENV === 'development'
+        && process.env.ARBORIS_VISUAL_PREVIEW === 'true'
+        && (req.query.preview === 'admin' || req.query.preview === 'member')
+        ? req.query.preview
+        : null;
+      const previewUser = previewRole
+        ? state.users.find(user => user.role === (previewRole === 'admin' ? 'admin' : 'participant') && user.status === 'active') || null
+        : null;
+      if (previewRole && !previewUser) throw new HttpError(404, 'Usuário de demonstração não encontrado.');
+      const user = previewUser || await authenticated(db, req, false);
       return { success: true, state: visibleState(state, user), user };
     }));
   });

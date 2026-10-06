@@ -73,6 +73,7 @@ SQL
 
 export DATABASE_URL="mysql://arboris@127.0.0.1:3306/arboris"
 export NODE_ENV=development
+export ARBORIS_VISUAL_PREVIEW=true
 export PORT=3001
 export HOST=127.0.0.1
 if [[ -n "${REPLIT_DEV_DOMAIN:-}" ]]; then

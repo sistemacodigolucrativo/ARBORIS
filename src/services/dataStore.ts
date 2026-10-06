@@ -6,7 +6,16 @@ class DataStoreService {
   private user: User | null = null;
   private listeners: Array<() => void> = [];
   async loadState(_force = false): Promise<GameDatabaseState> {
-    const data = await apiRequest('/state');
+    const requestedPreview = import.meta.env.DEV ? new URLSearchParams(window.location.search).get('preview') : null;
+    const previewRole = import.meta.env.DEV
+      ? requestedPreview === 'member'
+        ? 'member'
+        : requestedPreview === 'admin' || requestedPreview === null
+          ? 'admin'
+          : null
+      : null;
+    const previewQuery = previewRole ? `?preview=${previewRole}` : '';
+    const data = await apiRequest(`/state${previewQuery}`);
     this.user = data.user;
     return this.replaceState(data.state);
   }

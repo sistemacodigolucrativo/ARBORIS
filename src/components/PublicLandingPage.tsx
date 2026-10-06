@@ -4,12 +4,8 @@ import {
   ArrowRight,
   CheckCircle2,
   ChevronDown,
-  Compass,
   Eye,
   HeartHandshake,
-  Layers,
-  Lock,
-  Network,
   Share2,
   Shield,
   Sprout,
@@ -28,83 +24,56 @@ interface PublicLandingPageProps {
   } | null;
 }
 
-const pillars = [
+const institutionalSections = [
+  {
+    icon: Trees,
+    title: 'Arborização comunitária',
+    text: 'O ARBORIS é uma iniciativa comunitária de arborização e reflorestamento. A proposta é reunir participantes em torno de uma causa ambiental, com organização, clareza e participação coletiva.'
+  },
   {
     icon: HeartHandshake,
     title: 'Ajuda mútua entre participantes',
-    text: 'O sistema organiza a participação comunitária e o apoio entre membros. A plataforma não vende rendimento, resultado automático ou promessa de retorno.'
-  },
-  {
-    icon: Layers,
-    title: 'Matriz visual 1–2–4–8',
-    text: 'Cada árvore possui 15 posições: 1 tronco, 2 ramos, 4 galhos e 8 folhas externas de entrada.'
-  },
-  {
-    icon: Network,
-    title: 'Progressão por ciclos',
-    text: 'Quando a árvore completa seu ciclo, a estrutura se divide em novas árvores e os participantes seguem a regra de progressão configurada.'
-  },
-  {
-    icon: Shield,
-    title: 'Comunicação responsável',
-    text: 'O Arboris não deve ser apresentado como sem custo, investimento, aplicação financeira, saque garantido ou renda prometida.'
+    text: 'A comunidade funciona por ajuda mútua: os próprios participantes se apoiam diretamente, conforme as regras de participação. O sistema organiza informações, convites e registros, sem prometer retorno financeiro.'
   }
 ];
 
-const journeySteps = [
-  {
-    number: '01',
-    title: 'Entrada por convite',
-    text: 'O participante acessa a plataforma por um link de indicação ou por uma conexão validada dentro da comunidade.'
-  },
-  {
-    number: '02',
-    title: 'Posicionamento na árvore',
-    text: 'A participação é registrada em uma posição disponível da árvore, respeitando a estrutura 1–2–4–8 e as regras do ciclo ativo.'
-  },
-  {
-    number: '03',
-    title: 'Fortalecimento do tronco',
-    text: 'A dinâmica de ajuda mútua ocorre entre participantes, com registro e validação dentro do sistema para manter rastreabilidade.'
-  },
-  {
-    number: '04',
-    title: 'Fechamento e reinício do ciclo',
-    text: 'Ao completar as 15 posições, a árvore encerra o ciclo atual, gera novas ramificações e mantém o histórico de movimentações.'
-  }
+const responsibilityPoints = [
+  'Eventuais doações ou transferências são realizadas diretamente entre os próprios participantes.',
+  'Não existem atravessadores nas movimentações realizadas entre membros.',
+  'Qualquer movimentação financeira entre participantes é de responsabilidade exclusiva das partes envolvidas.',
+  'O ARBORIS não recebe, coleta, intermedeia, custodia ou administra valores financeiros.',
+  'O ARBORIS não executa nem garante transações realizadas entre participantes.'
 ];
 
-const topology = [
-  { label: '1 Tronco', text: 'posição central do ciclo ativo' },
-  { label: '2 Ramos', text: 'primeira divisão da árvore' },
-  { label: '4 Galhos', text: 'estrutura intermediária de sustentação' },
-  { label: '8 Folhas', text: 'posições externas de entrada' }
+const notPromised = [
+  'investimento financeiro',
+  'lucro ou rendimento garantido',
+  'renda passiva',
+  'retorno automático',
+  'custódia de valores',
+  'intermediação de pagamentos'
 ];
 
 const faqs = [
   {
-    q: 'O que é o Arboris?',
-    a: 'O Arboris é um sistema comunitário de arborização baseado em ajuda mútua, organizado em uma árvore/matriz 1–2–4–8 com ciclos de entrada, progressão, fechamento, divisão e reinício.'
+    q: 'O que é o ARBORIS?',
+    a: 'O ARBORIS é uma iniciativa comunitária de arborização e reflorestamento baseada em ajuda mútua entre participantes. A comunicação pública do projeto deve explicar a causa, a participação comunitária e as responsabilidades de forma simples.'
   },
   {
-    q: 'O Arboris é sem custo?',
-    a: 'Não deve ser comunicado como sem custo livre ou promocional. A comunicação correta é: sistema comunitário de ajuda mútua entre participantes, com regras próprias de participação e registro interno.'
+    q: 'Como funciona a ajuda mútua?',
+    a: 'A ajuda mútua acontece diretamente entre participantes. Quando houver doação ou transferência, a relação é entre as partes envolvidas, sem recebimento, custódia ou intermediação financeira pelo ARBORIS.'
   },
   {
-    q: 'O Arboris é investimento ou promessa de ganho?',
-    a: 'Não. O Arboris não é investimento, aplicação financeira, renda passiva, saque garantido nem promessa de ganho. Qualquer apoio entre participantes deve ser tratado como ajuda mútua comunitária, não como rendimento financeiro.'
+    q: 'O ARBORIS recebe ou administra dinheiro dos participantes?',
+    a: 'Não. O ARBORIS não recebe, coleta, guarda, intermedeia, administra ou executa valores financeiros. Qualquer movimentação feita entre membros é responsabilidade exclusiva dos próprios participantes.'
   },
   {
-    q: 'O que são sementes no sistema?',
-    a: 'Sementes são unidades internas usadas para organizar e registrar a dinâmica da árvore. Elas não devem ser comunicadas como dinheiro depositado pela plataforma, ganho garantido ou saldo financeiro livre para saque.'
+    q: 'O ARBORIS é investimento ou promessa de ganho?',
+    a: 'Não. O projeto não deve ser apresentado como investimento, aplicação financeira, renda passiva, lucro garantido ou retorno automático. A participação depende das regras comunitárias e não representa promessa financeira.'
   },
   {
-    q: 'O que acontece quando uma árvore completa 15 posições?',
-    a: 'O ciclo é fechado conforme a regra da matriz 1–2–4–8. A árvore pode se dividir em novas árvores, preservando o histórico e permitindo a continuidade da progressão comunitária.'
-  },
-  {
-    q: 'Qual é o papel do coordenador?',
-    a: 'O coordenador acompanha a organização da rede, a posição dos participantes, os ciclos ativos, os registros e as ações administrativas necessárias para manter a árvore coerente.'
+    q: 'Qual é o papel do sistema?',
+    a: 'O sistema serve para apresentar a comunidade, organizar informações, registrar convites e facilitar o acompanhamento da participação. Ele não substitui a responsabilidade individual dos participantes nas relações realizadas entre si.'
   }
 ];
 
@@ -139,7 +108,7 @@ export const PublicLandingPage: React.FC<PublicLandingPageProps> = ({
                 ARBORIS
               </span>
               <span className="hidden sm:inline-block ml-2 text-[10px] uppercase font-mono tracking-widest text-slate-400 bg-slate-800/60 px-2 py-0.5 rounded-full border border-slate-700/60">
-                Ajuda mútua · 1–2–4–8
+                Arborização · Ajuda mútua
               </span>
             </div>
           </div>
@@ -169,7 +138,7 @@ export const PublicLandingPage: React.FC<PublicLandingPageProps> = ({
               className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-bold text-xs sm:text-sm rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-2 active:scale-[0.98]"
             >
               <Sprout className="w-4 h-4" aria-hidden="true" />
-              <span>Entrar</span>
+              <span>Participar</span>
             </button>
           </div>
         </div>
@@ -193,23 +162,19 @@ export const PublicLandingPage: React.FC<PublicLandingPageProps> = ({
         </div>
       )}
 
-      <main className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-20 space-y-20">
+      <main className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-20 space-y-16 sm:space-y-20">
         <section className="text-center space-y-6 max-w-3xl mx-auto">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold uppercase tracking-wider shadow-inner">
             <HeartHandshake className="w-3.5 h-3.5" aria-hidden="true" />
-            <span>Sistema comunitário de arborização por ajuda mútua</span>
+            <span>Sistema filantrópico de ajuda mútua</span>
           </div>
 
           <h1 className="text-3xl sm:text-5xl md:text-6xl font-black tracking-tight leading-tight sm:leading-none text-slate-100">
-            Uma árvore de 15 posições organizada em ciclos <br />
-            <span className="bg-gradient-to-r from-emerald-400 via-teal-300 to-amber-300 bg-clip-text text-transparent">
-              1–2–4–8
-            </span>
+            Arborização comunitária com participação organizada
           </h1>
 
           <p className="text-slate-300 text-sm sm:text-lg leading-relaxed max-w-2xl mx-auto">
-            O Arboris organiza participantes em uma matriz visual de árvore, com entrada por convite, progressão por posições,
-            fechamento de ciclo e divisão em novas árvores. A lógica central é comunidade, registro e ajuda mútua — não acesso sem responsabilidade comunitária.
+            O ARBORIS conecta pessoas em uma iniciativa de arborização e reflorestamento baseada em ajuda mútua. A participação é comunitária, direta entre membros e sem intermediação financeira pela plataforma.
           </p>
 
           <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
@@ -219,7 +184,7 @@ export const PublicLandingPage: React.FC<PublicLandingPageProps> = ({
               className="w-full sm:w-auto px-6 py-3.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-extrabold text-sm sm:text-base rounded-2xl shadow-xl shadow-emerald-500/25 transition-all flex items-center justify-center gap-2.5 active:scale-[0.98]"
             >
               <Sprout className="w-5 h-5" aria-hidden="true" />
-              <span>Entrar com convite</span>
+              <span>Participar com convite</span>
               <ArrowRight className="w-4 h-4" aria-hidden="true" />
             </button>
             <button
@@ -228,119 +193,92 @@ export const PublicLandingPage: React.FC<PublicLandingPageProps> = ({
               className="w-full sm:w-auto px-6 py-3.5 bg-slate-900/90 hover:bg-slate-800/90 border border-slate-700/80 text-slate-200 font-semibold text-sm sm:text-base rounded-2xl shadow-md transition-all flex items-center justify-center gap-2.5"
             >
               <Trees className="w-5 h-5 text-emerald-400" aria-hidden="true" />
-              <span>Explorar a árvore</span>
+              <span>Conhecer a árvore</span>
             </button>
           </div>
 
           <div className="mt-8 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-100 text-xs sm:text-sm text-left sm:text-center space-y-2 max-w-2xl mx-auto">
             <div className="font-bold flex items-center justify-center gap-1.5 text-amber-300">
               <AlertTriangle className="w-4 h-4" aria-hidden="true" />
-              <span>Comunicação correta do projeto</span>
+              <span>Participação com responsabilidade</span>
             </div>
             <p className="text-[11px] sm:text-xs text-amber-100/80 leading-relaxed">
-              O Arboris não deve ser apresentado como sistema sem custo, investimento, aplicação financeira, renda garantida ou promessa de ganho.
-              A definição correta é: sistema comunitário de arborização por ajuda mútua entre participantes, com regras, ciclos e registros internos.
+              O ARBORIS não é investimento, aplicação financeira, promessa de lucro, renda passiva ou garantia de retorno. O projeto deve ser entendido como uma comunidade de ajuda mútua ligada à arborização e ao reflorestamento.
             </p>
           </div>
         </section>
 
-        <section className="grid grid-cols-1 md:grid-cols-4 gap-4 sm:gap-6" aria-label="Pilares do Arboris">
-          {pillars.map((item) => {
-            const Icon = item.icon;
-            return (
-              <article key={item.title} className="bg-slate-900/60 border border-slate-800 rounded-3xl p-5 space-y-4 hover:border-emerald-500/40 transition-all">
-                <div className="w-11 h-11 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-                  <Icon className="w-5 h-5" aria-hidden="true" />
-                </div>
-                <h2 className="font-bold text-base text-slate-100">{item.title}</h2>
-                <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">{item.text}</p>
-              </article>
-            );
-          })}
-        </section>
-
-        <section className="space-y-10">
-          <div className="text-center space-y-2">
+        <section className="space-y-8" aria-label="Apresentação institucional do ARBORIS">
+          <div className="text-center space-y-2 max-w-2xl mx-auto">
             <div className="text-xs uppercase font-mono tracking-widest text-emerald-400">
-              Funcionamento do ciclo
+              Apresentação institucional
             </div>
             <h2 className="text-2xl sm:text-4xl font-extrabold text-slate-100">
-              Como a árvore evolui
+              O essencial em duas ideias
             </h2>
-            <p className="text-slate-400 text-xs sm:text-sm max-w-xl mx-auto">
-              A apresentação pública deve explicar a lógica real da matriz, sem prometer acesso irrestrito, rendimento ou resultado automático.
+            <p className="text-slate-400 text-xs sm:text-sm leading-relaxed">
+              A explicação pública do ARBORIS deve ser direta: causa ambiental e participação comunitária por ajuda mútua.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 sm:gap-6">
-            {journeySteps.map((step) => (
-              <article key={step.number} className="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 flex flex-col justify-between hover:border-teal-500/40 transition-all">
-                <div className="space-y-4">
-                  <div className="w-12 h-12 rounded-2xl bg-teal-500/10 border border-teal-500/30 flex items-center justify-center text-teal-300 font-extrabold text-sm">
-                    {step.number}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+            {institutionalSections.map((item) => {
+              const Icon = item.icon;
+              return (
+                <article key={item.title} className="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 space-y-4 hover:border-emerald-500/40 transition-all">
+                  <div className="w-11 h-11 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                    <Icon className="w-5 h-5" aria-hidden="true" />
                   </div>
-                  <h3 className="font-bold text-base sm:text-lg text-slate-100">{step.title}</h3>
-                  <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">{step.text}</p>
-                </div>
-                <div className="mt-6 pt-4 border-t border-slate-800/80 flex items-center gap-2 text-[11px] text-teal-400 font-medium">
-                  <CheckCircle2 className="w-3.5 h-3.5" aria-hidden="true" />
-                  <span>Etapa registrada</span>
-                </div>
-              </article>
-            ))}
+                  <h3 className="font-bold text-lg text-slate-100">{item.title}</h3>
+                  <p className="text-sm text-slate-400 leading-relaxed">{item.text}</p>
+                </article>
+              );
+            })}
           </div>
         </section>
 
-        <section className="grid grid-cols-1 lg:grid-cols-[1fr_1.2fr] gap-6 items-stretch">
-          <div className="bg-slate-900/70 border border-slate-800 rounded-3xl p-6 sm:p-8 space-y-4">
-            <div className="inline-flex items-center gap-2 text-xs uppercase tracking-widest font-mono text-emerald-400">
-              <Compass className="w-4 h-4" aria-hidden="true" />
-              Estrutura matemática
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-100">
-              Matriz 2×2×2 representada como árvore
-            </h2>
-            <p className="text-sm text-slate-400 leading-relaxed">
-              A árvore possui uma distribuição fixa de 15 posições. Essa estrutura permite leitura visual simples, controle de ciclos e reorganização dos participantes conforme regras administrativas.
-            </p>
-            <div className="grid grid-cols-2 gap-3 pt-2">
-              {topology.map((item) => (
-                <div key={item.label} className="rounded-2xl bg-slate-950/70 border border-slate-800 p-4">
-                  <div className="text-emerald-300 font-black text-lg">{item.label}</div>
-                  <div className="text-[11px] text-slate-500 mt-1 leading-relaxed">{item.text}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-br from-emerald-950/80 via-slate-900 to-amber-950/60 border border-emerald-500/20 rounded-3xl p-6 sm:p-8 space-y-5 relative overflow-hidden">
+        <section className="grid grid-cols-1 lg:grid-cols-[1.15fr_0.85fr] gap-6 items-stretch" aria-label="Ajuda mútua e responsabilidade financeira">
+          <div className="bg-gradient-to-br from-emerald-950/80 via-slate-900 to-slate-950 border border-emerald-500/20 rounded-3xl p-6 sm:p-8 space-y-5 relative overflow-hidden">
             <div className="absolute -right-12 -top-12 w-48 h-48 bg-emerald-400/10 rounded-full blur-3xl" />
             <div className="relative z-10 space-y-4">
-              <div className="inline-flex items-center gap-2 text-xs uppercase tracking-widest font-mono text-amber-300">
-                <Lock className="w-4 h-4" aria-hidden="true" />
-                Limites de comunicação
+              <div className="inline-flex items-center gap-2 text-xs uppercase tracking-widest font-mono text-emerald-300">
+                <Shield className="w-4 h-4" aria-hidden="true" />
+                Ajuda mútua e movimentações
               </div>
               <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-100">
-                O que a apresentação não deve prometer
+                Relações diretas entre participantes
               </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                {[
-                  'Cadastro sem custo como promessa comercial',
-                  'Ganho, rendimento ou renda passiva',
-                  'Saque prometido ou saldo financeiro livre',
-                  'Investimento, aplicação ou retorno automático',
-                  'Dinheiro gerado pela plataforma',
-                  'Resultado certo por convidar pessoas'
-                ].map((item) => (
-                  <div key={item} className="flex items-start gap-2 rounded-2xl bg-slate-950/50 border border-slate-800/70 p-3 text-slate-300">
-                    <Shield className="w-4 h-4 text-amber-300 mt-0.5 flex-none" aria-hidden="true" />
+              <p className="text-sm text-slate-300 leading-relaxed">
+                O ARBORIS funciona como um sistema filantrópico de ajuda mútua entre participantes. Quando houver apoio financeiro, doação ou transferência, a movimentação acontece diretamente entre os membros envolvidos.
+              </p>
+              <div className="space-y-3">
+                {responsibilityPoints.map((item) => (
+                  <div key={item} className="flex items-start gap-3 rounded-2xl bg-slate-950/50 border border-slate-800/70 p-3 text-sm text-slate-300">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-300 mt-0.5 flex-none" aria-hidden="true" />
                     <span>{item}</span>
                   </div>
                 ))}
               </div>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                A apresentação correta deve focar na organização comunitária, na matriz de posições, nos ciclos e no registro transparente das ações.
-              </p>
+            </div>
+          </div>
+
+          <div className="bg-slate-900/70 border border-slate-800 rounded-3xl p-6 sm:p-8 space-y-5">
+            <div className="inline-flex items-center gap-2 text-xs uppercase tracking-widest font-mono text-amber-300">
+              <AlertTriangle className="w-4 h-4" aria-hidden="true" />
+              O que não é
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-100">
+              Sem promessa financeira
+            </h2>
+            <p className="text-sm text-slate-400 leading-relaxed">
+              A comunicação pública deve evitar termos que façam o participante entender o ARBORIS como produto financeiro ou promessa de resultado.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {notPromised.map((item) => (
+                <span key={item} className="rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-100">
+                  {item}
+                </span>
+              ))}
             </div>
           </div>
         </section>
@@ -351,7 +289,7 @@ export const PublicLandingPage: React.FC<PublicLandingPageProps> = ({
               <Users className="w-4 h-4" aria-hidden="true" />
               Perguntas essenciais
             </div>
-            <h2 className="text-2xl sm:text-4xl font-extrabold text-slate-100">Regras de entendimento público</h2>
+            <h2 className="text-2xl sm:text-4xl font-extrabold text-slate-100">Entendimento público</h2>
           </div>
 
           <div className="space-y-3">
@@ -381,10 +319,10 @@ export const PublicLandingPage: React.FC<PublicLandingPageProps> = ({
             <Sprout className="w-6 h-6" aria-hidden="true" />
           </div>
           <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-100">
-            Entrar na comunidade Arboris
+            Participar da comunidade ARBORIS
           </h2>
           <p className="text-sm text-slate-300 max-w-2xl mx-auto leading-relaxed">
-            Continue apenas se você entende que o Arboris é uma organização comunitária por árvore, baseada em ajuda mútua, sem promessa de retorno financeiro.
+            Continue apenas se você entende que o ARBORIS é uma comunidade de arborização e ajuda mútua, sem promessa de retorno financeiro e sem intermediação de valores pela plataforma.
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-3 pt-2">
             <button

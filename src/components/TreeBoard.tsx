@@ -1,7 +1,6 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type {
   PointerEvent as ReactPointerEvent,
-  TouchEvent as ReactTouchEvent,
   WheelEvent as ReactWheelEvent
 } from 'react';
 import { Crown, Trees } from 'lucide-react';
@@ -36,6 +35,7 @@ const layout = [
 ];
 const connections = [[0,1],[0,2],[1,3],[1,4],[2,5],[2,6],[3,7],[3,8],[4,13],[4,14],[5,9],[5,10],[6,11],[6,12]];
 const ARBORIS_UI_STATE_KEY = 'arboris_ui_state_v1';
+const TREE_OVERLAY_SELECTOR = '.arboris-tree-brand, .arboris-tree-heading, .arboris-tree-legend, .arboris-tree-reorder-hint, .arboris-tree-toast';
 
 function isCoordinatorTreeContext() {
   if (typeof window === 'undefined') return false;
@@ -60,8 +60,11 @@ function getPositionAtPointer(positions: BoardPosition[], clientX: number, clien
   return positions.find(position => position.position_index === positionIndex) || null;
 }
 
-function preventTreeScroll(event: ReactWheelEvent<HTMLElement> | ReactTouchEvent<HTMLElement>) {
-  event.preventDefault();
+function shouldLockTreeScroll(eventTarget: EventTarget | null) {
+  if (typeof Element === 'undefined' || !(eventTarget instanceof Element)) return false;
+  if (eventTarget.closest('[data-arboris-position]')) return true;
+  if (eventTarget.closest(TREE_OVERLAY_SELECTOR)) return false;
+  return Boolean(eventTarget.closest('.arboris-tree-board'));
 }
 
 export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, onSelect }: {
@@ -71,16 +74,66 @@ export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, onSel
   treeLabel?: string;
   onSelect: (position: BoardPosition) => void;
 }) {
+  const boardRef = useRef<HTMLElement | null>(null);
   const dragSourceRef = useRef<BoardPosition | null>(null);
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
   const dragMovedRef = useRef(false);
   const suppressNextClickRef = useRef(false);
   const moveMessageTimerRef = useRef<number | null>(null);
+  const scrollLockedRef = useRef(false);
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
   const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
   const [moving, setMoving] = useState(false);
   const [moveMessage, setMoveMessage] = useState<string | null>(null);
+  const [treeScrollLocked, setTreeScrollLocked] = useState(false);
   const canReorder = isCoordinatorTreeContext();
+
+  const lockTreeScroll = () => {
+    if (!canReorder) return;
+    scrollLockedRef.current = true;
+    setTreeScrollLocked(true);
+  };
+
+  const unlockTreeScroll = () => {
+    scrollLockedRef.current = false;
+    setTreeScrollLocked(false);
+  };
+
+  useEffect(() => {
+    if (!canReorder || typeof document === 'undefined' || typeof window === 'undefined') {
+      return undefined;
+    }
+
+    const releaseLock = () => unlockTreeScroll();
+    const releaseWhenPointerStartsOutsideBoard = (event: PointerEvent) => {
+      const board = boardRef.current;
+      const target = event.target;
+      if (!board || !(target instanceof Node) || !board.contains(target)) {
+        unlockTreeScroll();
+      }
+    };
+    const blockScrollWhileLocked = (event: TouchEvent) => {
+      if (scrollLockedRef.current) event.preventDefault();
+    };
+
+    document.addEventListener('pointerdown', releaseWhenPointerStartsOutsideBoard, true);
+    document.addEventListener('touchmove', blockScrollWhileLocked, { passive: false, capture: true });
+    window.addEventListener('pointerup', releaseLock, true);
+    window.addEventListener('pointercancel', releaseLock, true);
+    window.addEventListener('touchend', releaseLock, true);
+    window.addEventListener('touchcancel', releaseLock, true);
+    window.addEventListener('blur', releaseLock);
+
+    return () => {
+      document.removeEventListener('pointerdown', releaseWhenPointerStartsOutsideBoard, true);
+      document.removeEventListener('touchmove', blockScrollWhileLocked, true);
+      window.removeEventListener('pointerup', releaseLock, true);
+      window.removeEventListener('pointercancel', releaseLock, true);
+      window.removeEventListener('touchend', releaseLock, true);
+      window.removeEventListener('touchcancel', releaseLock, true);
+      window.removeEventListener('blur', releaseLock);
+    };
+  }, [canReorder]);
 
   const notifyMove = (message: string) => {
     setMoveMessage(message);
@@ -138,10 +191,26 @@ export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, onSel
     }
   };
 
+  const handleTreePointerDown = (event: ReactPointerEvent<HTMLElement>) => {
+    if (!canReorder) return;
+    if (shouldLockTreeScroll(event.target)) {
+      lockTreeScroll();
+      return;
+    }
+    unlockTreeScroll();
+  };
+
+  const handleTreeWheel = (event: ReactWheelEvent<HTMLElement>) => {
+    if (canReorder && scrollLockedRef.current) {
+      event.preventDefault();
+    }
+  };
+
   const handleNodePointerDown = (event: ReactPointerEvent<HTMLButtonElement>, position: BoardPosition) => {
     if (!canReorder || moving) return;
     if (position.position_index === 0 || position.status !== 'occupied' || !position.user_id) return;
 
+    lockTreeScroll();
     dragSourceRef.current = position;
     dragStartRef.current = { x: event.clientX, y: event.clientY };
     dragMovedRef.current = false;
@@ -192,14 +261,16 @@ export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, onSel
 
   const handleNodePointerCancel = () => {
     clearDragState();
+    unlockTreeScroll();
   };
 
   return (
     <section
-      className="arboris-tree-board"
+      ref={boardRef}
+      className={`arboris-tree-board${canReorder && treeScrollLocked ? ' arboris-tree-board--scroll-locked' : ''}`}
       aria-label={`Explorador da árvore ${treeCode || ''}`}
-      onWheel={preventTreeScroll}
-      onTouchMove={preventTreeScroll}
+      onPointerDown={handleTreePointerDown}
+      onWheel={handleTreeWheel}
     >
       <img className="arboris-tree-art" src={treeScene} width="1024" height="1536" alt="" decoding="async" draggable={false} />
       <div className="arboris-tree-brand"><span><Trees aria-hidden="true" /></span><strong>ARBORIS</strong></div>

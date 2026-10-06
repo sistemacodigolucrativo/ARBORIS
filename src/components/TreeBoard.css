@@ -8,7 +8,7 @@
   border-radius: 18px;
   background: #20a5ef;
   color: #f8fafc;
-  touch-action: none;
+  touch-action: pan-y;
   overscroll-behavior: contain;
   user-select: none;
   -webkit-user-select: none;
@@ -23,7 +23,6 @@
 }
 .arboris-tree-art { object-fit: contain; user-select: none; }
 .arboris-tree-brand,
-.arboris-tree-heading,
 .arboris-tree-legend {
   position: absolute;
   left: 4.5%;
@@ -52,17 +51,6 @@
   border: 1px solid #148752;
 }
 .arboris-tree-brand svg { width: 62%; height: 62%; color: #05cf6f; }
-.arboris-tree-heading {
-  top: 8.5%;
-  min-height: 7.3%;
-  padding: 1.5% 2.8%;
-  display: flex;
-  align-items: center;
-  gap: 3%;
-}
-.arboris-tree-heading h3 { flex: 1; min-width: 0; font-size: 3cqw; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
-.arboris-tree-heading h3 strong { color: #ffc400; }
-.arboris-tree-heading > span { flex: none; padding-left: 3%; border-left: 1px solid #567181; color: #adbed5; font-size: 2.9cqw; line-height: 1.2; }
 .arboris-tree-connections { z-index: 1; fill: none; }
 .arboris-branch-glow { stroke: #39d834; stroke-width: 11; opacity: .8; filter: drop-shadow(0 0 5px #7aff17); }
 .arboris-branch-core { stroke: #d4ff76; stroke-width: 3; }
@@ -128,12 +116,13 @@
 .arboris-tree-node--mine { outline: .4cqw solid #fff; outline-offset: .6cqw; }
 .arboris-tree-node-you { border-radius: 10px; padding: .2cqw .8cqw; color: #052e16; background: #adffbd; font-size: 1.6cqw; }
 .arboris-tree-reorder-hint,
-.arboris-tree-toast {
+.arboris-tree-toast,
+.arboris-tree-savebar {
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
   z-index: 8;
-  max-width: 90%;
+  max-width: 92%;
   border-radius: 999px;
   border: 1px solid rgb(250 204 21 / 70%);
   background: rgb(2 27 42 / 94%);
@@ -143,11 +132,39 @@
   font-size: 2.35cqw;
   font-weight: 800;
   line-height: 1.2;
-  pointer-events: none;
   box-shadow: 0 .8cqw 1.6cqw rgb(0 0 0 / 35%);
 }
-.arboris-tree-reorder-hint { bottom: 10.5%; }
-.arboris-tree-toast { bottom: 18%; color: #ecfeff; border-color: rgb(20 184 166 / 70%); }
+.arboris-tree-reorder-hint { bottom: 10.5%; pointer-events: none; }
+.arboris-tree-toast { bottom: 18%; color: #ecfeff; border-color: rgb(20 184 166 / 70%); pointer-events: none; }
+.arboris-tree-savebar {
+  bottom: 10%;
+  display: flex;
+  align-items: center;
+  gap: 1.4cqw;
+  justify-content: center;
+  flex-wrap: wrap;
+  border-color: rgb(20 184 166 / 80%);
+  color: #d1fae5;
+  border-radius: 3cqw;
+  pointer-events: auto;
+}
+.arboris-tree-savebar button {
+  display: inline-flex;
+  align-items: center;
+  gap: .7cqw;
+  border: 1px solid #475569;
+  background: #0f172a;
+  color: #e2e8f0;
+  border-radius: 2cqw;
+  padding: 1cqw 1.8cqw;
+  font: inherit;
+  font-size: 2.2cqw;
+  cursor: pointer;
+}
+.arboris-tree-savebar button:disabled { opacity: .6; cursor: wait; }
+.arboris-tree-savebar button svg { width: 2.5cqw; height: 2.5cqw; }
+.arboris-tree-savebar-primary { background: #10b981 !important; border-color: #34d399 !important; color: #052e16 !important; }
+.arboris-tree-savebar-primary svg { color: #052e16; }
 .arboris-tree-legend { bottom: 3%; min-height: 6.4%; display: flex; align-items: center; justify-content: space-between; gap: 1%; padding: 1.8% 2.8%; font-size: 2.55cqw; color: #b6cedb; }
 .arboris-tree-legend > span { display: inline-flex; align-items: center; gap: .8cqw; white-space: nowrap; }
 .arboris-tree-legend i { width: 3.2cqw; aspect-ratio: 1; border-radius: 50%; flex: none; border: .25cqw solid #001b27; }

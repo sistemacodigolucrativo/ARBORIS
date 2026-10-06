@@ -51,6 +51,59 @@
   border: 1px solid #148752;
 }
 .arboris-tree-brand svg { width: 62%; height: 62%; color: #05cf6f; }
+.arboris-tree-template-control {
+  position: absolute;
+  top: 1.7%;
+  right: 5.2%;
+  z-index: 9;
+  display: flex;
+  justify-content: flex-end;
+}
+.arboris-tree-template-toggle {
+  border: 1px solid rgb(20 184 166 / 85%);
+  background: rgb(2 27 42 / 96%);
+  color: #d1fae5;
+  border-radius: 2.2cqw;
+  padding: 1.1cqw 2cqw;
+  font-size: 2.35cqw;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 .6cqw 1.4cqw rgb(0 0 0 / 35%);
+}
+.arboris-tree-template-menu {
+  position: absolute;
+  top: calc(100% + 1.2cqw);
+  right: 0;
+  width: min(88cqw, 360px);
+  max-height: 58cqw;
+  overflow: auto;
+  border: 1px solid rgb(20 184 166 / 72%);
+  border-radius: 3cqw;
+  background: rgb(2 27 42 / 98%);
+  padding: 1.6cqw;
+  box-shadow: 0 2cqw 5cqw rgb(0 0 0 / 45%);
+}
+.arboris-tree-template-menu button {
+  width: 100%;
+  display: grid;
+  gap: .55cqw;
+  text-align: left;
+  border: 1px solid rgb(71 85 105 / 90%);
+  border-radius: 2.4cqw;
+  background: rgb(15 23 42 / 92%);
+  color: #e2e8f0;
+  padding: 1.6cqw;
+  margin: 0 0 1.1cqw;
+  cursor: pointer;
+}
+.arboris-tree-template-menu button:last-child { margin-bottom: 0; }
+.arboris-tree-template-menu button.is-active {
+  border-color: #34d399;
+  background: rgb(6 78 59 / 95%);
+  color: #ecfdf5;
+}
+.arboris-tree-template-menu strong { font-size: 2.45cqw; }
+.arboris-tree-template-menu span { font-size: 2.05cqw; line-height: 1.25; color: #cbd5e1; }
 .arboris-tree-connections { z-index: 1; fill: none; }
 .arboris-branch-glow { stroke: #39d834; stroke-width: 11; opacity: .8; filter: drop-shadow(0 0 5px #7aff17); }
 .arboris-branch-core { stroke: #d4ff76; stroke-width: 3; }
@@ -70,7 +123,7 @@
   font-weight: 800;
   line-height: 1.05;
   box-shadow: 0 0 0 .4cqw #05291e, 0 .5cqw 1cqw rgb(0 0 0 / 45%);
-  transition: filter 120ms ease, opacity 120ms ease, outline-color 120ms ease;
+  transition: filter 120ms ease, opacity 120ms ease, outline-color 120ms ease, left 180ms ease, top 180ms ease;
   touch-action: none;
 }
 .arboris-tree-node:hover { filter: brightness(1.15); }

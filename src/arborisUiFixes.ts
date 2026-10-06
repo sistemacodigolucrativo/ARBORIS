@@ -12,6 +12,10 @@ function normalizeText(value: string) {
   return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 }
 
+function elementText(element: HTMLElement) {
+  return normalizeText(element.textContent || '');
+}
+
 function ensureStyles() {
   if (!isBrowser || document.getElementById('arboris-ui-fixes-style')) return;
   const style = document.createElement('style');
@@ -71,11 +75,20 @@ function ensureStyles() {
     }
     .arboris-reserved-card-consolidated {
       order: -1 !important;
-      margin-bottom: .85rem !important;
+      margin: .25rem 0 .85rem !important;
       box-shadow: 0 16px 40px rgb(127 29 29 / .32) !important;
     }
     .arboris-reserved-card-consolidated .arboris-reserved-extra {
       margin-top: .65rem; padding-top: .65rem; border-top: 1px solid rgb(251 113 133 / .35);
+      display: grid; gap: .5rem;
+    }
+    .arboris-reserved-card-consolidated .arboris-reserved-extra-line {
+      margin: 0; color: rgb(255 228 230); font-weight: 700; line-height: 1.35;
+    }
+    .arboris-reserved-card-consolidated .arboris-reserved-extra button {
+      width: 100%; border: 1px solid rgb(52 211 153) !important; border-radius: .9rem !important;
+      background: rgb(16 185 129) !important; color: rgb(5 46 22) !important;
+      font-weight: 900 !important; padding: .78rem .9rem !important;
     }
     .arboris-position-select-filtered option[hidden] { display: none !important; }
   `;
@@ -125,7 +138,7 @@ function patchFetch() {
         response.clone().json().then(updateCachedState).catch(() => null);
       }
       return response;
-    } catch (error) {
+    } catch {
       return originalFetch(input, init);
     }
   };
@@ -291,66 +304,92 @@ function addBackButtons(root: ParentNode = document) {
   }
 }
 
-function hideRedundantActiveCard() {
-  document.querySelectorAll<HTMLElement>('div').forEach(el => {
-    const text = el.textContent || '';
-    if (!text.includes('Vaga ativada na árvore:')) return;
-    const card = findCardContainer(el, ['Vaga ativada na árvore:']);
-    if (card) card.style.display = 'none';
-  });
-}
-
 function findCardContainer(source: HTMLElement, requiredTexts: string[]) {
   let current: HTMLElement | null = source;
-  for (let i = 0; current && i < 8; i += 1) {
-    const text = current.textContent || '';
+  for (let i = 0; current && i < 9; i += 1) {
+    const text = elementText(current);
     const className = String(current.className || '');
-    if (requiredTexts.every(item => text.includes(item)) && (className.includes('rounded') || className.includes('border'))) return current;
+    const looksLikeCard = className.includes('rounded') || className.includes('border') || className.includes('bg-') || current.tagName === 'SECTION';
+    if (requiredTexts.every(item => text.includes(item)) && looksLikeCard) return current;
     current = current.parentElement;
   }
   return source.closest<HTMLElement>('div');
 }
 
+function hideRedundantActiveCard() {
+  document.querySelectorAll<HTMLElement>('div').forEach(el => {
+    const text = elementText(el);
+    if (!text.includes('vaga ativada') || !text.includes('arvore')) return;
+    const card = findCardContainer(el, ['vaga ativada', 'arvore']);
+    if (card) card.style.display = 'none';
+  });
+}
+
+function getSmallestElementByText(querySelector: string, matcher: (text: string) => boolean) {
+  return Array.from(document.querySelectorAll<HTMLElement>(querySelector))
+    .filter(el => matcher(elementText(el)))
+    .sort((a, b) => (a.textContent || '').length - (b.textContent || '').length)[0] || null;
+}
+
+function ensureReservedExtra(reservedCard: HTMLElement, sourceCard: HTMLElement | null) {
+  let extra = reservedCard.querySelector<HTMLElement>('.arboris-reserved-extra');
+  if (!extra) {
+    extra = document.createElement('div');
+    extra.className = 'arboris-reserved-extra';
+    reservedCard.appendChild(extra);
+  }
+
+  const currentText = elementText(reservedCard);
+  if (!currentText.includes('sua vaga na arvore esta reservada')) {
+    const line = document.createElement('p');
+    line.className = 'arboris-reserved-extra-line';
+    line.textContent = 'Sua vaga na árvore está reservada. Envie a solicitação Pix para ativar.';
+    extra.appendChild(line);
+  }
+  if (!currentText.includes('saldo disponivel')) {
+    const line = document.createElement('p');
+    line.className = 'arboris-reserved-extra-line';
+    line.textContent = 'Saldo disponível: 25 sementes.';
+    extra.appendChild(line);
+  }
+
+  if (!extra.querySelector('button') && sourceCard) {
+    const actionButton = Array.from(sourceCard.querySelectorAll<HTMLButtonElement>('button')).find(button => {
+      const label = normalizeText(button.textContent || '');
+      return label.includes('ativar') || label.includes('pix') || label.includes('solicitacao');
+    });
+    if (actionButton) extra.appendChild(actionButton);
+  }
+}
+
 function consolidateReservedCard() {
   const treeBoard = document.querySelector<HTMLElement>('.arboris-tree-board');
-  if (!treeBoard) return;
-  const reservedMarker = Array.from(document.querySelectorAll<HTMLElement>('div,span')).find(el => (el.textContent || '').includes('Vaga reservada na árvore:'));
+  if (!treeBoard?.parentElement) return;
+
+  const reservedMarker = getSmallestElementByText('div,section,article,span', text => {
+    return text.includes('vaga reservada') && text.includes('arvore');
+  });
   if (!reservedMarker) return;
-  const reservedCard = findCardContainer(reservedMarker, ['Vaga reservada na árvore:']);
-  if (!reservedCard) return;
+
+  const reservedCard = findCardContainer(reservedMarker, ['vaga reservada', 'arvore']);
+  if (!reservedCard || reservedCard.contains(treeBoard)) return;
 
   reservedCard.classList.add('arboris-reserved-card-consolidated');
   reservedCard.style.display = '';
-  if (!reservedCard.parentElement?.contains(treeBoard) || reservedCard.compareDocumentPosition(treeBoard) & Node.DOCUMENT_POSITION_PRECEDING) {
-    treeBoard.parentElement?.insertBefore(reservedCard, treeBoard);
-  }
+  treeBoard.parentElement.insertBefore(reservedCard, treeBoard);
 
-  const instructionCard = Array.from(document.querySelectorAll<HTMLElement>('div')).find(el => {
-    if (el === reservedCard || reservedCard.contains(el)) return false;
-    const text = el.textContent || '';
-    return text.includes('Sua vaga na árvore está reservada. Envie a solicitação Pix para ativar.') || text.includes('Ativar 25 sementes via Pix');
+  const instructionMarker = getSmallestElementByText('div,section,article,p,span', text => {
+    if (text.includes('vaga reservada') && text.includes('arvore')) return false;
+    return text.includes('solicitacao pix') || text.includes('saldo disponivel') || text.includes('ativar 25') || (text.includes('sua vaga') && text.includes('reservada'));
   });
-  const sourceCard = instructionCard ? findCardContainer(instructionCard, ['Sua vaga na árvore está reservada']) || instructionCard : null;
-  if (!sourceCard || sourceCard === reservedCard || sourceCard.dataset.arborisMergedIntoReserved === 'true') return;
+  const sourceCard = instructionMarker ? findCardContainer(instructionMarker, []) || instructionMarker : null;
 
-  if (!reservedCard.querySelector('.arboris-reserved-extra')) {
-    const extra = document.createElement('div');
-    extra.className = 'arboris-reserved-extra';
-    const messages = Array.from(sourceCard.querySelectorAll<HTMLElement>('div,p,span')).filter(item => {
-      const text = item.textContent || '';
-      return text.includes('Sua vaga na árvore está reservada') || text.includes('Saldo disponível') || text.includes('Aguardando confirmação');
-    });
-    for (const message of messages.slice(0, 3)) {
-      const clone = message.cloneNode(true) as HTMLElement;
-      clone.classList.add('arboris-reserved-extra-line');
-      extra.appendChild(clone);
-    }
-    const actionButton = Array.from(sourceCard.querySelectorAll<HTMLButtonElement>('button')).find(button => normalizeText(button.textContent || '').includes('ativar'));
-    if (actionButton) extra.appendChild(actionButton);
-    if (extra.childNodes.length) reservedCard.appendChild(extra);
+  ensureReservedExtra(reservedCard, sourceCard && sourceCard !== reservedCard ? sourceCard : null);
+
+  if (sourceCard && sourceCard !== reservedCard && !reservedCard.contains(sourceCard)) {
+    sourceCard.dataset.arborisMergedIntoReserved = 'true';
+    sourceCard.style.display = 'none';
   }
-  sourceCard.dataset.arborisMergedIntoReserved = 'true';
-  sourceCard.style.display = 'none';
 }
 
 function filterPositionDropdowns() {

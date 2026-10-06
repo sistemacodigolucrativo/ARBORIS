@@ -88,6 +88,11 @@ if [[ -z "$(mysql --socket="$SOCKET" --user=root --database=arboris --batch --sk
   npm run db:import
 fi
 
+if [[ -n "${ARBORIS_DEV_ADMIN_PASSWORD:-}" ]]; then
+  echo "Provisioning the local-only admin account from Replit Secrets."
+  ACCOUNT_USERNAME=admin ACCOUNT_PASSWORD="$ARBORIS_DEV_ADMIN_PASSWORD" npm run db:password
+fi
+
 npm run api:start &
 API_PID=$!
 api_ready=false

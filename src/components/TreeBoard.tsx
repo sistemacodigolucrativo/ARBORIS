@@ -25,17 +25,92 @@ type PendingMove = {
   userId: number;
 };
 
-// Visual matrix derived from the Arboris 1 → 2 → 4 → 8 hierarchy.
-// The coordinate order is not merely numeric: each child is placed under its parent.
-const layout = [
-  { x: 50, y: 27, size: 21 },
-  { x: 32, y: 43, size: 16 }, { x: 68, y: 43, size: 16 },
-  { x: 20, y: 58, size: 12 }, { x: 44, y: 58, size: 12 },
-  { x: 56, y: 58, size: 12 }, { x: 80, y: 58, size: 12 },
-  { x: 10, y: 73, size: 11 }, { x: 22, y: 73, size: 11 },
-  { x: 34, y: 73, size: 11 }, { x: 46, y: 73, size: 11 },
-  { x: 54, y: 73, size: 11 }, { x: 66, y: 73, size: 11 },
-  { x: 78, y: 73, size: 11 }, { x: 90, y: 73, size: 11 },
+type LayoutPoint = { x: number; y: number; size: number };
+type TreeLayoutTemplate = {
+  id: string;
+  label: string;
+  description: string;
+  points: LayoutPoint[];
+};
+
+const TREE_LAYOUT_STORAGE_KEY = 'arboris_tree_layout_template_v1';
+
+const layoutTemplates: TreeLayoutTemplate[] = [
+  {
+    id: 'organic',
+    label: 'Orgânico',
+    description: 'Tronco central com posições em anel irregular, sem desenho piramidal.',
+    points: [
+      { x: 50, y: 45, size: 21 },
+      { x: 39, y: 34, size: 16 }, { x: 61, y: 34, size: 16 },
+      { x: 27, y: 45, size: 12 }, { x: 39, y: 59, size: 12 },
+      { x: 61, y: 59, size: 12 }, { x: 73, y: 45, size: 12 },
+      { x: 31, y: 25, size: 11 }, { x: 50, y: 23, size: 11 },
+      { x: 69, y: 25, size: 11 }, { x: 84, y: 36, size: 11 },
+      { x: 82, y: 59, size: 11 }, { x: 66, y: 72, size: 11 },
+      { x: 34, y: 72, size: 11 }, { x: 18, y: 59, size: 11 },
+    ]
+  },
+  {
+    id: 'oca',
+    label: 'Oca',
+    description: 'Distribuição em arco, com leitura circular e base aberta.',
+    points: [
+      { x: 50, y: 47, size: 21 },
+      { x: 36, y: 42, size: 16 }, { x: 64, y: 42, size: 16 },
+      { x: 24, y: 51, size: 12 }, { x: 38, y: 61, size: 12 },
+      { x: 62, y: 61, size: 12 }, { x: 76, y: 51, size: 12 },
+      { x: 18, y: 38, size: 11 }, { x: 31, y: 28, size: 11 },
+      { x: 50, y: 24, size: 11 }, { x: 69, y: 28, size: 11 },
+      { x: 82, y: 38, size: 11 }, { x: 83, y: 65, size: 11 },
+      { x: 63, y: 74, size: 11 }, { x: 37, y: 74, size: 11 },
+    ]
+  },
+  {
+    id: 'mandala',
+    label: 'Mandala',
+    description: 'Anéis concêntricos ao redor do tronco, com simetria radial.',
+    points: [
+      { x: 50, y: 45, size: 21 },
+      { x: 38, y: 37, size: 16 }, { x: 62, y: 53, size: 16 },
+      { x: 50, y: 30, size: 12 }, { x: 34, y: 48, size: 12 },
+      { x: 66, y: 42, size: 12 }, { x: 50, y: 62, size: 12 },
+      { x: 28, y: 28, size: 11 }, { x: 50, y: 20, size: 11 },
+      { x: 72, y: 28, size: 11 }, { x: 84, y: 45, size: 11 },
+      { x: 72, y: 66, size: 11 }, { x: 50, y: 75, size: 11 },
+      { x: 28, y: 66, size: 11 }, { x: 16, y: 45, size: 11 },
+    ]
+  },
+  {
+    id: 'espiral',
+    label: 'Espiral',
+    description: 'Posições em fluxo orgânico ao redor do tronco.',
+    points: [
+      { x: 50, y: 45, size: 21 },
+      { x: 42, y: 32, size: 16 }, { x: 63, y: 40, size: 16 },
+      { x: 65, y: 59, size: 12 }, { x: 45, y: 64, size: 12 },
+      { x: 29, y: 50, size: 12 }, { x: 32, y: 31, size: 12 },
+      { x: 53, y: 22, size: 11 }, { x: 75, y: 30, size: 11 },
+      { x: 84, y: 51, size: 11 }, { x: 72, y: 70, size: 11 },
+      { x: 47, y: 76, size: 11 }, { x: 22, y: 65, size: 11 },
+      { x: 15, y: 42, size: 11 }, { x: 25, y: 23, size: 11 },
+    ]
+  },
+  {
+    id: 'compacto',
+    label: 'Compacto',
+    description: 'Leitura organizada em bloco circular, com menos altura visual.',
+    points: [
+      { x: 50, y: 45, size: 21 },
+      { x: 36, y: 39, size: 16 }, { x: 64, y: 39, size: 16 },
+      { x: 24, y: 48, size: 12 }, { x: 42, y: 58, size: 12 },
+      { x: 58, y: 58, size: 12 }, { x: 76, y: 48, size: 12 },
+      { x: 24, y: 29, size: 11 }, { x: 40, y: 25, size: 11 },
+      { x: 60, y: 25, size: 11 }, { x: 76, y: 29, size: 11 },
+      { x: 86, y: 60, size: 11 }, { x: 66, y: 70, size: 11 },
+      { x: 34, y: 70, size: 11 }, { x: 14, y: 60, size: 11 },
+    ]
+  },
 ];
 
 const connections = [
@@ -57,6 +132,12 @@ function isCoordinatorTreeContext() {
   } catch {
     return false;
   }
+}
+
+function getInitialLayoutTemplateId() {
+  if (typeof window === 'undefined') return layoutTemplates[0].id;
+  const stored = window.localStorage.getItem(TREE_LAYOUT_STORAGE_KEY);
+  return layoutTemplates.some(template => template.id === stored) ? stored! : layoutTemplates[0].id;
 }
 
 function getPositionAtPointer(positions: BoardPosition[], clientX: number, clientY: number) {
@@ -88,11 +169,21 @@ export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, onSel
   const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
   const [savingMoves, setSavingMoves] = useState(false);
   const [moveMessage, setMoveMessage] = useState<string | null>(null);
+  const [layoutTemplateId, setLayoutTemplateId] = useState(getInitialLayoutTemplateId);
+  const [templateMenuOpen, setTemplateMenuOpen] = useState(false);
   const canReorder = isCoordinatorTreeContext();
+  const activeTemplate = layoutTemplates.find(template => template.id === layoutTemplateId) || layoutTemplates[0];
+  const layout = activeTemplate.points;
 
   useEffect(() => {
     if (pendingMoves.length === 0) setBoardPositions(positions);
   }, [positions, pendingMoves.length]);
+
+  const selectLayoutTemplate = (templateId: string) => {
+    setLayoutTemplateId(templateId);
+    setTemplateMenuOpen(false);
+    if (typeof window !== 'undefined') window.localStorage.setItem(TREE_LAYOUT_STORAGE_KEY, templateId);
+  };
 
   const notifyMove = (message: string) => {
     setMoveMessage(message);
@@ -247,9 +338,39 @@ export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, onSel
     <section
       className="arboris-tree-board"
       aria-label={`Visualização da árvore ${treeCode || ''}`}
+      data-layout-template={activeTemplate.id}
     >
       <img className="arboris-tree-art" src={treeScene} width="1024" height="1536" alt="" decoding="async" draggable={false} />
-      <div className="arboris-tree-brand"><span><Trees aria-hidden="true" /></span><strong>ARBORIS</strong></div>
+      <div className="arboris-tree-brand"><span><Trees aria-hidden="true" /></span><strong>{treeLabel || 'ARBORIS'}</strong></div>
+      {canReorder && (
+        <div className="arboris-tree-template-control">
+          <button
+            type="button"
+            className="arboris-tree-template-toggle"
+            onClick={() => setTemplateMenuOpen(open => !open)}
+            aria-expanded={templateMenuOpen}
+          >
+            Templates
+          </button>
+          {templateMenuOpen && (
+            <div className="arboris-tree-template-menu" role="menu" aria-label="Templates da árvore">
+              {layoutTemplates.map(template => (
+                <button
+                  key={template.id}
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={template.id === activeTemplate.id}
+                  className={template.id === activeTemplate.id ? 'is-active' : ''}
+                  onClick={() => selectLayoutTemplate(template.id)}
+                >
+                  <strong>{template.label}</strong>
+                  <span>{template.description}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       <svg className="arboris-tree-connections" viewBox="0 0 1000 1500" aria-hidden="true">
         {connections.map(([from, to]) => {
           const a = layout[from], b = layout[to];

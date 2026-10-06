@@ -4,6 +4,7 @@ import './communicationSanitizer.ts';
 import './arborisUiFixes.ts';
 import './botEntryFlow.ts';
 import './loginTimeoutFix.ts';
+import './memberPanelFinalAdjustments.ts';
 import App from './App.tsx';
 import './index.css';
 

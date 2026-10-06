@@ -80,7 +80,7 @@ if [[ -n "${REPLIT_DEV_DOMAIN:-}" ]]; then
 else
   PREVIEW_ORIGIN="http://localhost:5000"
 fi
-export APP_ORIGINS="${PREVIEW_ORIGIN},http://localhost:5000,http://localhost:3000,http://localhost:3001"
+export APP_ORIGINS="${PREVIEW_ORIGIN},http://localhost:5000,http://127.0.0.1:5000,http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001"
 
 npm run db:migrate
 if [[ -z "$(mysql --socket="$SOCKET" --user=root --database=arboris --batch --skip-column-names --execute='SELECT id FROM game_config WHERE id=1 LIMIT 1')" ]]; then

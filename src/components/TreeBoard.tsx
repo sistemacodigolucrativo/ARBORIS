@@ -1,10 +1,6 @@
-import { useRef, useState } from 'react';
-import type {
-  PointerEvent as ReactPointerEvent,
-  TouchEvent as ReactTouchEvent,
-  WheelEvent as ReactWheelEvent
-} from 'react';
-import { Crown, Trees } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import type { PointerEvent as ReactPointerEvent } from 'react';
+import { Crown, RefreshCw, Save, Trees, X } from 'lucide-react';
 import treeScene from '../assets/arboris-tree-scene.webp';
 import { assignPositionDirect } from '../services/directAdminActions';
 import './TreeBoard.css';
@@ -21,6 +17,13 @@ export interface BoardPosition {
   username?: string;
   full_name?: string;
 }
+
+type PendingMove = {
+  treeId: number;
+  fromIndex: number;
+  positionIndex: number;
+  userId: number;
+};
 
 // One coordinate system for artwork, connections and all 15 interactive positions.
 // Percentages keep the full crown and roots visible at every viewport width.
@@ -60,10 +63,6 @@ function getPositionAtPointer(positions: BoardPosition[], clientX: number, clien
   return positions.find(position => position.position_index === positionIndex) || null;
 }
 
-function preventTreeScroll(event: ReactWheelEvent<HTMLElement> | ReactTouchEvent<HTMLElement>) {
-  event.preventDefault();
-}
-
 export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, onSelect }: {
   positions: BoardPosition[];
   currentUserId?: number;
@@ -76,17 +75,23 @@ export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, onSel
   const dragMovedRef = useRef(false);
   const suppressNextClickRef = useRef(false);
   const moveMessageTimerRef = useRef<number | null>(null);
+  const [boardPositions, setBoardPositions] = useState<BoardPosition[]>(positions);
+  const [pendingMoves, setPendingMoves] = useState<PendingMove[]>([]);
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
   const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
-  const [moving, setMoving] = useState(false);
+  const [savingMoves, setSavingMoves] = useState(false);
   const [moveMessage, setMoveMessage] = useState<string | null>(null);
   const canReorder = isCoordinatorTreeContext();
+
+  useEffect(() => {
+    if (pendingMoves.length === 0) setBoardPositions(positions);
+  }, [positions, pendingMoves.length]);
 
   const notifyMove = (message: string) => {
     setMoveMessage(message);
     if (typeof window === 'undefined') return;
     if (moveMessageTimerRef.current) window.clearTimeout(moveMessageTimerRef.current);
-    moveMessageTimerRef.current = window.setTimeout(() => setMoveMessage(null), 3200);
+    moveMessageTimerRef.current = window.setTimeout(() => setMoveMessage(null), 4200);
   };
 
   const clearDragState = () => {
@@ -97,7 +102,7 @@ export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, onSel
     setDropTargetIndex(null);
   };
 
-  const moveParticipant = async (source: BoardPosition, target: BoardPosition) => {
+  const moveParticipant = (source: BoardPosition, target: BoardPosition) => {
     if (source.tree_id !== target.tree_id) {
       notifyMove('Movimento inválido: origem e destino pertencem a árvores diferentes.');
       return;
@@ -115,31 +120,68 @@ export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, onSel
       return;
     }
 
-    setMoving(true);
-    notifyMove(`Movendo participante da posição #${source.position_index} para #${target.position_index}...`);
+    setBoardPositions(current => current.map(position => {
+      if (position.tree_id !== source.tree_id) return position;
+      if (position.user_id === source.user_id && position.status === 'occupied') {
+        return { ...position, user_id: null, status: 'vacant', activation_status: null, username: undefined, full_name: undefined };
+      }
+      if (position.position_index === target.position_index) {
+        return {
+          ...position,
+          user_id: source.user_id,
+          status: 'occupied',
+          activation_status: source.activation_status || 'active',
+          username: source.username,
+          full_name: source.full_name
+        };
+      }
+      return position;
+    }));
+
+    setPendingMoves(current => [...current, {
+      treeId: source.tree_id,
+      fromIndex: source.position_index,
+      positionIndex: target.position_index,
+      userId: source.user_id!
+    }]);
+    notifyMove(`Movimento pendente: posição #${source.position_index} → #${target.position_index}. Clique em Salvar alterações para persistir.`);
+  };
+
+  const savePendingMoves = async () => {
+    if (!pendingMoves.length || savingMoves) return;
+    setSavingMoves(true);
+    notifyMove('Salvando reposicionamentos...');
     try {
-      const result = await assignPositionDirect({
-        treeId: source.tree_id,
-        positionIndex: target.position_index,
-        userId: source.user_id
-      });
-      if (result?.success === false) {
-        throw new Error(result.error || 'A API recusou a movimentação.');
+      for (const move of pendingMoves) {
+        const result = await assignPositionDirect({
+          treeId: move.treeId,
+          positionIndex: move.positionIndex,
+          userId: move.userId
+        });
+        if (result?.success === false) {
+          throw new Error(result.error || `A API recusou a posição #${move.positionIndex}.`);
+        }
       }
-      notifyMove(`Participante movido para a posição #${target.position_index}. Atualizando árvore...`);
-      if (typeof window !== 'undefined') {
-        window.setTimeout(() => window.location.reload(), 450);
-      }
+      setPendingMoves([]);
+      notifyMove('Reposicionamentos salvos. Atualizando árvore...');
+      if (typeof window !== 'undefined') window.setTimeout(() => window.location.reload(), 450);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Falha desconhecida.';
-      notifyMove(`Erro ao mover participante: ${message}`);
+      notifyMove(`Erro ao salvar reposicionamentos: ${message}`);
     } finally {
-      setMoving(false);
+      setSavingMoves(false);
     }
   };
 
+  const discardPendingMoves = () => {
+    if (savingMoves) return;
+    setBoardPositions(positions);
+    setPendingMoves([]);
+    notifyMove('Alterações pendentes descartadas.');
+  };
+
   const handleNodePointerDown = (event: ReactPointerEvent<HTMLButtonElement>, position: BoardPosition) => {
-    if (!canReorder || moving) return;
+    if (!canReorder || savingMoves) return;
     if (position.position_index === 0 || position.status !== 'occupied' || !position.user_id) return;
 
     dragSourceRef.current = position;
@@ -160,7 +202,7 @@ export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, onSel
       if (distance > 6) dragMovedRef.current = true;
     }
 
-    const hoveredPosition = getPositionAtPointer(positions, event.clientX, event.clientY);
+    const hoveredPosition = getPositionAtPointer(boardPositions, event.clientX, event.clientY);
     setDropTargetIndex(hoveredPosition?.position_index ?? null);
   };
 
@@ -174,7 +216,7 @@ export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, onSel
     }
 
     const wasDragged = dragMovedRef.current;
-    const target = getPositionAtPointer(positions, event.clientX, event.clientY);
+    const target = getPositionAtPointer(boardPositions, event.clientX, event.clientY);
     if (wasDragged) {
       suppressNextClickRef.current = true;
       if (typeof window !== 'undefined') {
@@ -186,7 +228,7 @@ export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, onSel
 
     clearDragState();
     if (wasDragged && target && target.position_index !== source.position_index) {
-      void moveParticipant(source, target);
+      moveParticipant(source, target);
     }
   };
 
@@ -197,16 +239,10 @@ export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, onSel
   return (
     <section
       className="arboris-tree-board"
-      aria-label={`Explorador da árvore ${treeCode || ''}`}
-      onWheel={preventTreeScroll}
-      onTouchMove={preventTreeScroll}
+      aria-label={`Visualização da árvore ${treeCode || ''}`}
     >
       <img className="arboris-tree-art" src={treeScene} width="1024" height="1536" alt="" decoding="async" draggable={false} />
       <div className="arboris-tree-brand"><span><Trees aria-hidden="true" /></span><strong>ARBORIS</strong></div>
-      <header className="arboris-tree-heading">
-        <h3>Explorador da Árvore: <strong>{treeCode || 'Árvore comunitária'}</strong>{treeLabel && <> · {treeLabel}</>}</h3>
-        <span>15<br />Posições</span>
-      </header>
       <svg className="arboris-tree-connections" viewBox="0 0 1000 1500" aria-hidden="true">
         {connections.map(([from, to]) => {
           const a = layout[from], b = layout[to];
@@ -214,7 +250,7 @@ export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, onSel
           return <g key={`${from}-${to}`}><path className="arboris-branch-glow" d={path} /><path className="arboris-branch-core" d={path} /></g>;
         })}
       </svg>
-      {positions.map(position => {
+      {boardPositions.map(position => {
         const point = layout[position.position_index];
         if (!point) return null;
         const root = position.position_index === 0;
@@ -226,12 +262,12 @@ export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, onSel
         const statusLabel = reserved ? 'Reservado' : occupied ? 'Ativado' : 'Vaga aberta';
         const name = occupied ? position.full_name || position.username || 'Participante' : 'Livre';
         const mine = currentUserId !== undefined && position.user_id === currentUserId;
-        const draggableNode = canReorder && occupied && !root && position.user_id !== null && !moving;
+        const draggableNode = canReorder && occupied && !root && position.user_id !== null && !savingMoves;
         const isDragging = draggingIndex === position.position_index;
         const isDropTarget = dropTargetIndex === position.position_index && draggingIndex !== null;
         return (
           <button key={position.position_index} type="button"
-            className={`arboris-tree-node arboris-tree-node--${state}${root ? ' arboris-tree-node--root' : ` arboris-tree-node--leaf arboris-tree-node--leaf-${leafDirection}`}${mine ? ' arboris-tree-node--mine' : ''}${draggableNode ? ' arboris-tree-node--draggable' : ''}${isDragging ? ' arboris-tree-node--dragging' : ''}${isDropTarget ? ' arboris-tree-node--drop-target' : ''}${moving ? ' arboris-tree-node--locked' : ''}`}
+            className={`arboris-tree-node arboris-tree-node--${state}${root ? ' arboris-tree-node--root' : ` arboris-tree-node--leaf arboris-tree-node--leaf-${leafDirection}`}${mine ? ' arboris-tree-node--mine' : ''}${draggableNode ? ' arboris-tree-node--draggable' : ''}${isDragging ? ' arboris-tree-node--dragging' : ''}${isDropTarget ? ' arboris-tree-node--drop-target' : ''}${savingMoves ? ' arboris-tree-node--locked' : ''}`}
             style={{ left: `${point.x}%`, top: `${point.y}%`, width: `${point.size}%` }}
             data-position={position.position_index}
             data-arboris-position="true"
@@ -261,9 +297,22 @@ export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, onSel
           </button>
         );
       })}
-      {canReorder && (
+      {canReorder && pendingMoves.length === 0 && (
         <div className="arboris-tree-reorder-hint" aria-hidden="true">
           Arraste um participante ocupado para reorganizar a árvore.
+        </div>
+      )}
+      {pendingMoves.length > 0 && (
+        <div className="arboris-tree-savebar" role="status">
+          <span>{pendingMoves.length} alteração(ões) pendente(s)</span>
+          <button type="button" onClick={discardPendingMoves} disabled={savingMoves}>
+            <X aria-hidden="true" />
+            Descartar
+          </button>
+          <button type="button" onClick={savePendingMoves} disabled={savingMoves} className="arboris-tree-savebar-primary">
+            {savingMoves ? <RefreshCw aria-hidden="true" /> : <Save aria-hidden="true" />}
+            Salvar alterações
+          </button>
         </div>
       )}
       {moveMessage && <div className="arboris-tree-toast" role="status">{moveMessage}</div>}

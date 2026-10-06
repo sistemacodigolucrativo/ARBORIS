@@ -24,56 +24,61 @@ interface PublicLandingPageProps {
   } | null;
 }
 
-const institutionalSections = [
+const benefitCards = [
   {
-    icon: Trees,
-    title: 'Arborização comunitária',
-    text: 'O ARBORIS é uma iniciativa comunitária de arborização e reflorestamento. A proposta é reunir participantes em torno de uma causa ambiental, com organização, clareza e participação coletiva.'
+    icon: Sprout,
+    title: 'Plante árvores com a comunidade',
+    text: 'A participação gira em torno da arborização e do reflorestamento, com acompanhamento coletivo da comunidade.'
   },
   {
     icon: HeartHandshake,
-    title: 'Ajuda mútua entre participantes',
-    text: 'A comunidade funciona por ajuda mútua: os próprios participantes se apoiam diretamente, conforme as regras de participação. O sistema organiza informações, convites e registros, sem prometer retorno financeiro.'
+    title: 'Receba apoio direto de membros',
+    text: 'Participantes podem realizar doações diretamente entre si, sem atravessadores e sem dinheiro passando pelo ARBORIS.'
+  },
+  {
+    icon: Trees,
+    title: 'Entre enquanto há árvore ativa',
+    text: 'Cada árvore possui vagas limitadas. O acesso por convite cria curiosidade, senso de oportunidade e movimento dentro da comunidade.'
   }
 ];
 
 const responsibilityPoints = [
-  'Eventuais doações ou transferências são realizadas diretamente entre os próprios participantes.',
-  'Não existem atravessadores nas movimentações realizadas entre membros.',
-  'Qualquer movimentação financeira entre participantes é de responsabilidade exclusiva das partes envolvidas.',
+  'Doações ou transferências, quando ocorrerem, são realizadas diretamente entre participantes.',
   'O ARBORIS não recebe, coleta, intermedeia, custodia ou administra valores financeiros.',
-  'O ARBORIS não executa nem garante transações realizadas entre participantes.'
+  'Não existe promessa de doação, lucro, rendimento, renda passiva ou retorno garantido.',
+  'Qualquer movimentação entre membros é de responsabilidade exclusiva das partes envolvidas.',
+  'A causa ambiental e a ajuda mútua devem caminhar juntas na comunicação pública.'
 ];
 
 const notPromised = [
-  'investimento financeiro',
-  'lucro ou rendimento garantido',
-  'renda passiva',
+  'lucro garantido',
   'retorno automático',
+  'renda passiva',
+  'pagamento pela plataforma',
   'custódia de valores',
-  'intermediação de pagamentos'
+  'intermediação financeira'
 ];
 
 const faqs = [
   {
-    q: 'O que é o ARBORIS?',
-    a: 'O ARBORIS é uma iniciativa comunitária de arborização e reflorestamento baseada em ajuda mútua entre participantes. A comunicação pública do projeto deve explicar a causa, a participação comunitária e as responsabilidades de forma simples.'
+    q: 'Posso receber doações por plantar árvores?',
+    a: 'Sim, dentro da lógica de ajuda mútua entre participantes: membros podem apoiar outros membros diretamente. Isso não é pagamento do ARBORIS, não é salário, não é investimento e não é promessa de recebimento garantido.'
   },
   {
-    q: 'Como funciona a ajuda mútua?',
-    a: 'A ajuda mútua acontece diretamente entre participantes. Quando houver doação ou transferência, a relação é entre as partes envolvidas, sem recebimento, custódia ou intermediação financeira pelo ARBORIS.'
+    q: 'Quem faz as doações?',
+    a: 'As doações ou transferências são feitas diretamente entre os próprios participantes, quando houver acordo entre as partes envolvidas. O ARBORIS não recebe, intermedeia, custodia nem administra esses valores.'
   },
   {
-    q: 'O ARBORIS recebe ou administra dinheiro dos participantes?',
-    a: 'Não. O ARBORIS não recebe, coleta, guarda, intermedeia, administra ou executa valores financeiros. Qualquer movimentação feita entre membros é responsabilidade exclusiva dos próprios participantes.'
+    q: 'O ARBORIS paga para plantar árvores?',
+    a: 'Não. O ARBORIS organiza a comunidade, os convites, os registros e a apresentação da iniciativa. Qualquer apoio financeiro ocorre diretamente entre membros, por responsabilidade dos próprios participantes.'
   },
   {
-    q: 'O ARBORIS é investimento ou promessa de ganho?',
-    a: 'Não. O projeto não deve ser apresentado como investimento, aplicação financeira, renda passiva, lucro garantido ou retorno automático. A participação depende das regras comunitárias e não representa promessa financeira.'
+    q: 'Isso é investimento ou renda passiva?',
+    a: 'Não. O projeto não deve ser apresentado como investimento, aplicação financeira, lucro garantido, renda passiva ou retorno automático. A chamada correta é ajuda mútua comunitária ligada ao plantio de árvores.'
   },
   {
-    q: 'Qual é o papel do sistema?',
-    a: 'O sistema serve para apresentar a comunidade, organizar informações, registrar convites e facilitar o acompanhamento da participação. Ele não substitui a responsabilidade individual dos participantes nas relações realizadas entre si.'
+    q: 'Por que entrar por convite?',
+    a: 'O convite organiza a entrada na comunidade e mantém a participação vinculada a uma árvore ativa. Isso cria rastreabilidade e evita uma entrada solta, sem contexto comunitário.'
   }
 ];
 
@@ -108,7 +113,7 @@ export const PublicLandingPage: React.FC<PublicLandingPageProps> = ({
                 ARBORIS
               </span>
               <span className="hidden sm:inline-block ml-2 text-[10px] uppercase font-mono tracking-widest text-slate-400 bg-slate-800/60 px-2 py-0.5 rounded-full border border-slate-700/60">
-                Arborização · Ajuda mútua
+                Doações diretas · Plantio de árvores
               </span>
             </div>
           </div>
@@ -156,26 +161,41 @@ export const PublicLandingPage: React.FC<PublicLandingPageProps> = ({
               onClick={onOpenEntry}
               className="px-3 py-1 bg-emerald-500 text-slate-950 font-bold text-xs rounded-lg hover:bg-emerald-400 transition-all shadow"
             >
-              Continuar com este convite
+              Entrar por este convite
             </button>
           </div>
         </div>
       )}
 
       <main className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-20 space-y-16 sm:space-y-20">
-        <section className="text-center space-y-6 max-w-3xl mx-auto">
+        <section className="text-center space-y-6 max-w-4xl mx-auto">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold uppercase tracking-wider shadow-inner">
             <HeartHandshake className="w-3.5 h-3.5" aria-hidden="true" />
-            <span>Sistema filantrópico de ajuda mútua</span>
+            <span>Ajuda mútua direta entre participantes</span>
           </div>
 
-          <h1 className="text-3xl sm:text-5xl md:text-6xl font-black tracking-tight leading-tight sm:leading-none text-slate-100">
-            Arborização comunitária com participação organizada
+          <h1 className="text-4xl sm:text-6xl md:text-7xl font-black tracking-tight leading-tight sm:leading-none text-slate-100">
+            Receba doações por plantar árvores
           </h1>
 
-          <p className="text-slate-300 text-sm sm:text-lg leading-relaxed max-w-2xl mx-auto">
-            O ARBORIS conecta pessoas em uma iniciativa de arborização e reflorestamento baseada em ajuda mútua. A participação é comunitária, direta entre membros e sem intermediação financeira pela plataforma.
+          <p className="text-slate-300 text-base sm:text-xl leading-relaxed max-w-3xl mx-auto">
+            Entre em uma comunidade onde plantar árvores, participar de ciclos ativos e receber apoio direto de outros membros fazem parte da mesma experiência. O funcionamento completo é apresentado por convite, sem expor a dinâmica interna antes da entrada.
           </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-3xl mx-auto text-left pt-2">
+            <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/10 p-4">
+              <div className="text-emerald-300 font-bold text-sm">Plante</div>
+              <div className="text-slate-400 text-xs mt-1 leading-relaxed">Participe de uma causa ambiental com apelo simples e fácil de entender.</div>
+            </div>
+            <div className="rounded-2xl border border-teal-500/25 bg-teal-500/10 p-4">
+              <div className="text-teal-300 font-bold text-sm">Receba apoio</div>
+              <div className="text-slate-400 text-xs mt-1 leading-relaxed">Doações podem acontecer diretamente entre membros da comunidade.</div>
+            </div>
+            <div className="rounded-2xl border border-amber-500/25 bg-amber-500/10 p-4">
+              <div className="text-amber-300 font-bold text-sm">Entre por convite</div>
+              <div className="text-slate-400 text-xs mt-1 leading-relaxed">Cada árvore tem vagas limitadas e a participação começa por indicação.</div>
+            </div>
+          </div>
 
           <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
             <button
@@ -184,7 +204,7 @@ export const PublicLandingPage: React.FC<PublicLandingPageProps> = ({
               className="w-full sm:w-auto px-6 py-3.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-extrabold text-sm sm:text-base rounded-2xl shadow-xl shadow-emerald-500/25 transition-all flex items-center justify-center gap-2.5 active:scale-[0.98]"
             >
               <Sprout className="w-5 h-5" aria-hidden="true" />
-              <span>Participar com convite</span>
+              <span>Entrar com convite</span>
               <ArrowRight className="w-4 h-4" aria-hidden="true" />
             </button>
             <button
@@ -193,36 +213,36 @@ export const PublicLandingPage: React.FC<PublicLandingPageProps> = ({
               className="w-full sm:w-auto px-6 py-3.5 bg-slate-900/90 hover:bg-slate-800/90 border border-slate-700/80 text-slate-200 font-semibold text-sm sm:text-base rounded-2xl shadow-md transition-all flex items-center justify-center gap-2.5"
             >
               <Trees className="w-5 h-5 text-emerald-400" aria-hidden="true" />
-              <span>Conhecer a árvore</span>
+              <span>Ver como a árvore aparece</span>
             </button>
           </div>
 
-          <div className="mt-8 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-100 text-xs sm:text-sm text-left sm:text-center space-y-2 max-w-2xl mx-auto">
+          <div className="mt-8 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-100 text-xs sm:text-sm text-left sm:text-center space-y-2 max-w-3xl mx-auto">
             <div className="font-bold flex items-center justify-center gap-1.5 text-amber-300">
               <AlertTriangle className="w-4 h-4" aria-hidden="true" />
-              <span>Participação com responsabilidade</span>
+              <span>Doações diretas, sem promessa financeira</span>
             </div>
             <p className="text-[11px] sm:text-xs text-amber-100/80 leading-relaxed">
-              O ARBORIS não é investimento, aplicação financeira, promessa de lucro, renda passiva ou garantia de retorno. O projeto deve ser entendido como uma comunidade de ajuda mútua ligada à arborização e ao reflorestamento.
+              O ARBORIS não paga participantes, não recebe dinheiro, não intermedeia valores e não garante doações. Qualquer apoio financeiro ocorre diretamente entre membros e depende exclusivamente das partes envolvidas.
             </p>
           </div>
         </section>
 
-        <section className="space-y-8" aria-label="Apresentação institucional do ARBORIS">
+        <section className="space-y-8" aria-label="Por que participar do ARBORIS">
           <div className="text-center space-y-2 max-w-2xl mx-auto">
             <div className="text-xs uppercase font-mono tracking-widest text-emerald-400">
-              Apresentação institucional
+              Por que isso chama atenção
             </div>
             <h2 className="text-2xl sm:text-4xl font-extrabold text-slate-100">
-              O essencial em duas ideias
+              A causa é ambiental. O gatilho é participação com possibilidade de apoio.
             </h2>
             <p className="text-slate-400 text-xs sm:text-sm leading-relaxed">
-              A explicação pública do ARBORIS deve ser direta: causa ambiental e participação comunitária por ajuda mútua.
+              A comunicação pública deve despertar curiosidade sem explicar toda a mecânica interna da árvore. O convite apresenta a próxima etapa.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-            {institutionalSections.map((item) => {
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+            {benefitCards.map((item) => {
               const Icon = item.icon;
               return (
                 <article key={item.title} className="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 space-y-4 hover:border-emerald-500/40 transition-all">
@@ -237,19 +257,19 @@ export const PublicLandingPage: React.FC<PublicLandingPageProps> = ({
           </div>
         </section>
 
-        <section className="grid grid-cols-1 lg:grid-cols-[1.15fr_0.85fr] gap-6 items-stretch" aria-label="Ajuda mútua e responsabilidade financeira">
+        <section className="grid grid-cols-1 lg:grid-cols-[1.15fr_0.85fr] gap-6 items-stretch" aria-label="Doações diretas e responsabilidade financeira">
           <div className="bg-gradient-to-br from-emerald-950/80 via-slate-900 to-slate-950 border border-emerald-500/20 rounded-3xl p-6 sm:p-8 space-y-5 relative overflow-hidden">
             <div className="absolute -right-12 -top-12 w-48 h-48 bg-emerald-400/10 rounded-full blur-3xl" />
             <div className="relative z-10 space-y-4">
               <div className="inline-flex items-center gap-2 text-xs uppercase tracking-widest font-mono text-emerald-300">
                 <Shield className="w-4 h-4" aria-hidden="true" />
-                Ajuda mútua e movimentações
+                Ajuda mútua e doações
               </div>
               <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-100">
-                Relações diretas entre participantes
+                A doação é direta entre participantes
               </h2>
               <p className="text-sm text-slate-300 leading-relaxed">
-                O ARBORIS funciona como um sistema filantrópico de ajuda mútua entre participantes. Quando houver apoio financeiro, doação ou transferência, a movimentação acontece diretamente entre os membros envolvidos.
+                O ARBORIS funciona como uma comunidade de arborização com ajuda mútua. Quando houver doação ou transferência, ela acontece diretamente entre os membros envolvidos.
               </p>
               <div className="space-y-3">
                 {responsibilityPoints.map((item) => (
@@ -265,13 +285,13 @@ export const PublicLandingPage: React.FC<PublicLandingPageProps> = ({
           <div className="bg-slate-900/70 border border-slate-800 rounded-3xl p-6 sm:p-8 space-y-5">
             <div className="inline-flex items-center gap-2 text-xs uppercase tracking-widest font-mono text-amber-300">
               <AlertTriangle className="w-4 h-4" aria-hidden="true" />
-              O que não é
+              Limite da promessa
             </div>
             <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-100">
-              Sem promessa financeira
+              Forte na chamada, claro na responsabilidade
             </h2>
             <p className="text-sm text-slate-400 leading-relaxed">
-              A comunicação pública deve evitar termos que façam o participante entender o ARBORIS como produto financeiro ou promessa de resultado.
+              A página pode chamar atenção pelo desejo de receber doações, mas não pode vender garantia de resultado financeiro.
             </p>
             <div className="flex flex-wrap gap-2">
               {notPromised.map((item) => (
@@ -289,7 +309,7 @@ export const PublicLandingPage: React.FC<PublicLandingPageProps> = ({
               <Users className="w-4 h-4" aria-hidden="true" />
               Perguntas essenciais
             </div>
-            <h2 className="text-2xl sm:text-4xl font-extrabold text-slate-100">Entendimento público</h2>
+            <h2 className="text-2xl sm:text-4xl font-extrabold text-slate-100">Antes de entrar</h2>
           </div>
 
           <div className="space-y-3">
@@ -319,10 +339,10 @@ export const PublicLandingPage: React.FC<PublicLandingPageProps> = ({
             <Sprout className="w-6 h-6" aria-hidden="true" />
           </div>
           <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-100">
-            Participar da comunidade ARBORIS
+            Quer entrar em uma árvore ativa?
           </h2>
           <p className="text-sm text-slate-300 max-w-2xl mx-auto leading-relaxed">
-            Continue apenas se você entende que o ARBORIS é uma comunidade de arborização e ajuda mútua, sem promessa de retorno financeiro e sem intermediação de valores pela plataforma.
+            Entre apenas se você entende que o ARBORIS une plantio de árvores, ajuda mútua e doações diretas entre participantes, sem garantia de recebimento e sem intermediação financeira da plataforma.
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-3 pt-2">
             <button
@@ -330,7 +350,7 @@ export const PublicLandingPage: React.FC<PublicLandingPageProps> = ({
               onClick={onOpenEntry}
               className="px-6 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold flex items-center justify-center gap-2"
             >
-              <span>Continuar com convite</span>
+              <span>Entrar com convite</span>
               <ArrowRight className="w-4 h-4" aria-hidden="true" />
             </button>
             {onOpenDirectLogin && (

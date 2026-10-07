@@ -9,7 +9,7 @@
   background: #20a5ef;
   color: #f8fafc;
   touch-action: pan-y;
-  overscroll-behavior: contain;
+  overscroll-behavior: auto;
   user-select: none;
   -webkit-user-select: none;
 }
@@ -60,12 +60,14 @@
 }
 .arboris-tree-member-name {
   display: block;
+  flex: 1 1 0%;
   min-width: 0;
   overflow: hidden;
   color: #f1f5f9;
   font-size: 3.1cqw;
   font-weight: 800;
   line-height: 1.15;
+  text-align: center;
   text-overflow: ellipsis;
   white-space: nowrap;
 }

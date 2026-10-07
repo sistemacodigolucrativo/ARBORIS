@@ -1483,7 +1483,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
           Dinâmica Estrutural 1–2–4–8 da Árvore Arboris
         </h2>
         <p className="text-slate-300 leading-relaxed text-[11px] text-balance">
-          O ÁRBORIS organiza participantes em árvores de 15 posições. A ativação exige doação Pix ao Tronco e confirmação manual. A progressão depende de novas entradas e ativações; não há garantia de concluir um ciclo ou receber doações.
+          Este manual resume o funcionamento atual do ÁRBORIS. Confira os valores e os dados do destinatário exibidos em cada árvore antes de agir. A progressão depende de novas entradas e ativações; não há garantia de concluir um ciclo ou receber doações futuras.
         </p>
       </div>
 
@@ -1513,13 +1513,19 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
           <div className="flex items-start gap-2 text-emerald-300">
             <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
             <span className="text-balance">
-              <strong>Cadastro e reserva:</strong> O cadastro concede o dobro das sementes exigidas pela árvore. Metade é consumida na reserva; a outra metade é debitada na ativação e creditada ao Tronco como registro interno.
+              <strong>Cadastro e reserva:</strong> O saldo inicial segue a configuração da árvore. Reservar uma vaga consome do saldo individual a quantidade de sementes exigida e credita essa mesma quantidade à bag global de plantio. A reserva ocupa a vaga, mas não a ativa.
             </span>
           </div>
           <div className="flex items-start gap-2 text-rose-300">
             <span className="font-bold shrink-0">❌</span>
             <span className="text-balance">
-              <strong>Doação exigida para ativação:</strong> O Pix é enviado diretamente ao Tronco. Pela regra informada pelo projeto, uma árvore de 25 sementes exige R$ 25. As sementes internas não são saldo bancário nem comprovante de plantio.
+              <strong>Doação exigida para ativação:</strong> O Pix é uma transferência real, feita fora do aplicativo diretamente ao Tronco indicado. Confira o valor e os dados na tela de ativação. O sistema não verifica a transferência bancária; as sementes internas não são dinheiro nem comprovante de plantio.
+            </span>
+          </div>
+          <div className="flex items-start gap-2 text-sky-200">
+            <CheckCircle2 className="w-4 h-4 text-sky-300 shrink-0 mt-0.5" />
+            <span className="text-balance">
+              <strong>Ativação:</strong> depois de realizar a transferência, o participante envia a solicitação pelo aplicativo. O Tronco confirma manualmente; quando aprovada, o sistema transfere as sementes internas exigidas para a carteira do Tronco e ativa a posição.
             </span>
           </div>
         </div>
@@ -1592,7 +1598,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
             <div>
               <div className="font-bold text-emerald-300 text-xs">Nível 3 · 8 Vagas Externas de Entrada (Posições 7 a 14)</div>
               <div className="text-[11px] text-slate-300 mt-0.5 leading-relaxed text-balance">
-                <strong>O ponto de entrada exclusivo:</strong> Todas as pessoas recém-chegadas entram aqui ao transferir suas 25 sementes.
+                <strong>O ponto de entrada:</strong> novas reservas ocupam uma das posições externas disponíveis, de 7 a 14. A quantidade de sementes é a exigida pela árvore e aparece no aplicativo.
               </div>
             </div>
           </div>
@@ -1616,7 +1622,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
             • Novos participantes entram <strong>EXCLUSIVAMENTE nas 8 posições externas: 7, 8, 9, 10, 11, 12, 13 e 14</strong>.
           </p>
           <p className="text-balance text-amber-300 font-medium">
-            • A reserva ocupa a primeira Folha disponível, das posições 7 a 14. A ativação é uma etapa posterior, sujeita à confirmação da doação.
+            • A reserva ocupa a primeira Folha disponível, das posições 7 a 14. A ativação é uma etapa posterior, sujeita à confirmação manual da solicitação pelo Tronco.
           </p>
         </div>
       </div>
@@ -1670,6 +1676,20 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
         </div>
       </div>
 
+      {/* Bag global de plantio */}
+      <div className="bg-slate-900 border border-emerald-800/60 rounded-2xl p-4 space-y-2">
+        <div className="flex items-center gap-2 text-emerald-300 font-bold text-xs">
+          <Sprout className="w-4 h-4 shrink-0" />
+          <span>Bag global de plantio</span>
+        </div>
+        <p className="text-[11px] text-slate-300 leading-relaxed text-balance">
+          As sementes consumidas nas reservas se acumulam na bag coletiva do sistema, separada da carteira de cada membro. A barra do painel mostra o saldo em relação à meta atual, que é de 500 sementes na configuração padrão.
+        </p>
+        <p className="text-[11px] text-slate-300 leading-relaxed text-balance">
+          Ao atingir a meta, o sistema pode criar um sorteio entre participantes elegíveis com posição ocupada em árvores ativas. Se ainda não houver participantes elegíveis suficientes, o saldo permanece na bag até que o sorteio possa ser realizado. A seleção não garante recebimento de doações nem a realização de um plantio.
+        </p>
+      </div>
+
       {/* A Jornada de Progressão do Membro */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
         <div className="flex items-center gap-1.5 text-xs font-bold text-slate-200">
@@ -1683,7 +1703,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
               1
             </span>
             <span className="text-slate-300 text-balance">
-              <strong>Entrada no Nível 3:</strong> Você reserva uma das 8 Folhas (7 a 14), faz a doação ao Tronco e solicita a ativação.
+              <strong>Entrada no Nível 3:</strong> você reserva uma das 8 Folhas (posições 7 a 14). Depois, se realizar a doação Pix ao Tronco, solicita a ativação pelo aplicativo.
             </span>
           </div>
 
@@ -1750,7 +1770,14 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
           <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
             <strong className="text-slate-100 block">O que acontece quando o Tronco conclui?</strong>
             <span className="text-slate-400 text-balance block leading-relaxed">
-              O Tronco deixa aquela árvore. Os outros 14 participantes formam duas novas árvores, com 7 posições ocupadas e 8 vagas em cada uma. Uma eventual reentrada depende das condições de acesso e reserva; não é automática.
+              O Tronco antigo sai do tabuleiro. Os outros 14 participantes são distribuídos pelas regras 1–2–4–8 em duas novas árvores, cada uma com 7 posições ocupadas e 8 vagas externas. O Tronco antigo não entra automaticamente nas árvores filhas; uma nova entrada depende das regras e de vaga disponível.
+            </span>
+          </div>
+
+          <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
+            <strong className="text-slate-100 block">Como recupero minha senha?</strong>
+            <span className="text-slate-400 text-balance block leading-relaxed">
+              Na tela de acesso, use “Esqueci minha senha” e informe seu usuário, o PIN de recuperação definido no cadastro e uma nova senha. O PIN tem de 4 a 12 números; a senha deve ter de 12 a 128 caracteres. Não é enviado um link por e-mail.
             </span>
           </div>
         </div>
@@ -1763,8 +1790,14 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
   // ==========================================
   if (showDirectLoginModal) {
     return <main className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4">
-      <form onSubmit={handleLogin} className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
-        <h1 className="font-bold">Entrar na comunidade</h1>
+      <form onSubmit={handleLogin} className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 shadow-xl">
+        <div className="flex flex-col items-center gap-2 border-b border-slate-800 pb-4 text-center">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-600/20 border border-emerald-500/40 flex items-center justify-center text-emerald-300 shadow-sm">
+            <Trees className="w-7 h-7" aria-hidden="true" />
+          </div>
+          <span className="text-sm font-black tracking-[0.2em] text-emerald-100">ÁRBORIS</span>
+        </div>
+        <h1 className="text-center font-bold">Entrar na comunidade</h1>
         <label className="block text-sm">Usuário<input required autoComplete="username" value={loginUsername} onChange={e => setLoginUsername(e.target.value)} className="block w-full mt-1 bg-slate-950 border border-slate-700 rounded-xl p-3" /></label>
         <label className="block text-sm">Senha<input required type="password" autoComplete="current-password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} className="block w-full mt-1 bg-slate-950 border border-slate-700 rounded-xl p-3" /></label>
         {loginError && <p role="alert" className="text-sm text-amber-300">{loginError}</p>}
@@ -1980,7 +2013,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                 </label>
                 {/* Sementes box 100% centered */}
                 <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 text-[10px] text-slate-300 text-center leading-relaxed">
-                  🌱 Você receberá <strong>1 pacote com 25 sementes</strong> para reservar sua vaga e mais <strong>25 sementes</strong> disponíveis para envio posterior ao tronco.
+                  🌱 O cadastro concede as sementes previstas para esta árvore: uma parte para reservar a vaga e o saldo restante para a etapa de ativação.
                 </div>
 
                 <button
@@ -2046,9 +2079,9 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
         
         {loadError && <div role="alert" className="p-4 text-sm text-rose-300">{loadError}<button onClick={() => fetchState(true)} className="block underline">Tentar novamente</button></div>}
         {/* Top App Bar & Navigation */}
-        {currentUser && (
-          <div className={`flex items-center p-3 text-xs ${currentView === 'member' ? 'justify-end' : 'justify-between'}`}>
-            {currentView !== 'member' && <span>@{currentUser.username}</span>}
+        {currentUser && currentView !== 'member' && (
+          <div className="flex items-center justify-between p-3 text-xs">
+            <span>@{currentUser.username}</span>
             <button onClick={handleLogout} className="underline">Sair</button>
           </div>
         )}
@@ -2056,11 +2089,16 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-xl bg-emerald-600/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 font-bold text-sm shadow-sm">
-                🌲
+                <Trees className="w-5 h-5" aria-hidden="true" />
               </div>
               <div>
-                <span className="font-bold text-slate-100 text-sm tracking-wide block leading-none">ARBORIS</span>
+                <span className="font-bold text-slate-100 text-sm tracking-wide block leading-none">ÁRBORIS</span>
               </div>
+              {currentView === 'member' && currentUser && (
+                <button type="button" onClick={handleLogout} className="ml-1 rounded-lg border border-slate-700 bg-slate-800 px-2.5 py-1.5 text-[11px] font-semibold text-slate-300 transition hover:bg-slate-700">
+                  Sair
+                </button>
+              )}
             </div>
 
             <div className="flex items-center gap-1.5">
@@ -2118,22 +2156,24 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                 </>
               )}
 
-              <button
-                onClick={() => {
-                  if (currentUserPixLock) {
-                    enforceTroncoPixLock();
-                    return;
-                  }
-                  setShowLandingPage(false);
-                  setIsLocked(false);
-                  setCurrentView('public');
-                }}
-                title="Regras e dinâmica do jogo"
-                className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-teal-300 text-xs flex items-center gap-1 transition"
-              >
-                <BookOpen className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline text-[10px]">Como Funciona</span>
-              </button>
+              {currentView !== 'member' && (
+                <button
+                  onClick={() => {
+                    if (currentUserPixLock) {
+                      enforceTroncoPixLock();
+                      return;
+                    }
+                    setShowLandingPage(false);
+                    setIsLocked(false);
+                    setCurrentView('public');
+                  }}
+                  title="Regras e dinâmica do jogo"
+                  className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-teal-300 text-xs flex items-center gap-1 transition"
+                >
+                  <BookOpen className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline text-[10px]">Como Funciona</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -2734,6 +2774,18 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
           {/* ======================================================== */}
           {currentView === 'public' && (
             <div className="space-y-4 animate-in fade-in duration-150">
+              <button
+                type="button"
+                onClick={() => {
+                  if (currentUser) setCurrentView(currentUser.role === 'admin' ? 'admin' : 'member');
+                  else setShowLandingPage(true);
+                }}
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-bold text-slate-200 transition hover:bg-slate-800"
+                aria-label="Voltar ao painel anterior"
+              >
+                <span aria-hidden="true">←</span>
+                Voltar
+              </button>
               {renderRulesContent()}
             </div>
           )}

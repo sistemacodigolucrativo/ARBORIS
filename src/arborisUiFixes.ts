@@ -29,8 +29,9 @@ function ensureStyles() {
       width: 2.2rem; height: 2.2rem; border-radius: .75rem;
       border: 1px solid rgb(51 65 85); background: rgb(15 23 42 / .96);
       color: rgb(226 232 240); display: inline-flex; align-items: center; justify-content: center;
-      font-size: .9rem; line-height: 1; cursor: pointer;
+      line-height: 1; cursor: pointer;
     }
+    .arboris-password-toggle svg { width: 1.15rem; height: 1.15rem; stroke: currentColor; }
     .arboris-recovery-trigger {
       width: 100%; border: 1px solid rgb(51 65 85); border-radius: .85rem;
       background: rgb(2 6 23); color: rgb(110 231 183); font-weight: 700;
@@ -51,6 +52,17 @@ function ensureStyles() {
       width: min(94vw, 420px); border: 1px solid rgb(51 65 85); border-radius: 1.1rem;
       background: rgb(15 23 42); color: rgb(241 245 249); padding: 1rem; box-shadow: 0 24px 80px rgb(0 0 0 / .45);
     }
+    .arboris-recovery-brand {
+      display: flex; align-items: center; justify-content: center; gap: .65rem;
+      margin: 0 0 .9rem; padding: 0 0 .85rem; border-bottom: 1px solid rgb(51 65 85);
+      color: rgb(209 250 229); font-size: .82rem; font-weight: 900; letter-spacing: .16em;
+    }
+    .arboris-recovery-brand-mark {
+      width: 2.6rem; height: 2.6rem; border: 1px solid rgb(52 211 153 / .4);
+      border-radius: .85rem; background: rgb(16 185 129 / .14); color: rgb(110 231 183);
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+    .arboris-recovery-brand-mark svg { width: 1.55rem; height: 1.55rem; stroke: currentColor; }
     .arboris-recovery-modal h2 { margin: 0 0 .35rem; font-size: 1rem; font-weight: 800; }
     .arboris-recovery-modal p { margin: 0 0 .85rem; color: rgb(148 163 184); font-size: .78rem; line-height: 1.45; }
     .arboris-recovery-modal label { display: block; margin-top: .7rem; font-size: .75rem; color: rgb(203 213 225); }
@@ -63,11 +75,6 @@ function ensureStyles() {
     .arboris-recovery-actions button[type="submit"] { background: rgb(16 185 129); color: rgb(5 46 22); border-color: rgb(52 211 153); }
     .arboris-recovery-actions button[type="button"] { background: rgb(30 41 59); color: rgb(226 232 240); }
     .arboris-recovery-status { min-height: 1.2rem; margin-top: .65rem; font-size: .75rem; color: rgb(252 211 77); }
-    .arboris-back-button {
-      display: inline-flex; align-items: center; gap: .4rem; margin-bottom: .75rem;
-      border: 1px solid rgb(51 65 85); border-radius: .85rem; background: rgb(15 23 42);
-      color: rgb(226 232 240); padding: .6rem .85rem; font-size: .78rem; font-weight: 800; cursor: pointer;
-    }
     .arboris-centered-notification {
       position: fixed !important; left: 50% !important; top: 50% !important; right: auto !important; bottom: auto !important;
       transform: translate(-50%, -50%) !important; z-index: 9997 !important; width: min(92vw, 420px) !important;
@@ -151,6 +158,17 @@ function ensureRecoveryModal() {
   backdrop.className = 'arboris-recovery-backdrop';
   backdrop.innerHTML = `
     <form class="arboris-recovery-modal" data-arboris-recovery-form="true">
+      <div class="arboris-recovery-brand" role="img" aria-label="ÁRBORIS">
+        <span class="arboris-recovery-brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m17 14 3 3H4l3-3" />
+            <path d="m15 10 3 3H6l3-3" />
+            <path d="m12 3 3 4H9l3-4Z" />
+            <path d="M12 17v5" />
+          </svg>
+        </span>
+        <span>ÁRBORIS</span>
+      </div>
       <h2>Recuperar senha</h2>
       <p>Use o PIN de recuperação criado no cadastro para definir uma nova senha.</p>
       <label>Usuário
@@ -217,21 +235,25 @@ function openRecoveryModal(prefillUsername = '') {
 
 function enhancePasswordInputs(root: ParentNode = document) {
   root.querySelectorAll<HTMLInputElement>('input[type="password"], input[data-arboris-visible-password="true"]').forEach(input => {
-    if (input.closest('[data-arboris-recovery-form]')) return;
     const host = input.parentElement;
     if (!host || host.querySelector('.arboris-password-toggle')) return;
     host.classList.add('arboris-password-host');
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'arboris-password-toggle';
-    button.setAttribute('aria-label', 'Mostrar senha');
-    button.textContent = '👁';
+    const setVisibilityIcon = (visible: boolean) => {
+      button.innerHTML = visible
+        ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m3 3 18 18"/><path d="M10.6 10.6a2 2 0 0 0 2.8 2.8"/><path d="M9.9 5.2A10.4 10.4 0 0 1 12 5c5 0 9.2 3 10 7-.4 1.8-1.4 3.3-2.6 4.5"/><path d="M6.6 6.6C4.2 8 2.7 10 2 12c.8 4 5 7 10 7 1.1 0 2.2-.2 3.2-.6"/></svg>'
+        : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>';
+      button.setAttribute('aria-label', visible ? 'Ocultar senha' : 'Mostrar senha');
+      button.setAttribute('aria-pressed', String(visible));
+    };
+    setVisibilityIcon(false);
     button.addEventListener('click', () => {
       const visible = input.type === 'text';
       input.type = visible ? 'password' : 'text';
       input.dataset.arborisVisiblePassword = visible ? 'false' : 'true';
-      button.setAttribute('aria-label', visible ? 'Mostrar senha' : 'Ocultar senha');
-      button.textContent = visible ? '👁' : '🙈';
+      setVisibilityIcon(!visible);
       input.focus();
     });
     host.appendChild(button);
@@ -279,29 +301,6 @@ function enhanceRegistrationPin(root: ParentNode = document) {
     const passwordHost = passwordInput.closest('label') || passwordInput.parentElement;
     passwordHost?.insertAdjacentElement('afterend', label);
   });
-}
-
-function addBackButtons(root: ParentNode = document) {
-  const text = document.body.textContent || '';
-  if (!text.includes('Manual Oficial da Comunidade')) return;
-  const headings = Array.from(root.querySelectorAll<HTMLElement>('h1,h2,div,span')).filter(el => (el.textContent || '').includes('Manual Oficial da Comunidade'));
-  for (const heading of headings) {
-    const container = heading.closest<HTMLElement>('.space-y-4, .space-y-3, main, section, div');
-    if (!container || container.querySelector('.arboris-back-button')) continue;
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'arboris-back-button';
-    button.textContent = '← Voltar';
-    button.addEventListener('click', () => {
-      const candidates = Array.from(document.querySelectorAll<HTMLButtonElement>('button')).filter(item => {
-        const label = normalizeText(item.textContent || '');
-        return label.includes('arvore') || label.includes('minha arvore');
-      });
-      candidates[0]?.click();
-      if (!candidates.length && history.length > 1) history.back();
-    });
-    container.insertBefore(button, container.firstChild);
-  }
 }
 
 function isAppShellElement(element: HTMLElement) {
@@ -462,7 +461,6 @@ function runEnhancements(root: ParentNode = document) {
   enhancePasswordInputs(root);
   enhanceLoginRecovery(root);
   enhanceRegistrationPin(root);
-  addBackButtons(root);
   // Reserved-card layout is rendered by React. Avoid DOM rewrites that can freeze reserved members.
   filterPositionDropdowns();
   centerNotificationCards();

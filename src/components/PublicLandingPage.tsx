@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   AlertTriangle,
   ArrowRight,
@@ -39,6 +39,12 @@ const highlights = [
     title: 'Proposta de arborização',
     text: 'O projeto propõe ações de plantio. A participação na árvore virtual não comprova que uma árvore foi plantada.'
   }
+];
+
+const illustrativeParticipants = [
+  { name: 'Helena Duarte', city: 'Vale das Nuvens', state: 'SP' },
+  { name: 'Rafael Nogueira', city: 'Jardim do Ipê', state: 'MG' },
+  { name: 'Clara Monteiro', city: 'Porto das Árvores', state: 'PR' }
 ];
 
 const responsibilityPoints = [
@@ -82,6 +88,17 @@ export const PublicLandingPage: React.FC<PublicLandingPageProps> = ({
   referralData
 }) => {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [activeParticipant, setActiveParticipant] = useState(0);
+
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    const intervalId = window.setInterval(() => {
+      setActiveParticipant((current) => (current + 1) % illustrativeParticipants.length);
+    }, 5000);
+
+    return () => window.clearInterval(intervalId);
+  }, []);
 
   const toggleFaq = (index: number) => {
     setOpenFaq(openFaq === index ? null : index);
@@ -194,6 +211,36 @@ export const PublicLandingPage: React.FC<PublicLandingPageProps> = ({
               <span>Visualizar árvore</span>
             </button>
           </div>
+
+          <section
+            className="mx-auto w-full max-w-sm space-y-3 pt-2"
+            aria-label="Exemplo ilustrativo com identidades e localidades fictícias"
+            aria-roledescription="carrossel"
+          >
+            <p className="text-xs font-medium uppercase tracking-wider text-slate-400">
+              Exemplo ilustrativo · identidades fictícias
+            </p>
+            <div
+              className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/70"
+              role="group"
+              aria-label={`${activeParticipant + 1} de ${illustrativeParticipants.length}`}
+              aria-live="off"
+            >
+              <img
+                src="https://images.pexels.com/photos/30716697/pexels-photo-30716697/free-photo-of-cena-urbana-homem-lendo-jornal-em-bicicleta.jpeg?cs=tinysrgb&dpr=1&w=500"
+                alt="Cena urbana com uma pessoa lendo jornal ao lado de uma bicicleta"
+                className="aspect-[4/3] w-full object-cover"
+              />
+              <div className="space-y-1 px-4 py-3 text-center">
+                <h2 className="font-bold text-slate-100">
+                  {illustrativeParticipants[activeParticipant].name}
+                </h2>
+                <p className="text-sm text-slate-400">
+                  {illustrativeParticipants[activeParticipant].city}, {illustrativeParticipants[activeParticipant].state}
+                </p>
+              </div>
+            </div>
+          </section>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-4xl mx-auto text-left pt-4">
             {highlights.map((item) => {

@@ -3,7 +3,7 @@ import type {
   PointerEvent as ReactPointerEvent,
   WheelEvent as ReactWheelEvent
 } from 'react';
-import { Crown, RefreshCw, Save, Trees, X } from 'lucide-react';
+import { Crown, RefreshCw, Save, Sprout, Trees, X } from 'lucide-react';
 import treeScene from '../assets/arboris-tree-scene.webp';
 import { assignPositionDirect } from '../services/directAdminActions';
 import './TreeBoard.css';
@@ -123,20 +123,7 @@ const connections = [
   [5, 11], [5, 12], [6, 13], [6, 14]
 ];
 
-const ARBORIS_UI_STATE_KEY = 'arboris_ui_state_v1';
 const TREE_OVERLAY_SELECTOR = '.arboris-tree-brand, .arboris-tree-heading, .arboris-tree-legend, .arboris-tree-reorder-hint, .arboris-tree-toast, .arboris-tree-template-control, .arboris-tree-savebar';
-
-function isCoordinatorTreeContext() {
-  if (typeof window === 'undefined') return false;
-  try {
-    const raw = window.localStorage.getItem(ARBORIS_UI_STATE_KEY);
-    if (!raw) return false;
-    const state = JSON.parse(raw);
-    return state?.currentView === 'admin' && state?.adminTab === 'global_trees';
-  } catch {
-    return false;
-  }
-}
 
 function getInitialLayoutTemplateId() {
   if (typeof window === 'undefined') return layoutTemplates[0].id;
@@ -162,11 +149,13 @@ function shouldLockTreeScroll(eventTarget: EventTarget | null) {
   return Boolean(eventTarget.closest('.arboris-tree-board'));
 }
 
-export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, onSelect }: {
+export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, memberIdentity, allowReordering = false, onSelect }: {
   positions: BoardPosition[];
   currentUserId?: number;
   treeCode?: string;
   treeLabel?: string;
+  memberIdentity?: { roleLabel: string; name: string; balance: number };
+  allowReordering?: boolean;
   onSelect: (position: BoardPosition) => void;
 }) {
   const boardRef = useRef<HTMLElement | null>(null);
@@ -185,7 +174,7 @@ export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, onSel
   const [layoutTemplateId, setLayoutTemplateId] = useState(getInitialLayoutTemplateId);
   const [templateMenuOpen, setTemplateMenuOpen] = useState(false);
   const [treeScrollLocked, setTreeScrollLocked] = useState(false);
-  const canReorder = isCoordinatorTreeContext();
+  const canReorder = allowReordering;
   const activeTemplate = layoutTemplates.find(template => template.id === layoutTemplateId) || layoutTemplates[0];
   const layout = activeTemplate.points;
 
@@ -212,6 +201,7 @@ export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, onSel
 
   useEffect(() => {
     if (!canReorder || typeof document === 'undefined' || typeof window === 'undefined') {
+      unlockTreeScroll();
       return undefined;
     }
 
@@ -423,7 +413,23 @@ export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, onSel
       onWheel={handleTreeWheel}
     >
       <img className="arboris-tree-art" src={treeScene} width="1024" height="1536" alt="" decoding="async" draggable={false} />
-      <div className="arboris-tree-brand"><span><Trees aria-hidden="true" /></span><strong>{treeLabel || 'ARBORIS'}</strong></div>
+      <div className={`arboris-tree-brand${memberIdentity ? ' arboris-tree-brand--member' : ''}`}>
+        <span><Trees aria-hidden="true" /></span>
+        {memberIdentity ? (
+          <>
+            <div className="arboris-tree-member">
+              <span className="arboris-tree-member-type">{memberIdentity.roleLabel}</span>
+              <strong className="arboris-tree-member-name" title={memberIdentity.name}>{memberIdentity.name}</strong>
+            </div>
+            <div className="arboris-tree-member-balance" aria-label={`Saldo individual: ${memberIdentity.balance} sementes`}>
+              <Sprout aria-hidden="true" />
+              <span>{memberIdentity.balance}<small> sementes</small></span>
+            </div>
+          </>
+        ) : (
+          <strong>{treeLabel || 'ARBORIS'}</strong>
+        )}
+      </div>
       {canReorder && (
         <div className="arboris-tree-template-control">
           <button

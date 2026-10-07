@@ -1076,6 +1076,9 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
   const allActivationRequests: ActivationRequest[] = systemState?.activation_requests || [];
   const plantingBag: PlantingBagView | null = systemState?.planting_bag || null;
   const pendingPlantingAssignments = plantingBag?.assignments.filter(item => item.status === 'pending') || [];
+  const plantingBagBalance = plantingBag?.balance ?? 0;
+  const plantingBagThreshold = plantingBag?.threshold || 500;
+  const plantingBagProgress = Math.min(100, Math.max(0, (plantingBagBalance / plantingBagThreshold) * 100));
 
   // Active member's tree
   const memberTreeId = currentUser?.current_tree_id || (allTrees[0]?.id ?? 1);
@@ -1136,10 +1139,16 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
   // ==========================================
 
   // MODEL 1: ÁRVORE RADIAL ORGÂNICA (Mind Map Circular 360°)
-  const renderModel1Radial = (positionsToRender: Position[], currentUserId?: number) => {
+  const renderModel1Radial = (
+    positionsToRender: Position[],
+    currentUserId?: number,
+    memberIdentity?: { roleLabel: string; name: string; balance: number },
+    allowReordering = false
+  ) => {
     const tree = allTrees.find(item => item.id === positionsToRender[0]?.tree_id);
     return <TreeBoard positions={positionsToRender} currentUserId={currentUserId}
       treeCode={tree?.tree_code} treeLabel={tree ? treeDisplayName(tree) : undefined}
+      memberIdentity={memberIdentity} allowReordering={allowReordering}
       onSelect={setSelectedNode} />;
   };
 
@@ -1440,7 +1449,12 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
     );
   };
 
-  const renderActiveModel = (positionsToRender: Position[], currentUserId?: number) => {
+  const renderActiveModel = (
+    positionsToRender: Position[],
+    currentUserId?: number,
+    memberIdentity?: { roleLabel: string; name: string; balance: number },
+    allowReordering = false
+  ) => {
     switch (selectedTreeModel) {
       case 2:
         return renderModel2MindMap(positionsToRender, currentUserId);
@@ -1450,7 +1464,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
         return renderModel4LotusOrbit(positionsToRender, currentUserId);
       case 1:
       default:
-        return renderModel1Radial(positionsToRender, currentUserId);
+        return renderModel1Radial(positionsToRender, currentUserId, memberIdentity, allowReordering);
     }
   };
 
@@ -2032,7 +2046,12 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
         
         {loadError && <div role="alert" className="p-4 text-sm text-rose-300">{loadError}<button onClick={() => fetchState(true)} className="block underline">Tentar novamente</button></div>}
         {/* Top App Bar & Navigation */}
-        {currentUser && <div className="flex items-center justify-between p-3 text-xs"><span>@{currentUser.username}</span><button onClick={handleLogout} className="underline">Sair</button></div>}
+        {currentUser && (
+          <div className={`flex items-center p-3 text-xs ${currentView === 'member' ? 'justify-end' : 'justify-between'}`}>
+            {currentView !== 'member' && <span>@{currentUser.username}</span>}
+            <button onClick={handleLogout} className="underline">Sair</button>
+          </div>
+        )}
         <header className="member-app-header sticky top-0 z-40 bg-slate-900/95 backdrop-blur border-b border-slate-800 px-4 py-3 space-y-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
@@ -2161,17 +2180,35 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
             </div>
           </div>
 
-          {/* Member Profile Banner without dropdown */}
+          {/* Shared planting bag status; this is a system-wide balance, not the member wallet. */}
           {currentView === 'member' && currentUser && (
-            <div className="flex items-center justify-between bg-slate-950/80 px-3 py-1.5 rounded-xl border border-slate-800 text-[10px]">
-              <div className="flex items-center gap-1.5 truncate">
-                <span className="text-emerald-400 font-bold">Membro:</span>
-                <span className="text-slate-200 font-medium truncate">{currentUser.full_name || currentUser.username}</span>
-                <span className="text-slate-500">·</span>
-                <span className="text-emerald-400 font-mono font-bold flex items-center gap-0.5">
-                  <Sprout className="w-3 h-3" />
-                  <span>{currentUser.balance} sementes</span>
-                </span>
+            <div className="member-system-bag rounded-xl border border-emerald-900/60 bg-slate-950/80 px-3 py-2.5" role="group" aria-label="Bag global do sistema">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-2">
+                  <Sprout className="h-4 w-4 shrink-0 text-emerald-400" aria-hidden="true" />
+                  <div className="min-w-0">
+                    <div className="text-[10px] font-bold text-emerald-300">Bag global do sistema</div>
+                    <div className="truncate text-[9px] text-slate-400">Saldo coletivo · não é a carteira do membro</div>
+                  </div>
+                </div>
+                <div className="shrink-0 text-right font-mono text-[11px] font-bold text-emerald-200">
+                  {plantingBagBalance}
+                  <span className="font-normal text-slate-400">/{plantingBagThreshold} sementes</span>
+                </div>
+              </div>
+              <div
+                className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-800"
+                role="progressbar"
+                aria-label="Progresso da bag global até o próximo ciclo"
+                aria-valuemin={0}
+                aria-valuemax={plantingBagThreshold}
+                aria-valuenow={Math.min(plantingBagBalance, plantingBagThreshold)}
+                aria-valuetext={`${plantingBagBalance} de ${plantingBagThreshold} sementes coletivas`}
+              >
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-300 transition-[width] duration-300"
+                  style={{ width: `${plantingBagProgress}%` }}
+                />
               </div>
             </div>
           )}
@@ -2377,18 +2414,36 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
 
                   {/* RENDER MODEL (Árvore Radial) */}
                   <div className="member-tree-visual">
-                    {renderActiveModel(memberPositions, currentUser.id)}
+                    {selectedTreeModel !== 1 && (
+                      <div className="flex min-w-0 items-center gap-2 border-b border-emerald-900/40 bg-slate-950/80 px-3 py-2.5 text-xs">
+                        <span className="shrink-0 rounded-full border border-emerald-700/60 bg-emerald-950/70 px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-emerald-300">Membro</span>
+                        <span className="min-w-0 flex-1 truncate font-semibold text-slate-100" title={currentUser.full_name || currentUser.username}>
+                          {currentUser.full_name || currentUser.username}
+                        </span>
+                        <span className="flex shrink-0 items-center gap-1 font-mono font-bold text-emerald-300">
+                          <Sprout className="h-3.5 w-3.5" aria-hidden="true" />
+                          {currentUser.balance} <span className="font-sans text-[10px] font-normal text-slate-400">sementes</span>
+                        </span>
+                      </div>
+                    )}
+                    {renderActiveModel(memberPositions, currentUser.id, {
+                      roleLabel: 'Membro',
+                      name: currentUser.full_name || currentUser.username,
+                      balance: currentUser.balance
+                    })}
                   </div>
 
                   {/* If user is already positioned in tree */}
                   {isUserPositioned && (
                     <div className="member-tree-status space-y-2">
-                      <div className="p-3 bg-rose-950/40 border border-rose-500/40 rounded-2xl space-y-2 text-xs">
-                        <div className="flex items-center gap-2">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                          <div>
-                            <span className={`font-bold ${isCurrentUserReserved ? 'text-rose-300' : 'text-emerald-300'}`}>{isCurrentUserReserved ? 'Vaga reservada na árvore:' : 'Vaga ativada na árvore:'}</span>
-                            <span className="text-slate-300 ml-1">
+                      <div className={`member-tree-status-card member-tree-status-card--${isCurrentUserReserved ? 'reserved' : 'active'} min-w-0 rounded-2xl border p-3 sm:p-4 space-y-3 text-xs ${isCurrentUserReserved ? 'bg-rose-950/40 border-rose-500/40' : 'bg-emerald-950/30 border-emerald-500/40'}`}>
+                        <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-start gap-x-2.5">
+                          <CheckCircle2 className={`mt-0.5 h-4 w-4 shrink-0 ${isCurrentUserReserved ? 'text-rose-300' : 'text-emerald-400'}`} />
+                          <div className="min-w-0 space-y-1">
+                            <div className={`break-words font-bold leading-snug ${isCurrentUserReserved ? 'text-rose-200' : 'text-emerald-200'}`}>
+                              {isCurrentUserReserved ? 'Vaga reservada na árvore' : 'Vaga ativada na árvore'}
+                            </div>
+                            <div className="break-words leading-relaxed text-slate-300">
                               Você ocupa a <strong>vaga #{currentUser.current_position_index}</strong> ({
                                 currentUser.current_position_index === 0
                                   ? 'Nível 0 · Tronco'
@@ -2398,16 +2453,16 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                                   ? 'Nível 2 · Sub-ramo'
                                   : 'Nível 3 · Folha Externa'
                               }).
-                            </span>
+                            </div>
                           </div>
                         </div>
 
-                        <div className="space-y-2">
-                          <div className={`font-bold ${isCurrentUserReserved ? 'text-rose-300' : 'text-emerald-300'}`}>{isCurrentUserReserved ? '− 25 Sementes' : '✓ Ativado'}</div>
-                          <div className="text-slate-300">{isCurrentUserReserved ? 'Sua vaga na árvore está reservada. Envie a solicitação Pix para ativar.' : 'Sua vaga está ativada no projeto.'}</div>
-                          <div className="text-[11px] text-slate-400">Saldo disponível: <strong>{currentUser.balance}</strong> sementes.</div>
+                        <div className="min-w-0 space-y-2 break-words">
+                          <div className={`font-bold ${isCurrentUserReserved ? 'text-rose-300' : 'text-emerald-300'}`}>{isCurrentUserReserved ? `− ${memberTree?.token_requirement ?? 25} sementes` : '✓ Vaga ativa'}</div>
+                          <div className="leading-relaxed text-slate-300">{isCurrentUserReserved ? 'Sua vaga está reservada. Envie a solicitação Pix para pedir a ativação.' : 'Sua vaga está ativada no projeto.'}</div>
+                          <div className="text-[11px] leading-relaxed text-slate-400">Saldo disponível: <strong>{currentUser.balance}</strong> sementes.</div>
                           {myPendingActivationRequest && (
-                            <div className="p-2 bg-amber-950/30 border border-amber-800 rounded-xl text-[11px] text-amber-200">
+                            <div className="break-words rounded-xl border border-amber-800 bg-amber-950/30 p-2 text-[11px] leading-relaxed text-amber-200">
                               Aguardando confirmação do tronco para ativar sua posição.
                             </div>
                           )}
@@ -2418,24 +2473,24 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                               className="w-full py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold flex items-center justify-center gap-2"
                             >
                               {activatingTronco ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Sprout className="w-3.5 h-3.5" />}
-                              <span>Ativar 25 sementes via Pix</span>
+                              <span>Ativar {memberTree?.token_requirement ?? 25} sementes via Pix</span>
                             </button>
                           )}
                         </div>
                       </div>
 
                       {/* Contextual Progression Card */}
-                      <div className="p-3 bg-slate-900 border border-slate-800 rounded-2xl space-y-1.5 text-xs">
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-slate-200 flex items-center gap-1.5 text-[11px]">
-                            <TrendingUp className="w-3.5 h-3.5 text-amber-400" />
-                            <span>Sua Progressão na Dinâmica 1–2–4–8</span>
-                          </span>
-                          <span className="text-[10px] font-mono text-slate-400">
+                      <div className="min-w-0 rounded-2xl border border-slate-800 bg-slate-900 p-3 sm:p-4 space-y-3 text-xs">
+                        <div className="grid min-w-0 grid-cols-1 items-start gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+                          <div className="flex min-w-0 items-start gap-2 font-bold text-slate-200">
+                            <TrendingUp className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-400" />
+                            <span className="min-w-0 break-words leading-snug">Sua progressão na dinâmica 1–2–4–8</span>
+                          </div>
+                          <span className="w-fit max-w-full rounded-lg bg-slate-950/70 px-2 py-1 text-[10px] font-mono leading-snug text-slate-300 break-words sm:justify-self-end">
                             Faltam {slotsRemaining} vagas externas
                           </span>
                         </div>
-                        <div className="text-[11px] text-slate-300 leading-relaxed">
+                        <div className="min-w-0 break-words text-[11px] leading-relaxed text-slate-300">
                           {currentUser.current_position_index === 0 && (
                             <span>
                               👑 <strong>Você é o Tronco da Vez:</strong> O ciclo só conclui quando as 15 posições estão ativas, incluindo as 8 Folhas (7 a 14). A divisão depende de novas entradas e ativações.
@@ -2800,7 +2855,12 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                           <span className="text-[10px] text-slate-400 font-mono">15 Posições</span>
                         </div>
                       )}
-                      {renderActiveModel(adminTreePositions)}
+                      {renderActiveModel(
+                        adminTreePositions,
+                        undefined,
+                        undefined,
+                        currentView === 'admin' && adminTab === 'global_trees'
+                      )}
 
                       <details className="arboris-tree-actions p-3 bg-slate-900 border border-slate-800 rounded-2xl space-y-2 text-xs">
                         <summary className="font-bold text-slate-200 flex items-center gap-1.5 cursor-pointer select-none">

@@ -186,8 +186,14 @@
   border-color: rgb(175 198 180 / 14%);
 }
 
-.member-layout-aurora .member-tree-status > div:first-child {
-  background: linear-gradient(145deg, rgb(50 42 52 / 82%), rgb(22 39 40 / 96%)) !important;
+.member-layout-aurora .member-tree-status .member-tree-status-card--reserved {
+  border-color: rgb(239 123 151 / 48%) !important;
+  background: linear-gradient(145deg, rgb(66 39 50 / 94%), rgb(22 39 40 / 96%)) !important;
+}
+
+.member-layout-aurora .member-tree-status .member-tree-status-card--active {
+  border-color: rgb(94 190 143 / 42%) !important;
+  background: linear-gradient(145deg, rgb(28 56 47 / 94%), rgb(17 38 39 / 96%)) !important;
 }
 
 .member-layout-aurora .member-tree-status > div:last-child {

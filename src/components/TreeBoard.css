@@ -42,6 +42,45 @@
   font-size: 4.4cqw;
   letter-spacing: .02em;
 }
+.arboris-tree-brand > strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.arboris-tree-brand--member { gap: 1.8%; padding-right: 2.2%; }
+.arboris-tree-brand--member > span { flex: none; }
+.arboris-tree-member { display: flex; align-items: center; gap: 1.1cqw; flex: 1; min-width: 0; }
+.arboris-tree-member-type {
+  flex: none;
+  border: 1px solid rgb(52 211 153 / 45%);
+  border-radius: 999px;
+  padding: .4cqw 1.2cqw;
+  color: #a7f3d0;
+  font-size: 1.9cqw;
+  font-weight: 800;
+  line-height: 1.1;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.arboris-tree-member-name {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  color: #f1f5f9;
+  font-size: 3.1cqw;
+  font-weight: 800;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.arboris-tree-member-balance {
+  display: flex;
+  align-items: center;
+  gap: .8cqw;
+  flex: none;
+  color: #a7f3d0;
+  font-size: 2.7cqw;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.arboris-tree-member-balance svg { width: 3.1cqw; height: 3.1cqw; color: #34d399; }
+.arboris-tree-member-balance small { color: #b6cedb; font-size: 2.2cqw; font-weight: 600; }
 .arboris-tree-brand > span {
   height: 100%;
   aspect-ratio: 1;

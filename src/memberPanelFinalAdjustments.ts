@@ -18,21 +18,6 @@ function ensureStyles() {
   style.id = FINAL_STYLE_ID;
   style.textContent = `
     .arboris-final-hidden { display: none !important; }
-    .arboris-final-tree-promo-button {
-      border: 1px solid rgb(16 185 129 / .55);
-      border-radius: .75rem;
-      background: rgb(6 78 59 / .45);
-      color: rgb(110 231 183);
-      padding: .35rem .65rem;
-      font-size: .68rem;
-      font-weight: 900;
-      line-height: 1;
-      cursor: pointer;
-    }
-    .arboris-final-tree-promo-button:focus-visible {
-      outline: 2px solid rgb(52 211 153);
-      outline-offset: 2px;
-    }
     .arboris-final-reserved-card {
       margin-top: .75rem !important;
       margin-bottom: .85rem !important;
@@ -97,12 +82,6 @@ function showToast(message: string) {
   (toast as HTMLElement).dataset.hideTimer = String(timer);
 }
 
-function findButtonByText(label: string) {
-  const target = normalizeText(label);
-  return Array.from(document.querySelectorAll<HTMLButtonElement>('button'))
-    .find(button => textOf(button).includes(target));
-}
-
 function findSmallestDivContaining(...needles: string[]) {
   const normalizedNeedles = needles.map(normalizeText);
   return Array.from(document.querySelectorAll<HTMLElement>('div'))
@@ -144,30 +123,6 @@ function rewriteCommunityObjective() {
   card.innerHTML = '💡 <strong>Objetivo Comunitário:</strong> Cada amigo convidado deve informar o <strong>username da pessoa que está no centro da árvore</strong>. Esse username identifica o Tronco atual e direciona a entrada para a base correta da árvore.';
 }
 
-function clickMarketingTab() {
-  const marketingButton = findButtonByText('Divulgação');
-  marketingButton?.click();
-}
-
-function integrateMarketingShortcut() {
-  const treeStatusLine = Array.from(document.querySelectorAll<HTMLElement>('div, span'))
-    .filter(element => {
-      const text = textOf(element);
-      return text.includes('sementes') && text.includes('ciclo #') && !element.querySelector('button');
-    })
-    .sort((a, b) => (a.textContent || '').length - (b.textContent || '').length)[0];
-
-  if (!treeStatusLine || treeStatusLine.dataset.arborisFinalMarketing === 'true') return;
-  treeStatusLine.dataset.arborisFinalMarketing = 'true';
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'arboris-final-tree-promo-button';
-  button.textContent = 'Divulgação';
-  button.addEventListener('click', clickMarketingTab);
-  treeStatusLine.textContent = '';
-  treeStatusLine.appendChild(button);
-}
-
 function findMemberSubNav() {
   return Array.from(document.querySelectorAll<HTMLElement>('div'))
     .filter(div => {
@@ -180,11 +135,6 @@ function findMemberSubNav() {
 
 function consolidateReservedCard() {
   const reservedCard = findSmallestDivContaining('vaga reservada na arvore', 'voce ocupa');
-  const activatedCard = findSmallestDivContaining('vaga ativada na arvore', 'voce ocupa');
-
-  if (activatedCard && !reservedCard) {
-    activatedCard.classList.add('arboris-final-hidden');
-  }
 
   if (!reservedCard) return;
   reservedCard.classList.add('arboris-final-reserved-card');
@@ -260,7 +210,6 @@ function applyFinalMemberAdjustments() {
   ensureStyles();
   replacePlainText();
   rewriteCommunityObjective();
-  integrateMarketingShortcut();
   consolidateReservedCard();
   enhancePixCopyButton();
   annotateWhatsappAction();

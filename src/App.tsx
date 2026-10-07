@@ -2356,7 +2356,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                   {/* If user is already positioned in tree */}
                   {isUserPositioned && (
                     <div className="space-y-2">
-                      <div className="p-3 bg-rose-950/40 border border-rose-500/40 rounded-2xl flex items-center justify-between text-xs">
+                      <div className="p-3 bg-rose-950/40 border border-rose-500/40 rounded-2xl space-y-2 text-xs">
                         <div className="flex items-center gap-2">
                           <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                           <div>
@@ -2374,30 +2374,27 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                             </span>
                           </div>
                         </div>
-                        <span className="text-[10px] font-mono text-rose-300 bg-rose-950 px-2 py-0.5 rounded border border-rose-800 shrink-0">
-                          {isCurrentUserReserved ? 'RESERVADA' : 'ATIVADA'}
-                        </span>
-                      </div>
 
-                      <div className="p-3 bg-slate-900 border border-slate-800 rounded-2xl space-y-2 text-xs">
-                        <div className={`font-bold ${isCurrentUserReserved ? 'text-rose-300' : 'text-emerald-300'}`}>{isCurrentUserReserved ? '− 25 Sementes' : '✓ Ativado'}</div>
-                        <div className="text-slate-300">{isCurrentUserReserved ? 'Sua vaga na árvore está reservada. Envie a solicitação Pix para ativar.' : 'Sua vaga está ativada no projeto.'}</div>
-                        <div className="text-[11px] text-slate-400">Saldo disponível: <strong>{currentUser.balance}</strong> sementes.</div>
-                        {myPendingActivationRequest && (
-                          <div className="p-2 bg-amber-950/30 border border-amber-800 rounded-xl text-[11px] text-amber-200">
-                            Aguardando confirmação do tronco para ativar sua posição.
-                          </div>
-                        )}
-                        {isCurrentUserReserved && !myPendingActivationRequest && currentUser.balance >= 25 && (
-                          <button
-                            onClick={() => handleStrengthenTronco(currentUser.id, memberTree.id)}
-                            disabled={activatingTronco}
-                            className="w-full py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold flex items-center justify-center gap-2"
-                          >
-                            {activatingTronco ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Sprout className="w-3.5 h-3.5" />}
-                            <span>Ativar 25 sementes via Pix</span>
-                          </button>
-                        )}
+                        <div className="space-y-2">
+                          <div className={`font-bold ${isCurrentUserReserved ? 'text-rose-300' : 'text-emerald-300'}`}>{isCurrentUserReserved ? '− 25 Sementes' : '✓ Ativado'}</div>
+                          <div className="text-slate-300">{isCurrentUserReserved ? 'Sua vaga na árvore está reservada. Envie a solicitação Pix para ativar.' : 'Sua vaga está ativada no projeto.'}</div>
+                          <div className="text-[11px] text-slate-400">Saldo disponível: <strong>{currentUser.balance}</strong> sementes.</div>
+                          {myPendingActivationRequest && (
+                            <div className="p-2 bg-amber-950/30 border border-amber-800 rounded-xl text-[11px] text-amber-200">
+                              Aguardando confirmação do tronco para ativar sua posição.
+                            </div>
+                          )}
+                          {isCurrentUserReserved && !myPendingActivationRequest && currentUser.balance >= 25 && (
+                            <button
+                              onClick={() => handleStrengthenTronco(currentUser.id, memberTree.id)}
+                              disabled={activatingTronco}
+                              className="w-full py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold flex items-center justify-center gap-2"
+                            >
+                              {activatingTronco ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Sprout className="w-3.5 h-3.5" />}
+                              <span>Ativar 25 sementes via Pix</span>
+                            </button>
+                          )}
+                        </div>
                       </div>
 
                       {/* Contextual Progression Card */}

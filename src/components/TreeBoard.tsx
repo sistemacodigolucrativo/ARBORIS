@@ -123,7 +123,19 @@ const connections = [
   [5, 11], [5, 12], [6, 13], [6, 14]
 ];
 
-const TREE_OVERLAY_SELECTOR = '.arboris-tree-brand, .arboris-tree-heading, .arboris-tree-legend, .arboris-tree-reorder-hint, .arboris-tree-toast, .arboris-tree-template-control, .arboris-tree-savebar';
+type TreeLevel = {
+  label: string;
+  className: 'trunk' | 'branch' | 'twig' | 'leaf';
+};
+
+function getTreeLevel(positionIndex: number): TreeLevel {
+  if (positionIndex === 0) return { label: 'Tronco', className: 'trunk' };
+  if (positionIndex <= 2) return { label: 'Ramo', className: 'branch' };
+  if (positionIndex <= 6) return { label: 'Galho', className: 'twig' };
+  return { label: 'Folha', className: 'leaf' };
+}
+
+const TREE_OVERLAY_SELECTOR = '.arboris-tree-brand, .arboris-tree-heading, .arboris-tree-legend, .arboris-tree-leaf-base, .arboris-tree-reorder-hint, .arboris-tree-toast, .arboris-tree-template-control, .arboris-tree-savebar';
 
 function getInitialLayoutTemplateId() {
   if (typeof window === 'undefined') return layoutTemplates[0].id;
@@ -471,6 +483,7 @@ export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, membe
         const point = layout[position.position_index];
         if (!point) return null;
         const root = position.position_index === 0;
+        const treeLevel = getTreeLevel(position.position_index);
         const leafDirection = point.x < 50 ? 'left' : 'right';
         const occupied = position.status === 'occupied';
         const reserved = occupied && position.activation_status === 'reserved';
@@ -483,15 +496,15 @@ export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, membe
         const isDropTarget = dropTargetIndex === position.position_index && draggingIndex !== null;
         return (
           <button key={position.position_index} type="button"
-            className={`arboris-tree-node arboris-tree-node--${state}${root ? ' arboris-tree-node--root' : ` arboris-tree-node--leaf arboris-tree-node--leaf-${leafDirection}`}${mine ? ' arboris-tree-node--mine' : ''}${draggableNode ? ' arboris-tree-node--draggable' : ''}${isDragging ? ' arboris-tree-node--dragging' : ''}${isDropTarget ? ' arboris-tree-node--drop-target' : ''}${savingMoves ? ' arboris-tree-node--locked' : ''}`}
+            className={`arboris-tree-node arboris-tree-node--${state} arboris-tree-node--level-${treeLevel.className}${root ? ' arboris-tree-node--root' : ` arboris-tree-node--leaf arboris-tree-node--leaf-${leafDirection}`}${mine ? ' arboris-tree-node--mine' : ''}${draggableNode ? ' arboris-tree-node--draggable' : ''}${isDragging ? ' arboris-tree-node--dragging' : ''}${isDropTarget ? ' arboris-tree-node--drop-target' : ''}${savingMoves ? ' arboris-tree-node--locked' : ''}`}
             style={{ left: `${point.x}%`, top: `${point.y}%`, width: `${point.size}%` }}
             data-position={position.position_index}
             data-arboris-position="true"
             data-state={state}
             data-arboris-user-id={position.user_id ?? ''}
             aria-grabbed={isDragging || undefined}
-            aria-label={`${root ? 'Tronco' : 'Posição'} #${position.position_index}: ${name}. ${statusLabel}${mine ? '. Você' : ''}${draggableNode ? '. Arraste para reorganizar.' : ''}`}
-            title={`${name} · ${statusLabel}${draggableNode ? ' · arraste para mover' : ''}`}
+            aria-label={`${treeLevel.label} #${position.position_index}: ${name}. ${statusLabel}${mine ? '. Você' : ''}${draggableNode ? '. Arraste para reorganizar.' : ''}`}
+            title={`${treeLevel.label} · ${name} · ${statusLabel}${draggableNode ? ' · arraste para mover' : ''}`}
             onPointerDown={(event) => handleNodePointerDown(event, position)}
             onPointerMove={handleNodePointerMove}
             onPointerUp={handleNodePointerUp}
@@ -533,11 +546,23 @@ export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, membe
         </div>
       )}
       {moveMessage && <div className="arboris-tree-toast" role="status">{moveMessage}</div>}
+      <div className="arboris-tree-leaf-base" role="note">
+        Folhas · entrada de novos participantes
+      </div>
       <div className="arboris-tree-legend" aria-label="Legenda da árvore">
-        <span><i className="arboris-key--root" />Centro: Tronco</span>
-        <span><i className="arboris-key--active" />Ativado</span>
-        <span><i className="arboris-key--reserved" />Reservado</span>
-        <span><i className="arboris-key--vacant" />Vaga Aberta</span>
+        <div className="arboris-tree-legend-group" role="group" aria-label="Status da posição">
+          <strong>Status</strong>
+          <span><i className="arboris-key--status-active" />Ativado</span>
+          <span><i className="arboris-key--status-reserved" />Reservado</span>
+          <span><i className="arboris-key--status-vacant" />Vaga aberta</span>
+        </div>
+        <div className="arboris-tree-legend-group" role="group" aria-label="Níveis da árvore">
+          <strong>Níveis</strong>
+          <span><i className="arboris-key--level-trunk" />Tronco</span>
+          <span><i className="arboris-key--level-branch" />Ramos</span>
+          <span><i className="arboris-key--level-twig" />Galhos</span>
+          <span><i className="arboris-key--level-leaf" />Folhas</span>
+        </div>
       </div>
     </section>
   );

@@ -177,6 +177,10 @@
 }
 .arboris-tree-node--reserved { background: linear-gradient(145deg, #800b43, #3c122f); border: .75cqw solid #ff0060; color: #fff1f7; }
 .arboris-tree-node--vacant { background: #071c2c; border: .65cqw dashed #8098b5; color: #adbed5; }
+.arboris-tree-node--level-trunk { --level-accent: #ffd166; }
+.arboris-tree-node--level-branch { --level-accent: #73f0b7; }
+.arboris-tree-node--level-twig { --level-accent: #c1e7b8; }
+.arboris-tree-node--level-leaf { --level-accent: #e1edbc; }
 .arboris-tree-node--draggable { cursor: grab; touch-action: none; }
 .arboris-tree-node--dragging { cursor: grabbing; z-index: 6; opacity: .82; filter: brightness(1.2); }
 .arboris-tree-node--drop-target { z-index: 7; outline: .7cqw solid #facc15; outline-offset: .7cqw; }
@@ -189,6 +193,20 @@
 .arboris-tree-node--leaf { text-shadow: 0 1px 2px rgb(0 0 0 / 65%); }
 .arboris-tree-node--leaf > span { position: relative; z-index: 1; }
 .arboris-tree-node--leaf .arboris-tree-node-name { width: 80%; }
+.arboris-tree-node--leaf::after {
+  content: "";
+  position: absolute;
+  top: 11%;
+  right: 13%;
+  z-index: 1;
+  width: 15%;
+  aspect-ratio: 1;
+  border: .25cqw solid #05291e;
+  border-radius: 50%;
+  background: var(--level-accent);
+  box-shadow: 0 0 .7cqw var(--level-accent);
+  pointer-events: none;
+}
 .arboris-leaf-veins {
   position: absolute;
   inset: 0;
@@ -229,7 +247,7 @@
   line-height: 1.2;
   box-shadow: 0 .8cqw 1.6cqw rgb(0 0 0 / 35%);
 }
-.arboris-tree-reorder-hint { bottom: 10.5%; pointer-events: none; }
+.arboris-tree-reorder-hint { top: 8.5%; pointer-events: none; }
 .arboris-tree-toast { bottom: 18%; color: #ecfeff; border-color: rgb(20 184 166 / 70%); pointer-events: none; }
 .arboris-tree-savebar {
   bottom: 10%;
@@ -260,14 +278,71 @@
 .arboris-tree-savebar button svg { width: 2.5cqw; height: 2.5cqw; }
 .arboris-tree-savebar-primary { background: #10b981 !important; border-color: #34d399 !important; color: #052e16 !important; }
 .arboris-tree-savebar-primary svg { color: #052e16; }
-.arboris-tree-legend { bottom: 3%; min-height: 6.4%; display: flex; align-items: center; justify-content: space-between; gap: 1%; padding: 1.8% 2.8%; font-size: 2.55cqw; color: #b6cedb; }
-.arboris-tree-legend > span { display: inline-flex; align-items: center; gap: .8cqw; white-space: nowrap; }
-.arboris-tree-legend i { width: 3.2cqw; aspect-ratio: 1; border-radius: 50%; flex: none; border: .25cqw solid #001b27; }
-.arboris-tree-legend i:not(.arboris-key--root) { border-radius: 68% 3% 68% 38%; }
-.arboris-key--root { background: #ffbf00; }
-.arboris-key--active { background: #00cd77; }
-.arboris-key--reserved { background: #ff0060; }
-.arboris-tree-legend .arboris-key--vacant { border: .3cqw dashed #7189a1; }
+.arboris-tree-leaf-base {
+  position: absolute;
+  z-index: 2;
+  left: 15%;
+  right: 15%;
+  bottom: 12.8%;
+  min-height: 5%;
+  display: grid;
+  place-items: center;
+  padding: .7% 2%;
+  border: 1px solid rgb(225 237 188 / 62%);
+  border-radius: 999px;
+  color: #f0f6da;
+  background: linear-gradient(100deg, rgb(10 38 28 / 92%), rgb(24 57 39 / 94%), rgb(10 38 28 / 92%));
+  box-shadow: 0 .5cqw 1.5cqw rgb(0 0 0 / 38%), inset 0 1px rgb(255 255 255 / 8%);
+  font-size: max(7px, 2.2cqw);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: .025em;
+  text-align: center;
+  white-space: nowrap;
+}
+.arboris-tree-legend {
+  bottom: 1.2%;
+  min-height: 8.8%;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 1cqw;
+  padding: 1.2% 2.8%;
+  color: #b6cedb;
+}
+.arboris-tree-legend-group {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: .5cqw 1.8cqw;
+  font-size: max(7px, 2.35cqw);
+  line-height: 1.1;
+}
+.arboris-tree-legend-group > strong {
+  color: #e2f1ec;
+  font-size: max(6px, 2cqw);
+  font-weight: 900;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.arboris-tree-legend-group > span { display: inline-flex; align-items: center; gap: .6cqw; white-space: nowrap; }
+.arboris-tree-legend i {
+  display: inline-block;
+  width: max(7px, 2.7cqw);
+  aspect-ratio: 1;
+  flex: none;
+  border: 1px solid rgb(0 27 39 / 85%);
+  border-radius: 50%;
+}
+.arboris-key--status-active { background: #00cd77; }
+.arboris-key--status-reserved { background: #ff0060; }
+.arboris-tree-legend .arboris-key--status-vacant { border: 1px dashed #9aafc4; background: transparent; }
+.arboris-key--level-trunk { background: #ffd166; }
+.arboris-key--level-branch { background: #73f0b7; }
+.arboris-key--level-twig { background: #c1e7b8; }
+.arboris-key--level-leaf { background: #e1edbc; }
 .arboris-explorer { background: #105c26; border-radius: 18px; padding-bottom: 12px; overflow: hidden; }
 .arboris-explorer .arboris-tree-board { border-radius: 18px 18px 0 0; }
 .arboris-explorer .arboris-tree-actions { margin: 0 4.5%; border-color: #27845c; background: #021d2d; padding: 16px; }

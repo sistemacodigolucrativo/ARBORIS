@@ -1,4 +1,4 @@
-import type { GameDatabaseState, User } from '../types/game';
+import type { GameConfig, GameDatabaseState, User } from '../types/game';
 import { apiRequest, apiMutation } from './api';
 
 class DataStoreService {
@@ -69,6 +69,9 @@ class DataStoreService {
   async toggleUserStatusAction(userId: number) {
     const res = await apiMutation('/actions', { action: 'toggle_user_status', params: { userId } });
     return { ...res, newStatus: res.result.newStatus };
+  }
+  async setMemberPanelLayoutAction(layout: GameConfig['memberPanelLayout']) {
+    return apiMutation('/actions', { action: 'set_member_panel_layout', params: { layout } });
   }
   getSystemStateView() {
     if (!this.state) return null;
@@ -225,7 +228,8 @@ class DataStoreService {
       })),
       settings: [
         { id: 1, setting_key: 'system_mode', setting_value: this.state.config.systemMode, description: 'Modo operacional', is_editable: 1, updated_at: '2026-10-02' },
-        { id: 2, setting_key: 'transfer_amount_default', setting_value: String(this.state.config.transferAmount), description: 'Sementes por fortalecimento', is_editable: 1, updated_at: '2026-10-02' }
+        { id: 2, setting_key: 'transfer_amount_default', setting_value: String(this.state.config.transferAmount), description: 'Sementes por fortalecimento', is_editable: 1, updated_at: '2026-10-02' },
+        { id: 3, setting_key: 'member_panel_layout', setting_value: this.state.config.memberPanelLayout === 'aurora' ? 'aurora' : 'classic', description: 'Layout global do painel do membro', is_editable: 1, updated_at: '2026-10-02' }
       ]
     };
   }

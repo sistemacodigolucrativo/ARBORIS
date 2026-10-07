@@ -4,6 +4,7 @@
   "transferAmount": 25,
   "treeSplitPolicy": "tree_split_1_2_4_8",
   "maxTreesPerUser": 1,
+  "memberPanelLayout": "classic",
   "categories": [
     {
       "id": 1,

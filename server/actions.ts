@@ -29,6 +29,7 @@ export const actionSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('reject_activation_request'), params: z.object({ requestId: id, reason: z.string().trim().max(300).optional() }).strict() }),
   z.object({ action: z.literal('assign_tree_position'), params: z.object({ treeId: id, positionIndex: z.number().int().min(1).max(14), userId: id }).strict() }),
   z.object({ action: z.literal('clear_tree_position'), params: z.object({ treeId: id, positionIndex: z.number().int().min(1).max(14) }).strict() }),
+  z.object({ action: z.literal('set_member_panel_layout'), params: z.object({ layout: z.enum(['classic', 'aurora']) }).strict() }),
   z.object({ action: z.literal('toggle_user_status'), params: z.object({ userId: id }).strict() }),
   z.object({ action: z.literal('strengthen_tronco'), params: z.object({ treeId: id }).strict() }),
   z.object({ action: z.literal('transfer_seeds'), params: z.object({ toUserId: id, treeId: id, amount: z.number().int().positive().max(1000000), reason: z.string().trim().max(500) }).strict() })
@@ -326,6 +327,32 @@ export function applyAction(state: GameDatabaseState, user: User, input: z.infer
     }
     case 'assign_tree_position': return assignTreePositionByAdmin(state, { ...input.params, actor, idempotencyKey: key });
     case 'clear_tree_position': return clearTreePositionByAdmin(state, { ...input.params, actor, idempotencyKey: key });
+    case 'set_member_panel_layout': {
+      const next = structuredClone(state);
+      const storedLayout = next.config.memberPanelLayout;
+      const previousLayout = storedLayout === 'aurora' ? 'aurora' : 'classic';
+      next.config.memberPanelLayout = input.params.layout;
+      const needsPersistence = storedLayout !== input.params.layout;
+      if (!needsPersistence) {
+        return { success: true, state: next, result: { layout: input.params.layout, changed: false } };
+      }
+
+      const changed = previousLayout !== input.params.layout;
+      if (changed) {
+        const now = new Date().toISOString();
+        next.auditLog.push({
+          id: Math.max(0, ...next.auditLog.map(entry => entry.id)) + 1,
+          actorUserId: user.id,
+          actorUsername: user.username,
+          action: 'ADMIN_MEMBER_PANEL_LAYOUT_CHANGED',
+          entity: 'game_config',
+          entityId: 1,
+          metadata: { idempotencyKey: key, previousLayout, layout: input.params.layout },
+          createdAt: now
+        });
+      }
+      return { success: true, state: next, result: { layout: input.params.layout, changed } };
+    }
     case 'strengthen_tronco':
       if (user.role === 'admin') throw new HttpError(403, 'Coordenador não participa deste fluxo.');
       return strengthenTronco(state, { userId: user.id, treeId: input.params.treeId, idempotencyKey: key });

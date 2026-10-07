@@ -279,6 +279,11 @@ export default function App() {
   const [systemState, setSystemState] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [memberPanelLayoutSaving, setMemberPanelLayoutSaving] = useState(false);
+  const memberPanelLayout = systemState?.settings?.find((setting: Setting) => setting.setting_key === 'member_panel_layout')?.setting_value === 'aurora'
+    ? 'aurora'
+    : 'classic';
+  const isAuroraMemberPanel = currentView === 'member' && Boolean(currentUser) && memberPanelLayout === 'aurora';
 
   // Link copy feedback
   const [copiedLink, setCopiedLink] = useState<boolean>(false);
@@ -326,6 +331,26 @@ export default function App() {
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
+  };
+
+  const handleMemberPanelLayoutChange = async (layout: 'classic' | 'aurora') => {
+    if (currentUser?.role !== 'admin') {
+      showToast('Erro: somente o coordenador pode alterar o layout dos membros.');
+      return;
+    }
+    if (layout === memberPanelLayout || memberPanelLayoutSaving) return;
+
+    setMemberPanelLayoutSaving(true);
+    try {
+      const result = await dataStore.setMemberPanelLayoutAction(layout);
+      if (!result.success) throw new Error(result.error || 'Não foi possível ativar o layout.');
+      await fetchState(true);
+      showToast(`Layout ${layout === 'aurora' ? 'Aurora' : 'Clássico'} ativado para todos os membros.`);
+    } catch (error: any) {
+      showToast('Erro ao ativar o layout: ' + error.message);
+    } finally {
+      setMemberPanelLayoutSaving(false);
+    }
   };
 
   const applyDirectAdminState = async (_res: any) => { await fetchState(true); };
@@ -1993,7 +2018,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
   // 2. APLICAÇÃO DESBLOQUEADA (ÁREA DO MEMBRO / ADMIN / PÚBLICA)
   // ==========================================
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between selection:bg-emerald-500 selection:text-white font-sans antialiased">
+    <div className={`min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between selection:bg-emerald-500 selection:text-white font-sans antialiased${isAuroraMemberPanel ? ' member-layout-aurora' : ''}`}>
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed top-3 left-1/2 -translate-x-1/2 z-50 max-w-sm w-[92%] bg-slate-900 border border-emerald-500/80 text-slate-100 px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 text-xs animate-in fade-in slide-in-from-top-2">
@@ -2003,12 +2028,12 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
       )}
 
       {/* Main App Container */}
-      <div className="w-full max-w-md mx-auto flex-1 flex flex-col bg-slate-950 border-x border-slate-900 shadow-2xl relative pb-20">
+      <div className={`member-app-shell w-full ${isAuroraMemberPanel ? 'member-shell--aurora' : 'max-w-md'} mx-auto flex-1 flex flex-col bg-slate-950 border-x border-slate-900 shadow-2xl relative pb-20`}>
         
         {loadError && <div role="alert" className="p-4 text-sm text-rose-300">{loadError}<button onClick={() => fetchState(true)} className="block underline">Tentar novamente</button></div>}
         {/* Top App Bar & Navigation */}
         {currentUser && <div className="flex items-center justify-between p-3 text-xs"><span>@{currentUser.username}</span><button onClick={handleLogout} className="underline">Sair</button></div>}
-        <header className="sticky top-0 z-40 bg-slate-900/95 backdrop-blur border-b border-slate-800 px-4 py-3 space-y-2">
+        <header className="member-app-header sticky top-0 z-40 bg-slate-900/95 backdrop-blur border-b border-slate-800 px-4 py-3 space-y-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-xl bg-emerald-600/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 font-bold text-sm shadow-sm">
@@ -2197,20 +2222,20 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
         )}
 
         {/* Dynamic View Content */}
-        <div className="flex-1 p-4 space-y-4">
+        <div className="member-app-content flex-1 p-4 space-y-4">
           
           {/* ======================================================== */}
           {/* VIEW: PAINEL DO MEMBRO */}
           {/* ======================================================== */}
           {currentView === 'member' && currentUser && (
-            <div className="space-y-4 animate-in fade-in duration-150">
+            <div className="member-panel-root space-y-4 animate-in fade-in duration-150">
               {currentUserPixLock && (
-                <div className="p-3.5 bg-rose-950/60 border border-rose-500/70 rounded-2xl text-xs text-rose-100 leading-relaxed font-semibold">
+                <div className="member-lock-warning p-3.5 bg-rose-950/60 border border-rose-500/70 rounded-2xl text-xs text-rose-100 leading-relaxed font-semibold">
                   Agora você está no tronco e precisa configurar sua chave Pix de recebimento. Você não será capaz de sair dessa tela se não fizer essa configuração.
                 </div>
               )}
               {/* Member Sub-Navigation */}
-              <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800 text-xs">
+              <div className="member-subnav flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800 text-xs">
                 <button
                   onClick={() => {
                     if (currentUserPixLock) {
@@ -2256,9 +2281,9 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
 
               {/* SUB-TAB A: MINHA ÁRVORE */}
               {memberTab === 'my_tree' && (
-                <div className="space-y-4">
+                  <div className="member-active-tab member-tree-tab space-y-4">
                   {/* Tree Overview & Status */}
-                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 flex items-center justify-between text-xs">
+                    <div className="member-tree-overview bg-slate-900 border border-slate-800 rounded-2xl p-3.5 flex items-center justify-between text-xs">
                     <div>
                       <div className="font-mono text-emerald-400 font-bold">{memberTree?.tree_code}</div>
                       <div className="text-[10px] text-slate-400">
@@ -2274,7 +2299,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
 
 
                   {pendingTroncoRequests.length > 0 && (
-                    <div className="bg-amber-950/40 border border-amber-500/50 rounded-2xl p-3.5 space-y-3 text-xs">
+                    <div className="member-tree-requests bg-amber-950/40 border border-amber-500/50 rounded-2xl p-3.5 space-y-3 text-xs">
                       <div className="flex items-center justify-between">
                         <span className="font-bold text-amber-300 flex items-center gap-1.5">
                           <AlertCircle className="w-4 h-4" />
@@ -2319,7 +2344,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                       A pessoa só entra, só aparece na ramificação depois que ela clicar no botão.
                       Enquanto ela não clicar ela está fora! Quem clicar antes fica numa posição muito melhor! */}
                   {currentUser.role !== 'admin' && !isUserPositioned && currentUser.balance >= 25 && (
-                    <div className="bg-gradient-to-br from-amber-950/70 via-slate-900 to-rose-950/60 border-2 border-amber-400 rounded-2xl p-4 space-y-3 shadow-2xl relative overflow-hidden animate-in fade-in">
+                    <div className="member-tree-reserve bg-gradient-to-br from-amber-950/70 via-slate-900 to-rose-950/60 border-2 border-amber-400 rounded-2xl p-4 space-y-3 shadow-2xl relative overflow-hidden animate-in fade-in">
                       <div className="flex items-center gap-2 text-amber-300 font-bold text-xs">
                         <Zap className="w-4 h-4 text-amber-400 animate-pulse shrink-0" />
                         <span className="uppercase tracking-wider">🎁 Parabéns!</span>
@@ -2351,11 +2376,13 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                   )}
 
                   {/* RENDER MODEL (Árvore Radial) */}
-                  {renderActiveModel(memberPositions, currentUser.id)}
+                  <div className="member-tree-visual">
+                    {renderActiveModel(memberPositions, currentUser.id)}
+                  </div>
 
                   {/* If user is already positioned in tree */}
                   {isUserPositioned && (
-                    <div className="space-y-2">
+                    <div className="member-tree-status space-y-2">
                       <div className="p-3 bg-rose-950/40 border border-rose-500/40 rounded-2xl space-y-2 text-xs">
                         <div className="flex items-center gap-2">
                           <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
@@ -2438,7 +2465,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
 
               {/* SUB-TAB B: FERRAMENTAS DE MARKETING DIGITAL DO MEMBRO */}
               {memberTab === 'marketing' && (
-                <div className="space-y-4">
+                  <div className="member-active-tab member-marketing-tab space-y-4">
                   <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
                     <div className="flex items-center justify-between text-xs">
                       <span className="font-bold text-slate-200 flex items-center gap-1.5">
@@ -2509,7 +2536,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                   </div>
 
                   {/* Marketing Copywriting Kit */}
-                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-2.5">
+                  <div className="member-marketing-copy bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-2.5">
                     <div className="flex items-center justify-between text-xs">
                       <span className="font-bold text-slate-200">Texto de Divulgação Pronto (Copy)</span>
                       <button
@@ -2534,13 +2561,13 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
 
               {/* SUB-TAB C: CARTEIRA DE SEMENTES */}
               {memberTab === 'wallet' && (
-                <div className="space-y-4">
+                  <div className="member-active-tab member-wallet-tab space-y-4">
                   {currentUserPixLock && (
-                    <div className="p-3.5 bg-rose-950/70 border-2 border-rose-500 rounded-2xl text-xs text-rose-100 leading-relaxed font-semibold shadow-lg">
+                    <div className="member-lock-warning p-3.5 bg-rose-950/70 border-2 border-rose-500 rounded-2xl text-xs text-rose-100 leading-relaxed font-semibold shadow-lg">
                       Agora você está no tronco e precisa configurar sua chave Pix de recebimento. Você não será capaz de sair dessa tela se não fizer essa configuração.
                     </div>
                   )}
-                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex items-center justify-between">
+                  <div className="member-wallet-balance bg-slate-900 border border-slate-800 rounded-2xl p-4 flex items-center justify-between">
                     <div>
                       <div className="text-[10px] text-slate-400 uppercase font-mono tracking-wider">Saldo de Sementes</div>
                       <div className="text-2xl font-bold text-emerald-400 font-mono mt-0.5 flex items-center gap-1.5">
@@ -2557,7 +2584,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                     </div>
                   </div>
 
-                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
+                  <div className="member-wallet-pix bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
                     <div className="flex items-center justify-between text-xs">
                       <span className="font-bold text-slate-200">Minha chave Pix</span>
                       <span className="text-[10px] text-slate-500 font-mono">Cadastro do participante</span>
@@ -2615,7 +2642,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                     </form>
                   </div>
 
-                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
+                  <div className="member-wallet-ledger bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
                     <div className="flex items-center justify-between text-xs">
                       <span className="font-bold text-slate-200">Extrato Comunitário (Ledger)</span>
                       <span className="text-[10px] text-slate-500 font-mono">Imutável</span>
@@ -3126,6 +3153,46 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                     </div>
                   </div>
 
+                  <section className="member-layout-admin-card p-3.5 bg-slate-900 border border-emerald-800/50 rounded-2xl space-y-3" aria-labelledby="member-layout-heading">
+                    <div>
+                      <div id="member-layout-heading" className="font-bold text-slate-100 text-xs">Layout do painel do membro</div>
+                      <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
+                        O layout fica salvo no servidor e vale para todos os membros. Quem já está com a tela aberta verá a mudança ao atualizar.
+                      </p>
+                    </div>
+
+                    <div className="member-layout-choice-grid" role="group" aria-label="Selecionar layout do painel do membro">
+                      <button
+                        type="button"
+                        className={`member-layout-choice${memberPanelLayout === 'classic' ? ' is-active' : ''}`}
+                        aria-pressed={memberPanelLayout === 'classic'}
+                        disabled={memberPanelLayoutSaving}
+                        onClick={() => handleMemberPanelLayoutChange('classic')}
+                      >
+                        <span className="member-layout-choice-title">Clássico</span>
+                        <span className="member-layout-choice-description">Mantém a coluna compacta atual.</span>
+                        <span className="member-layout-choice-state">{memberPanelLayout === 'classic' ? 'Ativo' : 'Ativar'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        className={`member-layout-choice${memberPanelLayout === 'aurora' ? ' is-active' : ''}`}
+                        aria-pressed={memberPanelLayout === 'aurora'}
+                        disabled={memberPanelLayoutSaving}
+                        onClick={() => handleMemberPanelLayoutChange('aurora')}
+                      >
+                        <span className="member-layout-choice-title">Aurora</span>
+                        <span className="member-layout-choice-description">Novo painel responsivo com acabamento premium.</span>
+                        <span className="member-layout-choice-state">{memberPanelLayout === 'aurora' ? 'Ativo' : 'Ativar'}</span>
+                      </button>
+                    </div>
+
+                    <div className="member-layout-status text-[10px] text-slate-400" role="status" aria-live="polite">
+                      {memberPanelLayoutSaving
+                        ? 'Salvando e atualizando os membros…'
+                        : `Layout ativo: ${memberPanelLayout === 'aurora' ? 'Aurora' : 'Clássico'}`}
+                    </div>
+                  </section>
+
                   <div className="text-xs font-bold text-slate-200">
                     Parâmetros Comunitários (PENDENTE DE DEFINIÇÃO)
                   </div>
@@ -3269,7 +3336,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
         )}
 
         {/* Persistent Bottom Bar */}
-        <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-slate-900/95 backdrop-blur border-t border-slate-800 flex items-center justify-around py-2 px-1 z-40">
+        <nav className={`member-bottom-nav fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-slate-900/95 backdrop-blur border-t border-slate-800 flex items-center justify-around py-2 px-1 z-40${isAuroraMemberPanel ? ' member-bottom-nav--aurora' : ''}`}>
           <button
             onClick={() => setCurrentView('public')}
             className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition ${

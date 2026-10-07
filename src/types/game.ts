@@ -12,6 +12,7 @@ export interface GameConfig {
   transferAmount: number; // 25
   treeSplitPolicy: 'tree_split_1_2_4_8';
   maxTreesPerUser: number;
+  memberPanelLayout: 'classic' | 'aurora';
   categories: Array<{
     id: number;
     code: string;

@@ -7,5 +7,6 @@ import './loginTimeoutFix.ts';
 import './memberPanelFinalAdjustments.ts';
 import App from './App.tsx';
 import './index.css';
+import './memberPanelLayout.css';
 
 createRoot(document.getElementById('root')!).render(<App />);

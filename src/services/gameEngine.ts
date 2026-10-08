@@ -7,6 +7,8 @@ import {
   Referral,
   LedgerEntry,
   AuditLogEntry,
+  PlantingAssignment,
+  PlantingBag,
   PositionSide
 } from '../types/game';
 
@@ -82,7 +84,150 @@ function isActivatedPosition(position: TreePosition): boolean {
  */
 export function validateIdempotency(state: GameDatabaseState, idempotencyKey?: string): boolean {
   if (!idempotencyKey) return true;
-  return !state.ledger.some(l => l.idempotencyKey === idempotencyKey);
+  return !state.ledger.some(l => l.idempotencyKey === idempotencyKey)
+    && !state.auditLog.some(a => a.metadata?.idempotencyKey === idempotencyKey);
+}
+
+function nextId(items: Array<{ id: number }> | undefined): number {
+  return Math.max(0, ...(items || []).map(item => item.id)) + 1;
+}
+
+function ensurePlantingBag(state: GameDatabaseState, now: string): PlantingBag {
+  if (!state.plantingBag) {
+    state.plantingBag = {
+      balance: 0,
+      threshold: 500,
+      selectionCount: 10,
+      entries: [],
+      draws: [],
+      assignments: [],
+      updatedAt: now
+    };
+  }
+  state.plantingBag.threshold ||= 500;
+  state.plantingBag.selectionCount ||= 10;
+  state.plantingBag.entries ||= [];
+  state.plantingBag.draws ||= [];
+  state.plantingBag.assignments ||= [];
+  return state.plantingBag;
+}
+
+function collectPlantingCandidates(state: GameDatabaseState): Array<{ userId: number; username: string; treeId: number }> {
+  const candidates = new Map<number, { userId: number; username: string; treeId: number }>();
+  for (const tree of state.trees.filter(item => item.status === 'active')) {
+    for (const position of tree.positions) {
+      if (!position.userId || position.status !== 'occupied') continue;
+      const user = state.users.find(item => item.id === position.userId && item.status === 'active' && item.role === 'participant');
+      if (user && !candidates.has(user.id)) candidates.set(user.id, { userId: user.id, username: user.username, treeId: tree.id });
+    }
+  }
+  return Array.from(candidates.values());
+}
+
+function pickRandomCandidates<T>(items: T[], count: number): T[] {
+  const pool = [...items];
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  return pool.slice(0, count);
+}
+
+function processPlantingBagDraws(state: GameDatabaseState, now: string): PlantingAssignment[] {
+  const bag = ensurePlantingBag(state, now);
+  const created: PlantingAssignment[] = [];
+
+  while (bag.balance >= bag.threshold) {
+    const candidates = collectPlantingCandidates(state);
+    if (candidates.length < bag.selectionCount) break;
+
+    const selected = pickRandomCandidates(candidates, bag.selectionCount);
+    const drawId = nextId(bag.draws);
+    bag.balance -= bag.threshold;
+    bag.draws.push({
+      id: drawId,
+      threshold: bag.threshold,
+      amountConsumed: bag.threshold,
+      selectedUserIds: selected.map(item => item.userId),
+      selectedTreeIds: Array.from(new Set(selected.map(item => item.treeId))),
+      status: 'pending',
+      createdAt: now
+    });
+
+    let assignmentId = nextId(bag.assignments);
+    for (const item of selected) {
+      const assignment: PlantingAssignment = {
+        id: assignmentId++,
+        drawId,
+        userId: item.userId,
+        username: item.username,
+        treeId: item.treeId,
+        status: 'pending',
+        createdAt: now
+      };
+      bag.assignments.push(assignment);
+      created.push(assignment);
+    }
+
+    state.auditLog.push({
+      id: nextId(state.auditLog),
+      actorUserId: 1,
+      action: 'PLANTING_BAG_DRAW_CREATED',
+      entity: 'planting_draw',
+      entityId: drawId,
+      metadata: {
+        threshold: bag.threshold,
+        amountConsumed: bag.threshold,
+        selectedUserIds: selected.map(item => item.userId),
+        selectedTreeIds: Array.from(new Set(selected.map(item => item.treeId)))
+      },
+      actorUsername: 'sistema',
+      createdAt: now
+    });
+  }
+
+  bag.updatedAt = now;
+  return created;
+}
+
+function addPlantingBagEntry(state: GameDatabaseState, params: {
+  user: User;
+  tree: Tree;
+  amount: number;
+  now: string;
+  idempotencyKey: string;
+}) {
+  const bag = ensurePlantingBag(state, params.now);
+  bag.entries.push({
+    id: nextId(bag.entries),
+    userId: params.user.id,
+    username: params.user.username,
+    treeId: params.tree.id,
+    amount: params.amount,
+    source: 'reservation',
+    createdAt: params.now
+  });
+  bag.balance += params.amount;
+  bag.updatedAt = params.now;
+
+  state.auditLog.push({
+    id: nextId(state.auditLog),
+    actorUserId: params.user.id,
+    action: 'PLANTING_BAG_SEEDS_ADDED',
+    entity: 'planting_bag',
+    entityId: 'global',
+    metadata: {
+      idempotencyKey: params.idempotencyKey,
+      userId: params.user.id,
+      treeId: params.tree.id,
+      amount: params.amount,
+      bagBalance: bag.balance
+    },
+    actorUsername: params.user.username,
+    createdAt: params.now
+  });
+
+  return processPlantingBagDraws(state, params.now);
 }
 
 /**
@@ -395,6 +540,14 @@ export function reserveTreeEntry(
   user.currentPositionIndex = targetPos.index;
   user.updatedAt = now;
 
+  const selectedForPlanting = addPlantingBagEntry(state, {
+    user,
+    tree,
+    amount: requiredAmount,
+    now,
+    idempotencyKey
+  });
+
   const nextAuditId = Math.max(0, ...state.auditLog.map(a => a.id)) + 1;
   state.auditLog.push({
     id: nextAuditId,
@@ -408,7 +561,9 @@ export function reserveTreeEntry(
       treeId: tree.id,
       positionIndex: targetPos.index,
       amountConsumed: requiredAmount,
-      note: 'Reserva de vaga: sementes consumidas pelo sistema, sem transferência ao tronco.'
+      plantingBagBalance: state.plantingBag?.balance ?? 0,
+      plantingAssignmentsCreated: selectedForPlanting.map(item => item.id),
+      note: 'Reserva de vaga: sementes consumidas pelo sistema e acumuladas na bag de plantio.'
     },
     actorUsername: user.username,
     createdAt: now

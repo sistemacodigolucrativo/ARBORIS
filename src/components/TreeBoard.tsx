@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import type {
   PointerEvent as ReactPointerEvent,
   WheelEvent as ReactWheelEvent
 } from 'react';
-import { Crown, Trees } from 'lucide-react';
+import { Crown, RefreshCw, Save, Sprout, Trees, X } from 'lucide-react';
 import treeScene from '../assets/arboris-tree-scene.webp';
+import officialTreeScene from '../assets/arboris-official-scene.png';
 import { assignPositionDirect } from '../services/directAdminActions';
 import './TreeBoard.css';
 
@@ -21,32 +22,144 @@ export interface BoardPosition {
   full_name?: string;
 }
 
-// One coordinate system for artwork, connections and all 15 interactive positions.
-// Percentages keep the full crown and roots visible at every viewport width.
-const layout = [
-  { x: 50, y: 45, size: 26 },
-  { x: 25, y: 45, size: 18 }, { x: 75, y: 45, size: 18 },
-  { x: 39, y: 31, size: 12 }, { x: 36, y: 58, size: 12 },
-  { x: 61, y: 31, size: 12 }, { x: 64, y: 58, size: 12 },
-  { x: 14, y: 33, size: 14 }, { x: 31, y: 21, size: 14 },
-  { x: 69, y: 21, size: 14 }, { x: 86, y: 33, size: 14 },
-  { x: 87, y: 57, size: 14 }, { x: 73, y: 70, size: 14 },
-  { x: 27, y: 70, size: 14 }, { x: 13, y: 57, size: 14 },
-];
-const connections = [[0,1],[0,2],[1,3],[1,4],[2,5],[2,6],[3,7],[3,8],[4,13],[4,14],[5,9],[5,10],[6,11],[6,12]];
-const ARBORIS_UI_STATE_KEY = 'arboris_ui_state_v1';
-const TREE_OVERLAY_SELECTOR = '.arboris-tree-brand, .arboris-tree-heading, .arboris-tree-legend, .arboris-tree-reorder-hint, .arboris-tree-toast';
+type PendingMove = {
+  treeId: number;
+  fromIndex: number;
+  positionIndex: number;
+  userId: number;
+};
 
-function isCoordinatorTreeContext() {
-  if (typeof window === 'undefined') return false;
-  try {
-    const raw = window.localStorage.getItem(ARBORIS_UI_STATE_KEY);
-    if (!raw) return false;
-    const state = JSON.parse(raw);
-    return state?.currentView === 'admin' && state?.adminTab === 'global_trees';
-  } catch {
-    return false;
-  }
+type LayoutPoint = { x: number; y: number; size: number };
+type TreeLayoutTemplate = {
+  id: string;
+  label: string;
+  description: string;
+  points: LayoutPoint[];
+};
+
+const TREE_LAYOUT_STORAGE_KEY = 'arboris_tree_layout_template_v2';
+
+// Measured from the reference artwork; indices retain the functional 1-2-4-8 tree.
+const arborisOfficialPoints: LayoutPoint[] = [
+  { x: 50, y: 55, size: 23 },
+  { x: 30, y: 41, size: 18 }, { x: 70, y: 41, size: 18 },
+  { x: 11, y: 38, size: 18 }, { x: 11, y: 54, size: 18 },
+  { x: 89, y: 38, size: 18 }, { x: 89, y: 54, size: 18 },
+  { x: 24, y: 9, size: 18 }, { x: 13, y: 23, size: 18 },
+  { x: 11, y: 70, size: 18 }, { x: 21, y: 85, size: 18 },
+  { x: 76, y: 9, size: 18 }, { x: 87, y: 23, size: 18 },
+  { x: 89, y: 70, size: 18 }, { x: 79, y: 85, size: 18 },
+];
+
+const layoutTemplates: TreeLayoutTemplate[] = [
+  {
+    id: 'arboris-oficial',
+    label: 'ÁRBORIS Oficial',
+    description: 'Layout oficial com Tronco, Ramos, Galhos e Folhas conforme a dinâmica 1–2–4–8.',
+    points: arborisOfficialPoints,
+  },
+  {
+    id: 'organic',
+    label: 'Orgânico',
+    description: 'Tronco central com posições em anel irregular, sem desenho piramidal.',
+    points: [
+      { x: 50, y: 45, size: 21 },
+      { x: 39, y: 34, size: 16 }, { x: 61, y: 34, size: 16 },
+      { x: 27, y: 45, size: 12 }, { x: 39, y: 59, size: 12 },
+      { x: 61, y: 59, size: 12 }, { x: 73, y: 45, size: 12 },
+      { x: 31, y: 25, size: 11 }, { x: 50, y: 23, size: 11 },
+      { x: 69, y: 25, size: 11 }, { x: 84, y: 36, size: 11 },
+      { x: 82, y: 59, size: 11 }, { x: 66, y: 72, size: 11 },
+      { x: 34, y: 72, size: 11 }, { x: 18, y: 59, size: 11 },
+    ]
+  },
+  {
+    id: 'oca',
+    label: 'Oca',
+    description: 'Distribuição em arco, com leitura circular e base aberta.',
+    points: [
+      { x: 50, y: 47, size: 21 },
+      { x: 36, y: 42, size: 16 }, { x: 64, y: 42, size: 16 },
+      { x: 24, y: 51, size: 12 }, { x: 38, y: 61, size: 12 },
+      { x: 62, y: 61, size: 12 }, { x: 76, y: 51, size: 12 },
+      { x: 18, y: 38, size: 11 }, { x: 31, y: 28, size: 11 },
+      { x: 50, y: 24, size: 11 }, { x: 69, y: 28, size: 11 },
+      { x: 82, y: 38, size: 11 }, { x: 83, y: 65, size: 11 },
+      { x: 63, y: 74, size: 11 }, { x: 37, y: 74, size: 11 },
+    ]
+  },
+  {
+    id: 'mandala',
+    label: 'Mandala',
+    description: 'Anéis concêntricos ao redor do tronco, com simetria radial.',
+    points: [
+      { x: 50, y: 45, size: 21 },
+      { x: 38, y: 37, size: 16 }, { x: 62, y: 53, size: 16 },
+      { x: 50, y: 30, size: 12 }, { x: 34, y: 48, size: 12 },
+      { x: 66, y: 42, size: 12 }, { x: 50, y: 62, size: 12 },
+      { x: 28, y: 28, size: 11 }, { x: 50, y: 20, size: 11 },
+      { x: 72, y: 28, size: 11 }, { x: 84, y: 45, size: 11 },
+      { x: 72, y: 66, size: 11 }, { x: 50, y: 75, size: 11 },
+      { x: 28, y: 66, size: 11 }, { x: 16, y: 45, size: 11 },
+    ]
+  },
+  {
+    id: 'espiral',
+    label: 'Espiral',
+    description: 'Posições em fluxo orgânico ao redor do tronco.',
+    points: [
+      { x: 50, y: 45, size: 21 },
+      { x: 42, y: 32, size: 16 }, { x: 63, y: 40, size: 16 },
+      { x: 65, y: 59, size: 12 }, { x: 45, y: 64, size: 12 },
+      { x: 29, y: 50, size: 12 }, { x: 32, y: 31, size: 12 },
+      { x: 53, y: 22, size: 11 }, { x: 75, y: 30, size: 11 },
+      { x: 84, y: 51, size: 11 }, { x: 72, y: 70, size: 11 },
+      { x: 47, y: 76, size: 11 }, { x: 22, y: 65, size: 11 },
+      { x: 15, y: 42, size: 11 }, { x: 25, y: 23, size: 11 },
+    ]
+  },
+  {
+    id: 'compacto',
+    label: 'Compacto',
+    description: 'Leitura organizada em bloco circular, com menos altura visual.',
+    points: [
+      { x: 50, y: 45, size: 21 },
+      { x: 36, y: 39, size: 16 }, { x: 64, y: 39, size: 16 },
+      { x: 24, y: 48, size: 12 }, { x: 42, y: 58, size: 12 },
+      { x: 58, y: 58, size: 12 }, { x: 76, y: 48, size: 12 },
+      { x: 24, y: 29, size: 11 }, { x: 40, y: 25, size: 11 },
+      { x: 60, y: 25, size: 11 }, { x: 76, y: 29, size: 11 },
+      { x: 86, y: 60, size: 11 }, { x: 66, y: 70, size: 11 },
+      { x: 34, y: 70, size: 11 }, { x: 14, y: 60, size: 11 },
+    ]
+  },
+];
+
+const connections = [
+  [0, 1], [0, 2],
+  [1, 3], [1, 4], [2, 5], [2, 6],
+  [3, 7], [3, 8], [4, 9], [4, 10],
+  [5, 11], [5, 12], [6, 13], [6, 14]
+];
+
+type TreeLevel = {
+  label: string;
+  className: 'trunk' | 'branch' | 'twig' | 'leaf';
+};
+
+function getTreeLevel(positionIndex: number): TreeLevel {
+  if (positionIndex === 0) return { label: 'Tronco', className: 'trunk' };
+  if (positionIndex <= 2) return { label: 'Ramo', className: 'branch' };
+  if (positionIndex <= 6) return { label: 'Galho', className: 'twig' };
+  return { label: 'Folha', className: 'leaf' };
+}
+
+const TREE_OVERLAY_SELECTOR = '.arboris-tree-brand, .arboris-tree-heading, .arboris-tree-legend, .arboris-tree-leaf-base, .arboris-tree-reorder-hint, .arboris-tree-toast, .arboris-tree-template-control, .arboris-tree-savebar';
+
+function getInitialLayoutTemplateId() {
+  if (typeof window === 'undefined') return layoutTemplates[0].id;
+  const stored = window.localStorage.getItem(TREE_LAYOUT_STORAGE_KEY);
+  return layoutTemplates.some(template => template.id === stored) ? stored! : layoutTemplates[0].id;
 }
 
 function getPositionAtPointer(positions: BoardPosition[], clientX: number, clientY: number) {
@@ -67,26 +180,48 @@ function shouldLockTreeScroll(eventTarget: EventTarget | null) {
   return Boolean(eventTarget.closest('.arboris-tree-board'));
 }
 
-export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, onSelect }: {
+export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, memberIdentity, allowReordering = false, onSelect }: {
   positions: BoardPosition[];
   currentUserId?: number;
   treeCode?: string;
   treeLabel?: string;
+  memberIdentity?: { roleLabel: string; name: string; balance: number };
+  allowReordering?: boolean;
   onSelect: (position: BoardPosition) => void;
 }) {
+  const artworkId = useId().replace(/:/g, '');
   const boardRef = useRef<HTMLElement | null>(null);
   const dragSourceRef = useRef<BoardPosition | null>(null);
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
   const dragMovedRef = useRef(false);
   const suppressNextClickRef = useRef(false);
   const moveMessageTimerRef = useRef<number | null>(null);
+  const [boardPositions, setBoardPositions] = useState<BoardPosition[]>(positions);
+  const [pendingMoves, setPendingMoves] = useState<PendingMove[]>([]);
   const scrollLockedRef = useRef(false);
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
   const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
-  const [moving, setMoving] = useState(false);
+  const [savingMoves, setSavingMoves] = useState(false);
   const [moveMessage, setMoveMessage] = useState<string | null>(null);
+  const [layoutTemplateId, setLayoutTemplateId] = useState(getInitialLayoutTemplateId);
+  const [templateMenuOpen, setTemplateMenuOpen] = useState(false);
   const [treeScrollLocked, setTreeScrollLocked] = useState(false);
-  const canReorder = isCoordinatorTreeContext();
+  const canReorder = allowReordering;
+  const activeTemplate = layoutTemplates.find(template => template.id === layoutTemplateId) || layoutTemplates[0];
+  const layout = activeTemplate.points;
+  const officialLayout = activeTemplate.id === 'arboris-oficial';
+  const sceneHeight = officialLayout ? 600 : 1500;
+  const sceneWidth = officialLayout ? 700 : 1000;
+
+  useEffect(() => {
+    if (pendingMoves.length === 0) setBoardPositions(positions);
+  }, [positions, pendingMoves.length]);
+
+  const selectLayoutTemplate = (templateId: string) => {
+    setLayoutTemplateId(templateId);
+    setTemplateMenuOpen(false);
+    if (typeof window !== 'undefined') window.localStorage.setItem(TREE_LAYOUT_STORAGE_KEY, templateId);
+  };
 
   const lockTreeScroll = () => {
     if (!canReorder) return;
@@ -101,6 +236,7 @@ export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, onSel
 
   useEffect(() => {
     if (!canReorder || typeof document === 'undefined' || typeof window === 'undefined') {
+      unlockTreeScroll();
       return undefined;
     }
 
@@ -139,7 +275,7 @@ export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, onSel
     setMoveMessage(message);
     if (typeof window === 'undefined') return;
     if (moveMessageTimerRef.current) window.clearTimeout(moveMessageTimerRef.current);
-    moveMessageTimerRef.current = window.setTimeout(() => setMoveMessage(null), 3200);
+    moveMessageTimerRef.current = window.setTimeout(() => setMoveMessage(null), 4200);
   };
 
   const clearDragState = () => {
@@ -150,7 +286,7 @@ export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, onSel
     setDropTargetIndex(null);
   };
 
-  const moveParticipant = async (source: BoardPosition, target: BoardPosition) => {
+  const moveParticipant = (source: BoardPosition, target: BoardPosition) => {
     if (source.tree_id !== target.tree_id) {
       notifyMove('Movimento inválido: origem e destino pertencem a árvores diferentes.');
       return;
@@ -168,27 +304,64 @@ export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, onSel
       return;
     }
 
-    setMoving(true);
-    notifyMove(`Movendo participante da posição #${source.position_index} para #${target.position_index}...`);
+    setBoardPositions(current => current.map(position => {
+      if (position.tree_id !== source.tree_id) return position;
+      if (position.user_id === source.user_id && position.status === 'occupied') {
+        return { ...position, user_id: null, status: 'vacant', activation_status: null, username: undefined, full_name: undefined };
+      }
+      if (position.position_index === target.position_index) {
+        return {
+          ...position,
+          user_id: source.user_id,
+          status: 'occupied',
+          activation_status: source.activation_status || 'active',
+          username: source.username,
+          full_name: source.full_name
+        };
+      }
+      return position;
+    }));
+
+    setPendingMoves(current => [...current, {
+      treeId: source.tree_id,
+      fromIndex: source.position_index,
+      positionIndex: target.position_index,
+      userId: source.user_id!
+    }]);
+    notifyMove(`Movimento pendente: posição #${source.position_index} → #${target.position_index}. Clique em Salvar alterações para persistir.`);
+  };
+
+  const savePendingMoves = async () => {
+    if (!pendingMoves.length || savingMoves) return;
+    setSavingMoves(true);
+    notifyMove('Salvando reposicionamentos...');
     try {
-      const result = await assignPositionDirect({
-        treeId: source.tree_id,
-        positionIndex: target.position_index,
-        userId: source.user_id
-      });
-      if (result?.success === false) {
-        throw new Error(result.error || 'A API recusou a movimentação.');
+      for (const move of pendingMoves) {
+        const result = await assignPositionDirect({
+          treeId: move.treeId,
+          positionIndex: move.positionIndex,
+          userId: move.userId
+        });
+        if (result?.success === false) {
+          throw new Error(result.error || `A API recusou a posição #${move.positionIndex}.`);
+        }
       }
-      notifyMove(`Participante movido para a posição #${target.position_index}. Atualizando árvore...`);
-      if (typeof window !== 'undefined') {
-        window.setTimeout(() => window.location.reload(), 450);
-      }
+      setPendingMoves([]);
+      notifyMove('Reposicionamentos salvos. Atualizando árvore...');
+      if (typeof window !== 'undefined') window.setTimeout(() => window.location.reload(), 450);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Falha desconhecida.';
-      notifyMove(`Erro ao mover participante: ${message}`);
+      notifyMove(`Erro ao salvar reposicionamentos: ${message}`);
     } finally {
-      setMoving(false);
+      setSavingMoves(false);
     }
+  };
+
+  const discardPendingMoves = () => {
+    if (savingMoves) return;
+    setBoardPositions(positions);
+    setPendingMoves([]);
+    notifyMove('Alterações pendentes descartadas.');
   };
 
   const handleTreePointerDown = (event: ReactPointerEvent<HTMLElement>) => {
@@ -207,7 +380,7 @@ export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, onSel
   };
 
   const handleNodePointerDown = (event: ReactPointerEvent<HTMLButtonElement>, position: BoardPosition) => {
-    if (!canReorder || moving) return;
+    if (!canReorder || savingMoves) return;
     if (position.position_index === 0 || position.status !== 'occupied' || !position.user_id) return;
 
     lockTreeScroll();
@@ -216,20 +389,21 @@ export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, onSel
     dragMovedRef.current = false;
     setDraggingIndex(position.position_index);
     setDropTargetIndex(position.position_index);
-    event.currentTarget.setPointerCapture(event.pointerId);
   };
 
   const handleNodePointerMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (!dragSourceRef.current) return;
-    event.preventDefault();
 
     const start = dragStartRef.current;
     if (start && !dragMovedRef.current) {
       const distance = Math.hypot(event.clientX - start.x, event.clientY - start.y);
-      if (distance > 6) dragMovedRef.current = true;
+      if (distance <= 8) return;
+      dragMovedRef.current = true;
+      event.currentTarget.setPointerCapture(event.pointerId);
     }
 
-    const hoveredPosition = getPositionAtPointer(positions, event.clientX, event.clientY);
+    event.preventDefault();
+    const hoveredPosition = getPositionAtPointer(boardPositions, event.clientX, event.clientY);
     setDropTargetIndex(hoveredPosition?.position_index ?? null);
   };
 
@@ -237,13 +411,13 @@ export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, onSel
     const source = dragSourceRef.current;
     if (!source) return;
 
-    event.preventDefault();
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
 
     const wasDragged = dragMovedRef.current;
-    const target = getPositionAtPointer(positions, event.clientX, event.clientY);
+    if (wasDragged) event.preventDefault();
+    const target = getPositionAtPointer(boardPositions, event.clientX, event.clientY);
     if (wasDragged) {
       suppressNextClickRef.current = true;
       if (typeof window !== 'undefined') {
@@ -255,7 +429,7 @@ export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, onSel
 
     clearDragState();
     if (wasDragged && target && target.position_index !== source.position_index) {
-      void moveParticipant(source, target);
+      moveParticipant(source, target);
     }
   };
 
@@ -268,28 +442,77 @@ export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, onSel
     <section
       ref={boardRef}
       className={`arboris-tree-board${canReorder && treeScrollLocked ? ' arboris-tree-board--scroll-locked' : ''}`}
-      aria-label={`Explorador da árvore ${treeCode || ''}`}
+      aria-label={`Visualização da árvore ${treeCode || ''}`}
+      data-layout-template={activeTemplate.id}
       onPointerDown={handleTreePointerDown}
       onWheel={handleTreeWheel}
     >
-      <img className="arboris-tree-art" src={treeScene} width="1024" height="1536" alt="" decoding="async" draggable={false} />
-      <div className="arboris-tree-brand"><span><Trees aria-hidden="true" /></span><strong>ARBORIS</strong></div>
-      <header className="arboris-tree-heading">
-        <h3>Explorador da Árvore: <strong>{treeCode || 'Árvore comunitária'}</strong>{treeLabel && <> · {treeLabel}</>}</h3>
-        <span>15<br />Posições</span>
-      </header>
-      <svg className="arboris-tree-connections" viewBox="0 0 1000 1500" aria-hidden="true">
+      <div className="arboris-tree-toolbar">
+      <div className={`arboris-tree-brand${memberIdentity ? ' arboris-tree-brand--member' : ''}`}>
+        <span><Trees aria-hidden="true" /></span>
+        {memberIdentity ? (
+          <>
+            <div className="arboris-tree-member">
+              <span className="arboris-tree-member-type">{memberIdentity.roleLabel}</span>
+              <strong className="arboris-tree-member-name" title={memberIdentity.name}>{memberIdentity.name}</strong>
+            </div>
+            <div className="arboris-tree-member-balance" aria-label={`Saldo individual: ${memberIdentity.balance} sementes`}>
+              <Sprout aria-hidden="true" />
+              <span>{memberIdentity.balance}<small> sementes</small></span>
+            </div>
+          </>
+        ) : (
+          <strong>{treeLabel || 'ARBORIS'}</strong>
+        )}
+      </div>
+      {canReorder && (
+        <div className="arboris-tree-template-control">
+          <button
+            type="button"
+            className="arboris-tree-template-toggle"
+            onClick={() => setTemplateMenuOpen(open => !open)}
+            aria-expanded={templateMenuOpen}
+          >
+            Templates
+          </button>
+          {templateMenuOpen && (
+            <div className="arboris-tree-template-menu" role="menu" aria-label="Templates da árvore">
+              {layoutTemplates.map(template => (
+                <button
+                  key={template.id}
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={template.id === activeTemplate.id}
+                  className={template.id === activeTemplate.id ? 'is-active' : ''}
+                  onClick={() => selectLayoutTemplate(template.id)}
+                >
+                  <strong>{template.label}</strong>
+                  <span>{template.description}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      </div>
+      <div className="arboris-tree-scene">
+      <img className="arboris-tree-art" src={officialLayout ? officialTreeScene : treeScene} width={sceneWidth} height={sceneHeight} alt="" decoding="async" draggable={false} />
+      <svg className="arboris-tree-connections" viewBox={`0 0 ${sceneWidth} ${sceneHeight}`} aria-hidden="true">
         {connections.map(([from, to]) => {
           const a = layout[from], b = layout[to];
-          const path = `M ${a.x * 10} ${a.y * 15} Q ${(a.x + b.x) * 5} ${a.y * 15} ${b.x * 10} ${b.y * 15}`;
+          const ax = a.x * sceneWidth / 100, ay = a.y * sceneHeight / 100;
+          const bx = b.x * sceneWidth / 100, by = b.y * sceneHeight / 100;
+          const path = officialLayout
+            ? `M ${ax} ${ay} C ${ax + (bx - ax) * .65} ${ay}, ${ax + (bx - ax) * .25} ${by}, ${bx} ${by}`
+            : `M ${ax} ${ay} Q ${(ax + bx) / 2} ${Math.min(ay, by) + Math.abs(a.x - b.x) * 1.6} ${bx} ${by}`;
           return <g key={`${from}-${to}`}><path className="arboris-branch-glow" d={path} /><path className="arboris-branch-core" d={path} /></g>;
         })}
       </svg>
-      {positions.map(position => {
+      {boardPositions.map(position => {
         const point = layout[position.position_index];
         if (!point) return null;
         const root = position.position_index === 0;
-        // Direction follows the visible side of the tree, including positions 13–14.
+        const treeLevel = getTreeLevel(position.position_index);
         const leafDirection = point.x < 50 ? 'left' : 'right';
         const occupied = position.status === 'occupied';
         const reserved = occupied && position.activation_status === 'reserved';
@@ -297,19 +520,20 @@ export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, onSel
         const statusLabel = reserved ? 'Reservado' : occupied ? 'Ativado' : 'Vaga aberta';
         const name = occupied ? position.full_name || position.username || 'Participante' : 'Livre';
         const mine = currentUserId !== undefined && position.user_id === currentUserId;
-        const draggableNode = canReorder && occupied && !root && position.user_id !== null && !moving;
+        const draggableNode = canReorder && occupied && !root && position.user_id !== null && !savingMoves;
         const isDragging = draggingIndex === position.position_index;
         const isDropTarget = dropTargetIndex === position.position_index && draggingIndex !== null;
         return (
           <button key={position.position_index} type="button"
-            className={`arboris-tree-node arboris-tree-node--${state}${root ? ' arboris-tree-node--root' : ` arboris-tree-node--leaf arboris-tree-node--leaf-${leafDirection}`}${mine ? ' arboris-tree-node--mine' : ''}${draggableNode ? ' arboris-tree-node--draggable' : ''}${isDragging ? ' arboris-tree-node--dragging' : ''}${isDropTarget ? ' arboris-tree-node--drop-target' : ''}${moving ? ' arboris-tree-node--locked' : ''}`}
+            className={`arboris-tree-node arboris-tree-node--${state} arboris-tree-node--level-${treeLevel.className}${root ? ' arboris-tree-node--root' : ` arboris-tree-node--leaf arboris-tree-node--leaf-${leafDirection}`}${mine ? ' arboris-tree-node--mine' : ''}${draggableNode ? ' arboris-tree-node--draggable' : ''}${isDragging ? ' arboris-tree-node--dragging' : ''}${isDropTarget ? ' arboris-tree-node--drop-target' : ''}${savingMoves ? ' arboris-tree-node--locked' : ''}`}
             style={{ left: `${point.x}%`, top: `${point.y}%`, width: `${point.size}%` }}
             data-position={position.position_index}
             data-arboris-position="true"
             data-state={state}
+            data-arboris-user-id={position.user_id ?? ''}
             aria-grabbed={isDragging || undefined}
-            aria-label={`${root ? 'Tronco' : 'Posição'} #${position.position_index}: ${name}. ${statusLabel}${mine ? '. Você' : ''}${draggableNode ? '. Arraste para reorganizar.' : ''}`}
-            title={`${name} · ${statusLabel}${draggableNode ? ' · arraste para mover' : ''}`}
+            aria-label={`${treeLevel.label} #${position.position_index}: ${name}. ${statusLabel}${mine ? '. Você' : ''}${draggableNode ? '. Arraste para reorganizar.' : ''}`}
+            title={`${treeLevel.label} · ${name} · ${statusLabel}${draggableNode ? ' · arraste para mover' : ''}`}
             onPointerDown={(event) => handleNodePointerDown(event, position)}
             onPointerMove={handleNodePointerMove}
             onPointerUp={handleNodePointerUp}
@@ -322,27 +546,65 @@ export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, onSel
               }
               onSelect(position);
             }}>
-            {!root && <svg className="arboris-leaf-veins" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+            {!root && officialLayout && <svg className="arboris-leaf-surface" viewBox="0 0 100 64" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+              <defs>
+                <radialGradient id={`${artworkId}-leaf-${position.position_index}`} cx="52%" cy="45%" r="70%">
+                  <stop offset="0" stopColor="var(--node-dark)" />
+                  <stop offset=".5" stopColor="var(--node-base)" />
+                  <stop offset=".85" stopColor="var(--node-light)" />
+                  <stop offset="1" stopColor="#fff2a1" />
+                </radialGradient>
+              </defs>
+              <path className="arboris-leaf-outline" fill={`url(#${artworkId}-leaf-${position.position_index})`} d="M 2 13 C 28 22 37 -3 70 5 C 95 14 92 50 98 60 C 77 48 50 72 22 49 C 10 39 10 23 2 13 Z" />
+              <path className="arboris-leaf-ridge" d="M 4 14 Q 36 46 96 59 M 18 27 Q 37 29 51 17 M 30 40 Q 42 43 56 57" />
+            </svg>}
+            {!root && !officialLayout && <svg className="arboris-leaf-veins" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
               <path d="M 9 9 Q 44 43 86 86 M 32 33 Q 43 24 58 23 M 48 49 Q 62 39 76 41 M 33 34 Q 24 43 24 57 M 49 50 Q 39 62 42 76" />
             </svg>}
             {root && <Crown aria-hidden="true" />}
             <span className="arboris-tree-node-index">{root ? 'TRONCO #0' : `#${position.position_index}`}</span>
-            {(root || occupied) && <span className="arboris-tree-node-name">{name}</span>}
+            <span className="arboris-tree-node-name">{name}</span>
             {mine && <span className="arboris-tree-node-you">VOCÊ</span>}
           </button>
         );
       })}
-      {canReorder && (
+      </div>
+      {canReorder && pendingMoves.length === 0 && (
         <div className="arboris-tree-reorder-hint" aria-hidden="true">
           Arraste um participante ocupado para reorganizar a árvore.
         </div>
       )}
+      {pendingMoves.length > 0 && (
+        <div className="arboris-tree-savebar" role="status">
+          <span>{pendingMoves.length} alteração(ões) pendente(s)</span>
+          <button type="button" onClick={discardPendingMoves} disabled={savingMoves}>
+            <X aria-hidden="true" />
+            Descartar
+          </button>
+          <button type="button" onClick={savePendingMoves} disabled={savingMoves} className="arboris-tree-savebar-primary">
+            {savingMoves ? <RefreshCw aria-hidden="true" /> : <Save aria-hidden="true" />}
+            Salvar alterações
+          </button>
+        </div>
+      )}
       {moveMessage && <div className="arboris-tree-toast" role="status">{moveMessage}</div>}
+      <div className="arboris-tree-leaf-base" role="note">
+        Folhas · entrada de novos participantes
+      </div>
       <div className="arboris-tree-legend" aria-label="Legenda da árvore">
-        <span><i className="arboris-key--root" />Centro: Tronco</span>
-        <span><i className="arboris-key--active" />Ativado</span>
-        <span><i className="arboris-key--reserved" />Reservado</span>
-        <span><i className="arboris-key--vacant" />Vaga Aberta</span>
+        <div className="arboris-tree-legend-group" role="group" aria-label="Status da posição">
+          <strong>Status</strong>
+          <span><i className="arboris-key--status-active" />Ativado</span>
+          <span><i className="arboris-key--status-reserved" />Reservado</span>
+          <span><i className="arboris-key--status-vacant" />Vaga aberta</span>
+        </div>
+        <div className="arboris-tree-legend-group" role="group" aria-label="Níveis da árvore">
+          <strong>Níveis</strong>
+          <span><i className="arboris-key--level-trunk" />Tronco</span>
+          <span><i className="arboris-key--level-branch" />Ramos</span>
+          <span><i className="arboris-key--level-twig" />Galhos</span>
+          <span><i className="arboris-key--level-leaf" />Folhas</span>
+        </div>
       </div>
     </section>
   );

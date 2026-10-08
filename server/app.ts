@@ -8,9 +8,11 @@ import type { User } from '../src/types/game';
 import { validateReferral, resolveTreeTokenRequirement } from '../src/services/gameEngine';
 import { DatabasePool, transaction, loadState, saveState } from './db';
 import { digest, newToken, hashPassword, verifyPassword, HttpError } from './security';
-import { registrationSchema, actionSchema, register, applyAction, visibleState } from './actions';
+import { registrationSchema, actionSchema, passwordSchema, register, applyAction, visibleState } from './actions';
 
 const cookieName = 'arboris_session';
+const recoveryPinSchema = z.string().trim().regex(/^\d{4,12}$/, 'O PIN de recuperação deve ter de 4 a 12 números.');
+const registrationWithRecoverySchema = registrationSchema.extend({ recoveryPin: recoveryPinSchema.optional() }).strict();
 function sessionHash(req: express.Request) {
   const token = req.headers.cookie?.split(';').map(s => s.trim()).find(s => s.startsWith(`${cookieName}=`))?.slice(cookieName.length + 1);
   return token && /^[a-f0-9]{64}$/.test(token) ? digest(token) : '';
@@ -48,9 +50,14 @@ export function createApp(pool: DatabasePool) {
     const origin = req.get('Origin');
     if (origin && !origins.includes(origin)) return next(new HttpError(403, 'Origem não autorizada.'));
     if (origin) { res.set('Access-Control-Allow-Origin', origin); res.set('Access-Control-Allow-Credentials', 'true'); res.vary('Origin'); }
-    res.set('Access-Control-Allow-Headers', 'Content-Type, X-Arboris-Client, Idempotency-Key');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, X-Arboris-Client, Idempotency-Key, X-Arboris-Visual-Preview');
     res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     if (req.method === 'OPTIONS') { res.sendStatus(204); return; }
+    const visualPreview = req.get('X-Arboris-Visual-Preview') === 'true';
+    if (visualPreview && (process.env.NODE_ENV !== 'development' || process.env.ARBORIS_VISUAL_PREVIEW !== 'true')) {
+      return next(new HttpError(403, 'Prévia visual indisponível.'));
+    }
+    if (visualPreview && req.method !== 'GET') return next(new HttpError(403, 'A prévia visual é somente para leitura.'));
     if (req.method !== 'GET' && (req.get('X-Arboris-Client') !== 'web' || !req.is('application/json'))) return next(new HttpError(403, 'Cabeçalhos da requisição inválidos.'));
     next();
   });
@@ -68,7 +75,17 @@ export function createApp(pool: DatabasePool) {
   });
   app.get('/api/state', async (req, res) => {
     res.json(await transaction(pool, async db => {
-      const user = await authenticated(db, req, false), state = await loadState(db);
+      const state = await loadState(db);
+      const previewRole = process.env.NODE_ENV === 'development'
+        && process.env.ARBORIS_VISUAL_PREVIEW === 'true'
+        && (req.query.preview === 'admin' || req.query.preview === 'member')
+        ? req.query.preview
+        : null;
+      const previewUser = previewRole
+        ? state.users.find(user => user.role === (previewRole === 'admin' ? 'admin' : 'participant') && user.status === 'active') || null
+        : null;
+      if (previewRole && !previewUser) throw new HttpError(404, 'Usuário de demonstração não encontrado.');
+      const user = previewUser || await authenticated(db, req, false);
       return { success: true, state: visibleState(state, user), user };
     }));
   });
@@ -84,6 +101,25 @@ export function createApp(pool: DatabasePool) {
       const { passwordHash, ...u } = rows[0]; return u;
     }, true);
     res.cookie(cookieName, token, { ...cookieOptions, maxAge: 12 * 60 * 60 * 1000 }).json({ success: true, user });
+  });
+  app.post('/api/auth/recover', authLimit, async (req, res) => {
+    const params = z.object({
+      username: z.string().trim().min(3).max(100),
+      recoveryPin: recoveryPinSchema,
+      newPassword: passwordSchema
+    }).strict().parse(req.body);
+    const nextPasswordHash = await hashPassword(params.newPassword);
+    await transaction(pool, async db => {
+      const [rows] = await db.execute<RowDataPacket[]>('SELECT u.id, u.status, c.recoveryPinHash FROM users u JOIN credentials c ON c.userId=u.id WHERE u.username=?', [params.username]);
+      const storedPinHash = rows[0]?.recoveryPinHash || await dummyHash;
+      const validPin = await verifyPassword(params.recoveryPin, storedPinHash);
+      if (!rows.length || rows[0].status !== 'active' || !rows[0].recoveryPinHash || !validPin) {
+        throw new HttpError(401, 'Usuário ou PIN de recuperação inválidos.');
+      }
+      await db.execute('UPDATE credentials SET passwordHash=? WHERE userId=?', [nextPasswordHash, rows[0].id]);
+      await db.execute('DELETE FROM sessions WHERE userId=?', [rows[0].id]);
+    }, true);
+    res.json({ success: true });
   });
   app.post('/api/auth/logout', async (req, res) => {
     await pool.execute('DELETE FROM sessions WHERE tokenHash=?', [sessionHash(req)]);
@@ -103,18 +139,19 @@ export function createApp(pool: DatabasePool) {
     res.json({ success: true, data });
   });
   for (const route of ['/api/register', '/api/admin/users']) app.post(route, authLimit, async (req, res) => {
-    const params = registrationSchema.parse(req.body);
+    const params = registrationWithRecoverySchema.parse(req.body);
     const passwordHash = await hashPassword(params.password);
+    const recoveryPinHash = params.recoveryPin ? await hashPassword(params.recoveryPin) : null;
     const result = await transaction(pool, async db => {
       const user = route.includes('/admin/') ? await authenticated(db, req) : null;
       if (user && user.role !== 'admin') throw new HttpError(403, 'Acesso administrativo obrigatório.');
-      const { password, ...publicParams } = params;
+      const { password, recoveryPin, ...publicParams } = params;
       return idempotent(db, req, user?.id || 0, { route, ...publicParams }, async key => {
         const state = await loadState(db);
         if (state.config.systemMode !== 'active') throw new HttpError(503, 'Sistema em manutenção.');
         const mutation = register(state, params, key, user || undefined);
         await saveState(db, mutation.state, state);
-        await db.execute('INSERT INTO credentials (userId,passwordHash) VALUES (?,?)', [mutation.result!.user.id, passwordHash]);
+        await db.execute('INSERT INTO credentials (userId,passwordHash,recoveryPinHash) VALUES (?,?,?) ON DUPLICATE KEY UPDATE passwordHash=VALUES(passwordHash), recoveryPinHash=VALUES(recoveryPinHash)', [mutation.result!.user.id, passwordHash, recoveryPinHash]);
         return { success: true, result: mutation.result };
       });
     }, true);
@@ -140,7 +177,7 @@ export function createApp(pool: DatabasePool) {
   app.use((error: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     const status = error instanceof HttpError ? error.status : error instanceof ZodError || error.type === 'entity.parse.failed' ? 400 : error.type === 'entity.too.large' ? 413 : 500;
     if (status === 500) console.error('API request failed:', error.code || error.name);
-    res.status(status).json({ success: false, error: error instanceof HttpError ? error.message : status === 400 ? 'Dados inválidos. Confira os campos e a senha (12 a 128 caracteres).' : status === 413 ? 'Requisição muito grande.' : 'Falha interna. Tente novamente.' });
+    res.status(status).json({ success: false, error: error instanceof HttpError ? error.message : status === 400 ? 'Dados inválidos. Confira os campos, a senha (12 a 128 caracteres) e o PIN de recuperação.' : status === 413 ? 'Requisição muito grande.' : 'Falha interna. Tente novamente.' });
   });
   return app;
 }

@@ -42,6 +42,8 @@ export async function loadState(db: PoolConnection): Promise<GameDatabaseState> 
   state.auditLog.forEach((a: any) => { a.entityId = parseJson(a.entityId); a.metadata = parseJson(a.metadata); });
   const [positions] = await db.query<RowDataPacket[]>('SELECT * FROM tree_positions ORDER BY treeId, `index`');
   state.trees.forEach((t: any) => { t.positions = positions.filter(p => p.treeId === t.id).map(({ treeId, ...p }) => p); });
+  const [bagRows] = await db.query<RowDataPacket[]>('SELECT data FROM planting_bag_state WHERE id = 1');
+  state.plantingBag = bagRows.length ? parseJson(bagRows[0].data) : undefined;
   return state;
 }
 async function upsert(db: PoolConnection, table: string, columns: string[], row: any) {
@@ -83,6 +85,9 @@ async function deleteRemovedRows(db: PoolConnection, state: GameDatabaseState, p
 export async function saveState(db: PoolConnection, state: GameDatabaseState, previous?: GameDatabaseState) {
   if (!previous || JSON.stringify(previous.config) !== JSON.stringify(state.config)) {
     await db.execute('INSERT INTO game_config (id,config) VALUES (1,?) ON DUPLICATE KEY UPDATE config=VALUES(config)', [JSON.stringify(state.config)]);
+  }
+  if (state.plantingBag && (!previous || JSON.stringify(previous.plantingBag) !== JSON.stringify(state.plantingBag))) {
+    await db.execute('INSERT INTO planting_bag_state (id,data) VALUES (1,?) ON DUPLICATE KEY UPDATE data=VALUES(data)', [JSON.stringify(state.plantingBag)]);
   }
   if (previous) await deleteRemovedRows(db, state, previous);
   for (const [key, table, primary, fields] of descriptors) {

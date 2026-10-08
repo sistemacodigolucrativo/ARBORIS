@@ -16,6 +16,8 @@ const errors: string[] = [];
 page.on('pageerror', error => errors.push(error.message));
 try {
   await page.goto('http://127.0.0.1:3001/ARBORIS/');
+  await expect(page.getByRole('heading', { name: 'Entrar na comunidade' })).toBeVisible();
+  await page.getByRole('button', { name: 'Conhecer o projeto', exact: true }).click();
   await page.getByRole('button', { name: /Já sou membro/ }).click();
   await page.getByLabel('Usuário', { exact: true }).fill('admin');
   await page.getByLabel('Senha', { exact: true }).fill('test-only-long-password-123');
@@ -34,7 +36,7 @@ try {
   await page.reload();
   await expect(page.getByRole('button', { name: 'Organização', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Sair', exact: true }).click();
-  await page.getByRole('button', { name: /Já sou membro/ }).click();
+  await expect(page.getByRole('heading', { name: 'Entrar na comunidade' })).toBeVisible();
   await page.getByLabel('Usuário', { exact: true }).fill('browser_member');
   await page.getByLabel('Senha', { exact: true }).fill('browser-only-long-password-123');
   await page.getByRole('button', { name: 'Entrar', exact: true }).click();
@@ -50,7 +52,7 @@ try {
   await page.reload();
   await expect(page.getByRole('button', { name: 'Sair', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Sair', exact: true }).click();
-  await expect(page.getByRole('button', { name: /Já sou membro/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Entrar na comunidade' })).toBeVisible();
   if (errors.length) throw new Error(errors.join('\n'));
   console.log('Browser smoke passed: login, admin creation persisted in MySQL, member access, strengthening and signed ledger, session reload, logout.');
 } finally {

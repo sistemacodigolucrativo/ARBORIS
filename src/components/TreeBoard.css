@@ -3,16 +3,18 @@
   isolation: isolate;
   container-type: inline-size;
   width: 100%;
-  aspect-ratio: 2 / 3;
   overflow: hidden;
   border-radius: 18px;
-  background: #20a5ef;
+  background: #08251c;
   color: #f8fafc;
   touch-action: pan-y;
   overscroll-behavior: auto;
   user-select: none;
   -webkit-user-select: none;
 }
+.arboris-tree-scene { position: relative; width: 100%; aspect-ratio: 2 / 3; isolation: isolate; }
+.arboris-tree-board[data-layout-template="arboris-oficial"] .arboris-tree-scene { aspect-ratio: 7 / 6; }
+.arboris-tree-toolbar { position: relative; display: flex; align-items: center; gap: 8px; padding: 8px 10px; z-index: 9; }
 .arboris-tree-board--scroll-locked { cursor: grabbing; }
 .arboris-tree-art,
 .arboris-tree-connections {
@@ -25,22 +27,21 @@
 .arboris-tree-art { object-fit: contain; user-select: none; }
 .arboris-tree-brand,
 .arboris-tree-legend {
-  position: absolute;
-  left: 4.5%;
-  right: 4.5%;
+  position: relative;
   z-index: 2;
   background: rgb(2 27 42 / 96%);
   border: 1px solid #27845c;
   border-radius: 3cqw;
 }
 .arboris-tree-brand {
-  top: 1.1%;
-  height: 6.3%;
+  flex: 1;
+  min-width: 0;
+  min-height: 38px;
   display: flex;
   align-items: center;
   gap: 3.5%;
-  font-size: 4.4cqw;
-  letter-spacing: .02em;
+  font-size: 14px;
+  letter-spacing: 0;
 }
 .arboris-tree-brand > strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .arboris-tree-brand--member { gap: 1.8%; padding-right: 2.2%; }
@@ -52,11 +53,11 @@
   border-radius: 999px;
   padding: .4cqw 1.2cqw;
   color: #a7f3d0;
-  font-size: 1.9cqw;
+  font-size: 9px;
   font-weight: 800;
   line-height: 1.1;
   text-transform: uppercase;
-  letter-spacing: .04em;
+  letter-spacing: 0;
 }
 .arboris-tree-member-name {
   display: block;
@@ -64,7 +65,7 @@
   min-width: 0;
   overflow: hidden;
   color: #f1f5f9;
-  font-size: 3.1cqw;
+  font-size: 13px;
   font-weight: 800;
   line-height: 1.15;
   text-align: center;
@@ -77,14 +78,16 @@
   gap: .8cqw;
   flex: none;
   color: #a7f3d0;
-  font-size: 2.7cqw;
+  font-size: 12px;
   font-weight: 800;
   white-space: nowrap;
 }
 .arboris-tree-member-balance svg { width: 3.1cqw; height: 3.1cqw; color: #34d399; }
-.arboris-tree-member-balance small { color: #b6cedb; font-size: 2.2cqw; font-weight: 600; }
+.arboris-tree-member-balance small { color: #b6cedb; font-size: 10px; font-weight: 600; }
 .arboris-tree-brand > span {
-  height: 100%;
+  width: 34px;
+  height: 34px;
+  flex: none;
   aspect-ratio: 1;
   border-radius: 3cqw;
   display: grid;
@@ -94,9 +97,8 @@
 }
 .arboris-tree-brand svg { width: 62%; height: 62%; color: #05cf6f; }
 .arboris-tree-template-control {
-  position: absolute;
-  top: 1.7%;
-  right: 5.2%;
+  position: relative;
+  flex: none;
   z-index: 9;
   display: flex;
   justify-content: flex-end;
@@ -107,7 +109,7 @@
   color: #d1fae5;
   border-radius: 2.2cqw;
   padding: 1.1cqw 2cqw;
-  font-size: 2.35cqw;
+  font-size: 12px;
   font-weight: 900;
   cursor: pointer;
   box-shadow: 0 .6cqw 1.4cqw rgb(0 0 0 / 35%);
@@ -144,8 +146,8 @@
   background: rgb(6 78 59 / 95%);
   color: #ecfdf5;
 }
-.arboris-tree-template-menu strong { font-size: 2.45cqw; }
-.arboris-tree-template-menu span { font-size: 2.05cqw; line-height: 1.25; color: #cbd5e1; }
+.arboris-tree-template-menu strong { font-size: 13px; }
+.arboris-tree-template-menu span { font-size: 12px; line-height: 1.25; color: #cbd5e1; }
 .arboris-tree-connections { z-index: 1; fill: none; }
 .arboris-branch-glow { stroke: #39d834; stroke-width: 11; opacity: .8; filter: drop-shadow(0 0 5px #7aff17); }
 .arboris-branch-core { stroke: #d4ff76; stroke-width: 3; }
@@ -215,6 +217,7 @@
 .arboris-tree-node--leaf-right .arboris-leaf-veins { transform: scaleX(-1); }
 .arboris-tree-node-index { font-size: 3.65cqw; }
 .arboris-tree-node-name { display: block; width: 94%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 2.25cqw; }
+.arboris-tree-node-level { font-size: 2cqw; font-weight: 600; }
 .arboris-tree-node--root { z-index: 3; background: radial-gradient(ellipse at top, #1a1c30 40%, #472108); border: .85cqw solid #ffb900; color: #fff; box-shadow: inset 0 .45cqw .1cqw #fff291, 0 0 0 .45cqw #683e04, 0 .8cqw 1.5cqw #052e1f; }
 .arboris-tree-node--root svg { width: 29%; height: 25%; color: #ffc400; margin-bottom: 2%; }
 .arboris-tree-node--root .arboris-tree-node-index { font-size: 2.9cqw; color: #ffc400; }
@@ -224,9 +227,8 @@
 .arboris-tree-reorder-hint,
 .arboris-tree-toast,
 .arboris-tree-savebar {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
+  position: relative;
+  margin: 8px auto;
   z-index: 8;
   max-width: 92%;
   border-radius: 999px;
@@ -235,15 +237,14 @@
   color: #fde68a;
   padding: 1.3% 2.5%;
   text-align: center;
-  font-size: 2.35cqw;
+  font-size: 11px;
   font-weight: 800;
   line-height: 1.2;
   box-shadow: 0 .8cqw 1.6cqw rgb(0 0 0 / 35%);
 }
-.arboris-tree-reorder-hint { top: 8.5%; pointer-events: none; }
-.arboris-tree-toast { bottom: 18%; color: #ecfeff; border-color: rgb(20 184 166 / 70%); pointer-events: none; }
+.arboris-tree-reorder-hint { pointer-events: none; }
+.arboris-tree-toast { color: #ecfeff; border-color: rgb(20 184 166 / 70%); pointer-events: none; }
 .arboris-tree-savebar {
-  bottom: 10%;
   display: flex;
   align-items: center;
   gap: 1.4cqw;
@@ -264,7 +265,7 @@
   border-radius: 2cqw;
   padding: 1cqw 1.8cqw;
   font: inherit;
-  font-size: 2.2cqw;
+  font-size: 12px;
   cursor: pointer;
 }
 .arboris-tree-savebar button:disabled { opacity: .6; cursor: wait; }
@@ -272,11 +273,10 @@
 .arboris-tree-savebar-primary { background: #10b981 !important; border-color: #34d399 !important; color: #052e16 !important; }
 .arboris-tree-savebar-primary svg { color: #052e16; }
 .arboris-tree-leaf-base {
-  position: absolute;
+  position: relative;
   z-index: 2;
-  left: 15%;
-  right: 15%;
-  bottom: 12.8%;
+  margin: 8px auto;
+  width: 85%;
   min-height: 5%;
   display: grid;
   place-items: center;
@@ -286,15 +286,15 @@
   color: #f0f6da;
   background: linear-gradient(100deg, rgb(10 38 28 / 92%), rgb(24 57 39 / 94%), rgb(10 38 28 / 92%));
   box-shadow: 0 .5cqw 1.5cqw rgb(0 0 0 / 38%), inset 0 1px rgb(255 255 255 / 8%);
-  font-size: max(7px, 2.2cqw);
+  font-size: 11px;
   font-weight: 800;
   line-height: 1.1;
-  letter-spacing: .025em;
+  letter-spacing: 0;
   text-align: center;
   white-space: nowrap;
 }
 .arboris-tree-legend {
-  bottom: 1.2%;
+  margin: 8px 10px;
   min-height: 8.8%;
   display: flex;
   flex-direction: column;
@@ -310,14 +310,14 @@
   justify-content: center;
   flex-wrap: wrap;
   gap: .5cqw 1.8cqw;
-  font-size: max(7px, 2.35cqw);
+  font-size: 11px;
   line-height: 1.1;
 }
 .arboris-tree-legend-group > strong {
   color: #e2f1ec;
-  font-size: max(6px, 2cqw);
+  font-size: 10px;
   font-weight: 900;
-  letter-spacing: .04em;
+  letter-spacing: 0;
   text-transform: uppercase;
 }
 .arboris-tree-legend-group > span { display: inline-flex; align-items: center; gap: .6cqw; white-space: nowrap; }
@@ -336,6 +336,106 @@
 .arboris-key--level-branch { background: #7dd3fc; }
 .arboris-key--level-twig { background: #c4b5fd; }
 .arboris-key--level-leaf { background: #bef264; }
+
+/* Official artwork: level colors stay independent of activation status. */
+[data-layout-template="arboris-oficial"] .arboris-tree-art { object-fit: cover; }
+[data-layout-template="arboris-oficial"] .arboris-branch-glow {
+  stroke: #ec8a08;
+  stroke-width: 8;
+  opacity: .95;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 4px #ffc400);
+}
+[data-layout-template="arboris-oficial"] .arboris-branch-core {
+  stroke: #fff5a3;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+[data-layout-template="arboris-oficial"] .arboris-tree-node {
+  color: #fff;
+  gap: 0;
+  padding: 0;
+  border: .45cqw solid #ffe98c;
+  letter-spacing: 0;
+  font-family: "Arial Narrow", "Liberation Sans Narrow", Arial, sans-serif;
+  line-height: 1.04;
+  text-shadow: 0 1px 2px #000, 0 0 4px #000;
+  box-shadow: inset 0 0 .5cqw #fff4ab, inset 0 0 2cqw var(--node-light), 0 0 .55cqw #ffdf43, 0 0 1.35cqw #db9600, 0 .8cqw 1cqw #0009;
+}
+[data-layout-template="arboris-oficial"] .arboris-tree-node--leaf {
+  aspect-ratio: 1.6;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+.arboris-leaf-surface { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; filter: drop-shadow(0 0 1px #fff195) drop-shadow(0 0 3px #f7bd16) drop-shadow(0 2px 2px #000); }
+.arboris-tree-node--leaf-right .arboris-leaf-surface { transform: scaleX(-1); }
+.arboris-leaf-outline { stroke: #ffef98; stroke-width: 1.6; }
+.arboris-leaf-ridge { fill: none; stroke: var(--level-accent); stroke-width: .55; opacity: .55; }
+.arboris-tree-node--level-branch .arboris-leaf-outline { stroke: #b9efff; }
+.arboris-tree-node--vacant .arboris-leaf-outline { stroke-dasharray: 3 2; }
+.arboris-tree-board[data-layout-template="arboris-oficial"] .arboris-tree-node--leaf-left { border-radius: 2% 70% 6% 70%; }
+.arboris-tree-board[data-layout-template="arboris-oficial"] .arboris-tree-node--leaf-right { border-radius: 70% 2% 70% 6%; }
+[data-layout-template="arboris-oficial"] .arboris-tree-node--level-branch {
+  --node-base: #0057d9; --node-dark: #031d57; --node-light: #49baff; --level-accent: #7dd3fc;
+  aspect-ratio: 1.05;
+  border-color: #b7edff;
+}
+[data-layout-template="arboris-oficial"] .arboris-tree-node--level-twig {
+  --node-base: #b45309; --node-dark: #391800; --node-light: #ffa900; --level-accent: #ffd166;
+}
+[data-layout-template="arboris-oficial"] .arboris-tree-node--level-leaf {
+  --node-base: #008431; --node-dark: #002b19; --node-light: #73e52e; --level-accent: #adff81;
+}
+.arboris-tree-board[data-layout-template="arboris-oficial"] .arboris-tree-node--root {
+  --node-light: #a86d08;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 45% 25%, #25221a, #090b0a 70%);
+  border-width: .6cqw;
+}
+/* Panel button press styles must not replace the node's positioning transform. */
+.arboris-tree-board[data-layout-template] .arboris-tree-scene button.arboris-tree-node:active {
+  transform: translate(-50%, -50%);
+}
+[data-layout-template="arboris-oficial"] .arboris-tree-node-index,
+[data-layout-template="arboris-oficial"] .arboris-tree-node-name,
+[data-layout-template="arboris-oficial"] .arboris-tree-node-level {
+  font-size: clamp(11px, 2.85cqw, 21px);
+  max-width: 78%;
+}
+[data-layout-template="arboris-oficial"] .arboris-tree-node-name { font-weight: 700; }
+[data-layout-template="arboris-oficial"] .arboris-tree-node-level { font-weight: 500; }
+[data-layout-template="arboris-oficial"] .arboris-tree-node--root .arboris-tree-node-index {
+  color: #ffe351;
+  font-size: clamp(11px, 2.8cqw, 21px);
+  max-width: 96%;
+  white-space: nowrap;
+}
+[data-layout-template="arboris-oficial"] .arboris-tree-node--root .arboris-tree-node-name {
+  font-size: clamp(11px, 3.4cqw, 25px);
+  margin-top: 3%;
+}
+[data-layout-template="arboris-oficial"] .arboris-tree-node--root svg { width: 29%; height: 25%; color: #ffe36a; }
+[data-layout-template="arboris-oficial"] .arboris-leaf-veins { opacity: .2; stroke-width: 1; }
+[data-layout-template="arboris-oficial"] .arboris-tree-node--reserved::after {
+  content: "";
+  position: absolute;
+  top: 3%; right: 10%;
+  width: 1.8cqw; height: 1.8cqw;
+  background: #ff0060;
+  border: 1px solid #fff;
+  border-radius: 50%;
+}
+[data-layout-template="arboris-oficial"] .arboris-tree-node--vacant { border-style: dashed; }
+[data-layout-template="arboris-oficial"] .arboris-tree-node-you {
+  position: absolute;
+  bottom: -5%;
+  font-size: 8px;
+}
+[data-layout-template="arboris-oficial"] .arboris-key--level-branch { background: #0057d9; }
+[data-layout-template="arboris-oficial"] .arboris-key--level-twig { background: #f59e0b; }
+[data-layout-template="arboris-oficial"] .arboris-key--level-leaf { background: #16a34a; }
 .arboris-explorer { background: #105c26; border-radius: 18px; padding-bottom: 12px; overflow: hidden; }
 .arboris-explorer .arboris-tree-board { border-radius: 18px 18px 0 0; }
 .arboris-explorer .arboris-tree-actions { margin: 0 4.5%; border-color: #27845c; background: #021d2d; padding: 16px; }

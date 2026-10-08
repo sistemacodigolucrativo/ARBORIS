@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import type {
   PointerEvent as ReactPointerEvent,
   WheelEvent as ReactWheelEvent
 } from 'react';
 import { Crown, RefreshCw, Save, Sprout, Trees, X } from 'lucide-react';
 import treeScene from '../assets/arboris-tree-scene.webp';
+import officialTreeScene from '../assets/arboris-official-scene.png';
 import { assignPositionDirect } from '../services/directAdminActions';
 import './TreeBoard.css';
 
@@ -36,9 +37,27 @@ type TreeLayoutTemplate = {
   points: LayoutPoint[];
 };
 
-const TREE_LAYOUT_STORAGE_KEY = 'arboris_tree_layout_template_v1';
+const TREE_LAYOUT_STORAGE_KEY = 'arboris_tree_layout_template_v2';
+
+// Measured from the reference artwork; indices retain the functional 1-2-4-8 tree.
+const arborisOfficialPoints: LayoutPoint[] = [
+  { x: 50, y: 55, size: 23 },
+  { x: 31, y: 45, size: 15 }, { x: 69, y: 45, size: 15 },
+  { x: 13, y: 37, size: 21 }, { x: 12, y: 53, size: 21 },
+  { x: 87, y: 37, size: 21 }, { x: 88, y: 53, size: 21 },
+  { x: 24, y: 11, size: 20 }, { x: 15, y: 24, size: 21 },
+  { x: 12, y: 68, size: 21 }, { x: 20, y: 81, size: 21 },
+  { x: 76, y: 11, size: 20 }, { x: 85, y: 24, size: 21 },
+  { x: 88, y: 68, size: 21 }, { x: 80, y: 81, size: 21 },
+];
 
 const layoutTemplates: TreeLayoutTemplate[] = [
+  {
+    id: 'arboris-oficial',
+    label: 'ÁRBORIS Oficial',
+    description: 'Layout oficial com Tronco, Ramos, Galhos e Folhas conforme a dinâmica 1–2–4–8.',
+    points: arborisOfficialPoints,
+  },
   {
     id: 'organic',
     label: 'Orgânico',
@@ -170,6 +189,7 @@ export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, membe
   allowReordering?: boolean;
   onSelect: (position: BoardPosition) => void;
 }) {
+  const artworkId = useId().replace(/:/g, '');
   const boardRef = useRef<HTMLElement | null>(null);
   const dragSourceRef = useRef<BoardPosition | null>(null);
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -189,6 +209,9 @@ export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, membe
   const canReorder = allowReordering;
   const activeTemplate = layoutTemplates.find(template => template.id === layoutTemplateId) || layoutTemplates[0];
   const layout = activeTemplate.points;
+  const officialLayout = activeTemplate.id === 'arboris-oficial';
+  const sceneHeight = officialLayout ? 600 : 1500;
+  const sceneWidth = officialLayout ? 700 : 1000;
 
   useEffect(() => {
     if (pendingMoves.length === 0) setBoardPositions(positions);
@@ -424,7 +447,7 @@ export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, membe
       onPointerDown={handleTreePointerDown}
       onWheel={handleTreeWheel}
     >
-      <img className="arboris-tree-art" src={treeScene} width="1024" height="1536" alt="" decoding="async" draggable={false} />
+      <div className="arboris-tree-toolbar">
       <div className={`arboris-tree-brand${memberIdentity ? ' arboris-tree-brand--member' : ''}`}>
         <span><Trees aria-hidden="true" /></span>
         {memberIdentity ? (
@@ -471,11 +494,17 @@ export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, membe
           )}
         </div>
       )}
-      <svg className="arboris-tree-connections" viewBox="0 0 1000 1500" aria-hidden="true">
+      </div>
+      <div className="arboris-tree-scene">
+      <img className="arboris-tree-art" src={officialLayout ? officialTreeScene : treeScene} width={sceneWidth} height={sceneHeight} alt="" decoding="async" draggable={false} />
+      <svg className="arboris-tree-connections" viewBox={`0 0 ${sceneWidth} ${sceneHeight}`} aria-hidden="true">
         {connections.map(([from, to]) => {
           const a = layout[from], b = layout[to];
-          const controlY = Math.min(a.y, b.y) * 15 + Math.abs(a.x - b.x) * 1.6;
-          const path = `M ${a.x * 10} ${a.y * 15} Q ${(a.x + b.x) * 5} ${controlY} ${b.x * 10} ${b.y * 15}`;
+          const ax = a.x * sceneWidth / 100, ay = a.y * sceneHeight / 100;
+          const bx = b.x * sceneWidth / 100, by = b.y * sceneHeight / 100;
+          const path = officialLayout
+            ? `M ${ax} ${ay} C ${ax + (bx - ax) * .65} ${ay}, ${ax + (bx - ax) * .25} ${by}, ${bx} ${by}`
+            : `M ${ax} ${ay} Q ${(ax + bx) / 2} ${Math.min(ay, by) + Math.abs(a.x - b.x) * 1.6} ${bx} ${by}`;
           return <g key={`${from}-${to}`}><path className="arboris-branch-glow" d={path} /><path className="arboris-branch-core" d={path} /></g>;
         })}
       </svg>
@@ -517,16 +546,30 @@ export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, membe
               }
               onSelect(position);
             }}>
-            {!root && <svg className="arboris-leaf-veins" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+            {!root && officialLayout && <svg className="arboris-leaf-surface" viewBox="0 0 100 64" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+              <defs>
+                <radialGradient id={`${artworkId}-leaf-${position.position_index}`} cx="52%" cy="45%" r="70%">
+                  <stop offset="0" stopColor="var(--node-dark)" />
+                  <stop offset=".5" stopColor="var(--node-base)" />
+                  <stop offset=".85" stopColor="var(--node-light)" />
+                  <stop offset="1" stopColor="#fff2a1" />
+                </radialGradient>
+              </defs>
+              <path className="arboris-leaf-outline" fill={`url(#${artworkId}-leaf-${position.position_index})`} d="M 2 13 C 28 22 37 -3 70 5 C 95 14 92 50 98 60 C 77 48 50 72 22 49 C 10 39 10 23 2 13 Z" />
+              <path className="arboris-leaf-ridge" d="M 4 14 Q 36 46 96 59 M 18 27 Q 37 29 51 17 M 30 40 Q 42 43 56 57" />
+            </svg>}
+            {!root && !officialLayout && <svg className="arboris-leaf-veins" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
               <path d="M 9 9 Q 44 43 86 86 M 32 33 Q 43 24 58 23 M 48 49 Q 62 39 76 41 M 33 34 Q 24 43 24 57 M 49 50 Q 39 62 42 76" />
             </svg>}
             {root && <Crown aria-hidden="true" />}
             <span className="arboris-tree-node-index">{root ? 'TRONCO #0' : `#${position.position_index}`}</span>
-            {(root || occupied) && <span className="arboris-tree-node-name">{name}</span>}
+            <span className="arboris-tree-node-name">{name}</span>
+            {!root && <span className="arboris-tree-node-level">{treeLevel.label}</span>}
             {mine && <span className="arboris-tree-node-you">VOCÊ</span>}
           </button>
         );
       })}
+      </div>
       {canReorder && pendingMoves.length === 0 && (
         <div className="arboris-tree-reorder-hint" aria-hidden="true">
           Arraste um participante ocupado para reorganizar a árvore.

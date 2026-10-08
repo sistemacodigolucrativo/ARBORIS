@@ -178,9 +178,9 @@
 .arboris-tree-node--reserved { background: linear-gradient(145deg, #800b43, #3c122f); border: .75cqw solid #ff0060; color: #fff1f7; }
 .arboris-tree-node--vacant { background: #071c2c; border: .65cqw dashed #8098b5; color: #adbed5; }
 .arboris-tree-node--level-trunk { --level-accent: #ffd166; }
-.arboris-tree-node--level-branch { --level-accent: #73f0b7; }
-.arboris-tree-node--level-twig { --level-accent: #c1e7b8; }
-.arboris-tree-node--level-leaf { --level-accent: #e1edbc; }
+.arboris-tree-node--level-branch { --level-accent: #7dd3fc; }
+.arboris-tree-node--level-twig { --level-accent: #c4b5fd; }
+.arboris-tree-node--level-leaf { --level-accent: #bef264; }
 .arboris-tree-node--draggable { cursor: grab; touch-action: none; }
 .arboris-tree-node--dragging { cursor: grabbing; z-index: 6; opacity: .82; filter: brightness(1.2); }
 .arboris-tree-node--drop-target { z-index: 7; outline: .7cqw solid #facc15; outline-offset: .7cqw; }
@@ -190,23 +190,15 @@
    Do not rotate the button: names and position numbers stay horizontal. */
 .arboris-tree-node--leaf-left { border-radius: 3% 68% 38% 68%; }
 .arboris-tree-node--leaf-right { border-radius: 68% 3% 68% 38%; }
-.arboris-tree-node--leaf { text-shadow: 0 1px 2px rgb(0 0 0 / 65%); }
+.arboris-tree-node--leaf {
+  text-shadow: 0 1px 2px rgb(0 0 0 / 65%);
+  box-shadow: 0 0 0 1.25cqw var(--level-accent), 0 .5cqw 1cqw rgb(0 0 0 / 45%);
+}
+.arboris-tree-node--active.arboris-tree-node--leaf {
+  box-shadow: inset 0 .45cqw .2cqw #88ffb4, 0 0 0 1.25cqw var(--level-accent), 0 .5cqw 1cqw #032b28;
+}
 .arboris-tree-node--leaf > span { position: relative; z-index: 1; }
 .arboris-tree-node--leaf .arboris-tree-node-name { width: 80%; }
-.arboris-tree-node--leaf::after {
-  content: "";
-  position: absolute;
-  top: 11%;
-  right: 13%;
-  z-index: 1;
-  width: 15%;
-  aspect-ratio: 1;
-  border: .25cqw solid #05291e;
-  border-radius: 50%;
-  background: var(--level-accent);
-  box-shadow: 0 0 .7cqw var(--level-accent);
-  pointer-events: none;
-}
 .arboris-leaf-veins {
   position: absolute;
   inset: 0;
@@ -214,9 +206,10 @@
   height: 100%;
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.5;
+  stroke-width: 2.5;
   stroke-linecap: round;
-  opacity: .14;
+  color: var(--level-accent);
+  opacity: .58;
   pointer-events: none;
 }
 .arboris-tree-node--leaf-right .arboris-leaf-veins { transform: scaleX(-1); }
@@ -340,9 +333,9 @@
 .arboris-key--status-reserved { background: #ff0060; }
 .arboris-tree-legend .arboris-key--status-vacant { border: 1px dashed #9aafc4; background: transparent; }
 .arboris-key--level-trunk { background: #ffd166; }
-.arboris-key--level-branch { background: #73f0b7; }
-.arboris-key--level-twig { background: #c1e7b8; }
-.arboris-key--level-leaf { background: #e1edbc; }
+.arboris-key--level-branch { background: #7dd3fc; }
+.arboris-key--level-twig { background: #c4b5fd; }
+.arboris-key--level-leaf { background: #bef264; }
 .arboris-explorer { background: #105c26; border-radius: 18px; padding-bottom: 12px; overflow: hidden; }
 .arboris-explorer .arboris-tree-board { border-radius: 18px 18px 0 0; }
 .arboris-explorer .arboris-tree-actions { margin: 0 4.5%; border-color: #27845c; background: #021d2d; padding: 16px; }

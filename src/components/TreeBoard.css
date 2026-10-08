@@ -217,7 +217,6 @@
 .arboris-tree-node--leaf-right .arboris-leaf-veins { transform: scaleX(-1); }
 .arboris-tree-node-index { font-size: 3.65cqw; }
 .arboris-tree-node-name { display: block; width: 94%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 2.25cqw; }
-.arboris-tree-node-level { font-size: 2cqw; font-weight: 600; }
 .arboris-tree-node--root { z-index: 3; background: radial-gradient(ellipse at top, #1a1c30 40%, #472108); border: .85cqw solid #ffb900; color: #fff; box-shadow: inset 0 .45cqw .1cqw #fff291, 0 0 0 .45cqw #683e04, 0 .8cqw 1.5cqw #052e1f; }
 .arboris-tree-node--root svg { width: 29%; height: 25%; color: #ffc400; margin-bottom: 2%; }
 .arboris-tree-node--root .arboris-tree-node-index { font-size: 2.9cqw; color: #ffc400; }
@@ -378,7 +377,6 @@
 .arboris-tree-board[data-layout-template="arboris-oficial"] .arboris-tree-node--leaf-right { border-radius: 70% 2% 70% 6%; }
 [data-layout-template="arboris-oficial"] .arboris-tree-node--level-branch {
   --node-base: #0057d9; --node-dark: #031d57; --node-light: #49baff; --level-accent: #7dd3fc;
-  aspect-ratio: 1.05;
   border-color: #b7edff;
 }
 [data-layout-template="arboris-oficial"] .arboris-tree-node--level-twig {
@@ -399,13 +397,11 @@
   transform: translate(-50%, -50%);
 }
 [data-layout-template="arboris-oficial"] .arboris-tree-node-index,
-[data-layout-template="arboris-oficial"] .arboris-tree-node-name,
-[data-layout-template="arboris-oficial"] .arboris-tree-node-level {
+[data-layout-template="arboris-oficial"] .arboris-tree-node-name {
   font-size: clamp(11px, 2.85cqw, 21px);
   max-width: 78%;
 }
 [data-layout-template="arboris-oficial"] .arboris-tree-node-name { font-weight: 700; }
-[data-layout-template="arboris-oficial"] .arboris-tree-node-level { font-weight: 500; }
 [data-layout-template="arboris-oficial"] .arboris-tree-node--root .arboris-tree-node-index {
   color: #ffe351;
   font-size: clamp(11px, 2.8cqw, 21px);

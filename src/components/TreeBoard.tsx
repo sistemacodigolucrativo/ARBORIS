@@ -42,13 +42,13 @@ const TREE_LAYOUT_STORAGE_KEY = 'arboris_tree_layout_template_v2';
 // Measured from the reference artwork; indices retain the functional 1-2-4-8 tree.
 const arborisOfficialPoints: LayoutPoint[] = [
   { x: 50, y: 55, size: 23 },
-  { x: 31, y: 45, size: 15 }, { x: 69, y: 45, size: 15 },
-  { x: 13, y: 37, size: 21 }, { x: 12, y: 53, size: 21 },
-  { x: 87, y: 37, size: 21 }, { x: 88, y: 53, size: 21 },
-  { x: 24, y: 11, size: 20 }, { x: 15, y: 24, size: 21 },
-  { x: 12, y: 68, size: 21 }, { x: 20, y: 81, size: 21 },
-  { x: 76, y: 11, size: 20 }, { x: 85, y: 24, size: 21 },
-  { x: 88, y: 68, size: 21 }, { x: 80, y: 81, size: 21 },
+  { x: 30, y: 41, size: 18 }, { x: 70, y: 41, size: 18 },
+  { x: 11, y: 38, size: 18 }, { x: 11, y: 54, size: 18 },
+  { x: 89, y: 38, size: 18 }, { x: 89, y: 54, size: 18 },
+  { x: 24, y: 9, size: 18 }, { x: 13, y: 23, size: 18 },
+  { x: 11, y: 70, size: 18 }, { x: 21, y: 85, size: 18 },
+  { x: 76, y: 9, size: 18 }, { x: 87, y: 23, size: 18 },
+  { x: 89, y: 70, size: 18 }, { x: 79, y: 85, size: 18 },
 ];
 
 const layoutTemplates: TreeLayoutTemplate[] = [
@@ -564,7 +564,6 @@ export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, membe
             {root && <Crown aria-hidden="true" />}
             <span className="arboris-tree-node-index">{root ? 'TRONCO #0' : `#${position.position_index}`}</span>
             <span className="arboris-tree-node-name">{name}</span>
-            {!root && <span className="arboris-tree-node-level">{treeLevel.label}</span>}
             {mine && <span className="arboris-tree-node-you">VOCÊ</span>}
           </button>
         );

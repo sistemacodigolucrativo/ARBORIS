@@ -1873,12 +1873,13 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
               <button
                 type="button"
                 onClick={() => {
-                  setShowLandingPage(true);
+                  setShowLandingPage(false);
+                  setShowDirectLoginModal(true);
                   setIsLocked(false);
                 }}
                 className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-emerald-400 font-medium transition py-1 px-2.5 rounded-lg hover:bg-slate-800/60 mb-1"
               >
-                ← Voltar para a Página Explicativa
+                ← Voltar para o login
               </button>
 
               <div className="w-14 h-14 rounded-2xl bg-emerald-950/80 border border-emerald-500/40 flex items-center justify-center text-2xl mx-auto shadow-inner text-emerald-400">

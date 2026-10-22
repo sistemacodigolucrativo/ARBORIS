@@ -37,8 +37,6 @@ type TreeLayoutTemplate = {
   points: LayoutPoint[];
 };
 
-const TREE_LAYOUT_STORAGE_KEY = 'arboris_tree_layout_template_v2';
-
 // Measured from the reference artwork; indices retain the functional 1-2-4-8 tree.
 const arborisOfficialPoints: LayoutPoint[] = [
   { x: 50, y: 55, size: 23 },
@@ -156,12 +154,6 @@ function getTreeLevel(positionIndex: number): TreeLevel {
 
 const TREE_OVERLAY_SELECTOR = '.arboris-tree-brand, .arboris-tree-heading, .arboris-tree-legend, .arboris-tree-leaf-base, .arboris-tree-reorder-hint, .arboris-tree-toast, .arboris-tree-template-control, .arboris-tree-savebar';
 
-function getInitialLayoutTemplateId() {
-  if (typeof window === 'undefined') return layoutTemplates[0].id;
-  const stored = window.localStorage.getItem(TREE_LAYOUT_STORAGE_KEY);
-  return layoutTemplates.some(template => template.id === stored) ? stored! : layoutTemplates[0].id;
-}
-
 function getPositionAtPointer(positions: BoardPosition[], clientX: number, clientY: number) {
   if (typeof document === 'undefined') return null;
   const element = document.elementFromPoint(clientX, clientY) as HTMLElement | null;
@@ -203,11 +195,9 @@ export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, membe
   const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
   const [savingMoves, setSavingMoves] = useState(false);
   const [moveMessage, setMoveMessage] = useState<string | null>(null);
-  const [layoutTemplateId, setLayoutTemplateId] = useState(getInitialLayoutTemplateId);
-  const [templateMenuOpen, setTemplateMenuOpen] = useState(false);
   const [treeScrollLocked, setTreeScrollLocked] = useState(false);
   const canReorder = allowReordering;
-  const activeTemplate = layoutTemplates.find(template => template.id === layoutTemplateId) || layoutTemplates[0];
+  const activeTemplate = layoutTemplates[0];
   const layout = activeTemplate.points;
   const officialLayout = activeTemplate.id === 'arboris-oficial';
   const sceneHeight = officialLayout ? 600 : 1500;
@@ -216,12 +206,6 @@ export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, membe
   useEffect(() => {
     if (pendingMoves.length === 0) setBoardPositions(positions);
   }, [positions, pendingMoves.length]);
-
-  const selectLayoutTemplate = (templateId: string) => {
-    setLayoutTemplateId(templateId);
-    setTemplateMenuOpen(false);
-    if (typeof window !== 'undefined') window.localStorage.setItem(TREE_LAYOUT_STORAGE_KEY, templateId);
-  };
 
   const lockTreeScroll = () => {
     if (!canReorder) return;
@@ -447,7 +431,7 @@ export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, membe
       onPointerDown={handleTreePointerDown}
       onWheel={handleTreeWheel}
     >
-      <div className="arboris-tree-toolbar">
+      {!canReorder && <div className="arboris-tree-toolbar">
       <div className={`arboris-tree-brand${memberIdentity ? ' arboris-tree-brand--member' : ''}`}>
         <span><Trees aria-hidden="true" /></span>
         {memberIdentity ? (
@@ -465,36 +449,7 @@ export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, membe
           <strong>{treeLabel || 'ARBORIS'}</strong>
         )}
       </div>
-      {canReorder && (
-        <div className="arboris-tree-template-control">
-          <button
-            type="button"
-            className="arboris-tree-template-toggle"
-            onClick={() => setTemplateMenuOpen(open => !open)}
-            aria-expanded={templateMenuOpen}
-          >
-            Templates
-          </button>
-          {templateMenuOpen && (
-            <div className="arboris-tree-template-menu" role="menu" aria-label="Templates da árvore">
-              {layoutTemplates.map(template => (
-                <button
-                  key={template.id}
-                  type="button"
-                  role="menuitemradio"
-                  aria-checked={template.id === activeTemplate.id}
-                  className={template.id === activeTemplate.id ? 'is-active' : ''}
-                  onClick={() => selectLayoutTemplate(template.id)}
-                >
-                  <strong>{template.label}</strong>
-                  <span>{template.description}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-      </div>
+      </div>}
       <div className="arboris-tree-scene">
       <img className="arboris-tree-art" src={officialLayout ? officialTreeScene : treeScene} width={sceneWidth} height={sceneHeight} alt="" decoding="async" draggable={false} />
       <svg className="arboris-tree-connections" viewBox={`0 0 ${sceneWidth} ${sceneHeight}`} aria-hidden="true">

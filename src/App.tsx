@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { adminChangeMemberPassword } from './services/directAdminActions';
 import {
   Trees,
   Sprout,
@@ -315,6 +316,7 @@ export default function App() {
   const [adminMembersPage, setAdminMembersPage] = useState<number>(1);
   const [adminMembersPageSize, setAdminMembersPageSize] = useState<number>(10);
   const [adminEditingMemberId, setAdminEditingMemberId] = useState<number | null>(null);
+  const [adminNewPassword, setAdminNewPassword] = useState('');
   const [adminEditName, setAdminEditName] = useState<string>('');
   const [adminEditUsername, setAdminEditUsername] = useState<string>('');
   const [adminEditPixHolderName, setAdminEditPixHolderName] = useState<string>('');
@@ -605,6 +607,7 @@ const handleAdminCreateUser = async (e: React.FormEvent) => {
 
 
 const openAdminMemberEditor = (user: User) => {
+  setAdminNewPassword('');
   setAdminEditingMemberId(user.id);
   setAdminEditName(user.full_name || user.username);
   setAdminEditUsername(user.username);
@@ -612,6 +615,20 @@ const openAdminMemberEditor = (user: User) => {
   setAdminEditPixKeyType(user.pixKeyType || 'random');
   setAdminEditPixKey(user.pixKey || '');
   setAdminActionMessage(null);
+};
+
+const handleAdminChangePassword = async () => {
+  if (!adminEditingMemberId || adminActionLoading) return;
+  setAdminActionLoading(true);
+  try {
+    await adminChangeMemberPassword(adminEditingMemberId, adminNewPassword);
+    setAdminNewPassword('');
+    showToast('Senha alterada. O membro deverá entrar novamente.');
+  } catch (error: any) {
+    showToast('Erro ao alterar senha: ' + error.message);
+  } finally {
+    setAdminActionLoading(false);
+  }
 };
 
 const handleAdminUpdateMember = async (e: React.FormEvent) => {
@@ -990,8 +1007,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
   };
 
   const handleDeleteUser = async (userId: number, label: string) => {
-    if (!window.confirm(`Excluir definitivamente o membro ${label}?`)) return;
-    if (!window.confirm('Confirma a exclusão definitiva? Essa ação remove o membro do banco de dados.')) return;
+    if (adminActionLoading) return;
     setAdminActionLoading(true);
     try {
       const res = await deleteUserDirect({
@@ -1802,7 +1818,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
         <label className="block text-sm">Senha<input required type="password" autoComplete="current-password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} className="block w-full mt-1 bg-slate-950 border border-slate-700 rounded-xl p-3" /></label>
         {loginError && <p role="alert" className="text-sm text-amber-300">{loginError}</p>}
         <button disabled={loginLoading} className="w-full bg-emerald-600 rounded-xl p-3 font-bold disabled:opacity-50">{loginLoading ? 'Entrando...' : 'Entrar'}</button>
-        <button type="button" onClick={() => { setShowDirectLoginModal(false); setLoginPassword(''); setShowLandingPage(true); }} className="w-full text-sm text-slate-400">Conhecer o projeto</button>
+        <button type="button" onClick={() => { setShowDirectLoginModal(false); setLoginPassword(''); setShowLandingPage(false); setIsLocked(true); }} className="w-full text-sm text-slate-400">Conhecer o projeto</button>
       </form>
     </main>;
   }
@@ -3070,6 +3086,10 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
 
                           {adminEditingMemberId === user.id && (
                             <form onSubmit={handleAdminUpdateMember} className="p-3 bg-slate-950 border border-amber-800/60 rounded-xl space-y-3">
+                              <label className="block text-xs text-slate-300">Nova senha
+                                <input type="password" autoComplete="new-password" maxLength={128} value={adminNewPassword} onChange={e => setAdminNewPassword(e.target.value)} className="w-full mt-1 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2" />
+                              </label>
+                              <button type="button" disabled={adminActionLoading || adminNewPassword.length < 12} onClick={handleAdminChangePassword} className="px-3 py-2 rounded-xl bg-slate-800 text-slate-100 disabled:opacity-50">Alterar senha</button>
                               <div className="grid grid-cols-1 gap-2">
                                 <label className="block text-[10px] text-slate-300 font-bold uppercase tracking-wide">Nome do membro
                                   <input

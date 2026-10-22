@@ -125,6 +125,19 @@ export function createApp(pool: DatabasePool) {
     await pool.execute('DELETE FROM sessions WHERE tokenHash=?', [sessionHash(req)]);
     res.clearCookie(cookieName, cookieOptions).json({ success: true });
   });
+  app.post('/api/admin/member-password', authLimit, async (req, res) => {
+    const params = z.object({ userId: z.number().int().positive(), newPassword: passwordSchema }).strict().parse(req.body);
+    await transaction(pool, async db => {
+      const actor = (await authenticated(db, req))!;
+      if (actor.role !== 'admin') throw new HttpError(403, 'Acesso administrativo obrigatório.');
+      const [members] = await db.execute<RowDataPacket[]>('SELECT id, role FROM users WHERE id=?', [params.userId]);
+      if (!members.length || members[0].role === 'admin') throw new HttpError(400, 'Membro inexistente ou protegido.');
+      const hash = await hashPassword(params.newPassword);
+      await db.execute('INSERT INTO credentials (userId,passwordHash) VALUES (?,?) ON DUPLICATE KEY UPDATE passwordHash=VALUES(passwordHash)', [params.userId, hash]);
+      await db.execute('DELETE FROM sessions WHERE userId=?', [params.userId]);
+    }, true);
+    res.json({ success: true });
+  });
   app.get('/api/referrals/validate', authLimit, async (req, res) => {
     const value = z.string().min(1).max(200).parse(req.query.value);
     const data = await transaction(pool, async db => {

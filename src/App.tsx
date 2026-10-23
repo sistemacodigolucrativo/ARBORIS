@@ -1042,7 +1042,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
       return;
     }
     const checkedPix = validatePixKey(pixKeyType, pixKey);
-    if (!checkedPix.valid) {
+    if ('error' in checkedPix) {
       showToast(checkedPix.error);
       return;
     }

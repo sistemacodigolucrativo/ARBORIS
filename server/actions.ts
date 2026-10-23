@@ -97,7 +97,7 @@ export function applyAction(state: GameDatabaseState, user: User, input: z.infer
       const target = next.users.find(u => u.id === user.id);
       if (!target || target.status !== 'active') throw new HttpError(400, 'Participante inativo ou inexistente.');
       const checkedPix = validatePixKey(input.params.keyType, input.params.key);
-      if (!checkedPix.valid) return { success: false, state, error: checkedPix.error };
+      if ('error' in checkedPix) return { success: false, state, error: checkedPix.error };
       target.pixHolderName = input.params.holderName;
       target.pixKeyType = input.params.keyType;
       target.pixKey = checkedPix.normalized;
@@ -156,7 +156,7 @@ export function applyAction(state: GameDatabaseState, user: User, input: z.infer
         return { success: false, state, error: 'Para salvar Pix, informe titular, tipo e chave. Para remover Pix, deixe os campos em branco.' };
       }
       const checkedAdminPix = pixKey && pixKeyType ? validatePixKey(pixKeyType, pixKey) : null;
-      if (checkedAdminPix && !checkedAdminPix.valid) return { success: false, state, error: checkedAdminPix.error };
+      if (checkedAdminPix && 'error' in checkedAdminPix) return { success: false, state, error: checkedAdminPix.error };
 
       const previous = {
         username: target.username,

@@ -440,7 +440,7 @@ export function TreeBoard({ positions, currentUserId, treeCode, treeLabel, membe
               <span className="arboris-tree-member-type">{memberIdentity.roleLabel}</span>
               <strong className="arboris-tree-member-name" title={memberIdentity.name}>{memberIdentity.name}</strong>
             </div>
-            <div className="arboris-tree-member-balance" aria-label={`Saldo individual: ${memberIdentity.balance} sementes`}>
+            <div className="arboris-tree-member-balance" aria-label={`${memberIdentity.roleLabel === 'Tronco' ? 'Sementes recebidas no ciclo' : 'Saldo individual'}: ${memberIdentity.balance} sementes`}>
               <Sprout aria-hidden="true" />
               <span>{memberIdentity.balance}<small> sementes</small></span>
             </div>

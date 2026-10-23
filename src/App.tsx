@@ -54,6 +54,7 @@ import {
   adminUpdateMemberDirect
 } from './services/directAdminActions';
 import { TreeBoard } from './components/TreeBoard';
+import { formatBrazilianPixPhone, validatePixKey } from './services/pixValidation';
 import { PublicLandingPage } from './components/PublicLandingPage';
 
 interface Position {
@@ -77,6 +78,7 @@ interface User {
   status: 'active' | 'suspended' | 'blocked';
   full_name: string;
   balance: number;
+  tronco_cycle_seeds?: number | null;
   current_tree_id?: number | null;
   current_position_index?: number | null;
   pixHolderName?: string | null;
@@ -1039,15 +1041,22 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
       showToast('Preencha titular e chave Pix.');
       return;
     }
+    const checkedPix = validatePixKey(pixKeyType, pixKey);
+    if (!checkedPix.valid) {
+      showToast(checkedPix.error);
+      return;
+    }
     setPixSaving(true);
     try {
       const res = await dataStore.updatePixAction({
         holderName: pixHolderName.trim(),
         keyType: pixKeyType,
-        key: pixKey.trim()
+        key: checkedPix.normalized
       });
       if (res.success) {
         await fetchState(true);
+        setCurrentView('member');
+        setMemberTab('my_tree');
         showToast('Chave Pix salva.');
       } else {
         showToast('Erro: ' + (res.error || 'Não foi possível salvar Pix.'));
@@ -1099,8 +1108,12 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
   // Active member's tree
   const memberTreeId = currentUser?.current_tree_id || (allTrees[0]?.id ?? 1);
   const memberTree = allTrees.find(t => t.id === memberTreeId) || allTrees[0];
+  const completedTroncoTree = currentUser?.role !== 'admin' && currentUser?.current_tree_id == null
+    ? allTrees.filter(t => t.status === 'completed' && t.tronco_user_id === currentUser?.id)
+      .sort((a, b) => (b.completed_at || '').localeCompare(a.completed_at || ''))[0]
+    : null;
   const memberPositions = allPositions.filter(p => p.tree_id === memberTreeId);
-  const currentUserIsTronco = Boolean(currentUser && memberTree && currentUser.role !== 'admin' && memberTree.tronco_user_id === currentUser.id);
+  const currentUserIsTronco = Boolean(currentUser && memberTree && memberTree.status === 'active' && currentUser.role !== 'admin' && memberTree.tronco_user_id === currentUser.id);
   const currentUserHasPixConfigured = Boolean(currentUser?.pixHolderName && currentUser?.pixKeyType && currentUser?.pixKey);
   const currentUserPixLock = Boolean(currentUserIsTronco && !currentUserHasPixConfigured);
 
@@ -2323,11 +2336,24 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
           {/* ======================================================== */}
           {currentView === 'member' && currentUser && (
             <div className="member-panel-root space-y-4 animate-in fade-in duration-150">
-              {currentUserPixLock && (
-                <div className="member-lock-warning p-3.5 bg-rose-950/60 border border-rose-500/70 rounded-2xl text-xs text-rose-100 leading-relaxed font-semibold">
-                  Agora você está no tronco e precisa configurar sua chave Pix de recebimento. Você não será capaz de sair dessa tela se não fizer essa configuração.
-                </div>
-              )}
+              {completedTroncoTree ? (
+                <section className="rounded-2xl border-2 border-emerald-500/60 bg-emerald-950/40 p-5 space-y-4 text-sm" role="status">
+                  <h2 className="text-lg font-black text-emerald-300">Ciclo concluído!</h2>
+                  <p className="text-slate-100">
+                    Congratulations! You have successfully completed your cycle. Click here to disconnect your account.
+                  </p>
+                  <p className="text-xs text-slate-300">
+                    Sua participação no ciclo {completedTroncoTree.tree_code} foi encerrada.
+                    Seu histórico e suas movimentações de sementes serão preservados.
+                  </p>
+                  <button type="button" onClick={handleLogout}
+                    className="w-full rounded-xl bg-emerald-600 px-4 py-3 font-bold text-white hover:bg-emerald-500">
+                    Desconectar minha conta
+                  </button>
+                </section>
+              ) : (
+                <>
+              {/* The mandatory Pix notice is shown once, next to the form in the wallet. */}
               {/* Member Sub-Navigation */}
               <div className="member-subnav flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800 text-xs">
                 <button
@@ -2376,6 +2402,13 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
               {/* SUB-TAB A: MINHA ÁRVORE */}
               {memberTab === 'my_tree' && (
                   <div className="member-active-tab member-tree-tab space-y-4">
+                  {/* This cycle's Tronco count starts at zero and does not erase old wallet transactions. */}
+                    {currentUserIsTronco && (
+                      <div className="rounded-xl border border-emerald-800 bg-emerald-950/40 p-3 text-sm">
+                        <div className="text-xs text-emerald-200">Sementes recebidas neste ciclo do tronco</div>
+                        <strong className="text-2xl text-emerald-300">{currentUser.tronco_cycle_seeds ?? 0}</strong>
+                      </div>
+                    )}
                   {/* Tree Overview & Status */}
                     <div className="member-tree-overview bg-slate-900 border border-slate-800 rounded-2xl p-3.5 flex items-center justify-between text-xs">
                     <div>
@@ -2479,14 +2512,14 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                         </span>
                         <span className="flex shrink-0 items-center gap-1 font-mono font-bold text-emerald-300">
                           <Sprout className="h-3.5 w-3.5" aria-hidden="true" />
-                          {currentUser.balance} <span className="font-sans text-[10px] font-normal text-slate-400">sementes</span>
+                          {currentUserIsTronco ? (currentUser.tronco_cycle_seeds ?? 0) : currentUser.balance} <span className="font-sans text-[10px] font-normal text-slate-400">{currentUserIsTronco ? 'sementes do ciclo' : 'sementes'}</span>
                         </span>
                       </div>
                     )}
                     {renderActiveModel(memberPositions, currentUser.id, {
-                      roleLabel: 'Membro',
+                      roleLabel: currentUserIsTronco ? 'Tronco' : 'Membro',
                       name: currentUser.full_name || currentUser.username,
-                      balance: currentUser.balance
+                      balance: currentUserIsTronco ? (currentUser.tronco_cycle_seeds ?? 0) : currentUser.balance
                     })}
                   </div>
 
@@ -2688,7 +2721,12 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                         <span className="text-xs text-slate-400 font-normal">sementes</span>
                       </div>
                       <div className="text-[10px] text-slate-500 mt-1 leading-relaxed text-balance">
-                        Sementes internas · Sem saque bancário
+                        Saldo total da carteira · Sementes internas · Sem saque bancário
+                        {currentUserIsTronco && (
+                          <span className="block mt-1 text-emerald-300">
+                            Recebidas no ciclo atual: {currentUser.tronco_cycle_seeds ?? 0} sementes
+                          </span>
+                        )}
                       </div>
                     </div>
                     <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold text-xl">
@@ -2714,7 +2752,10 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                       <label className="block text-slate-300">Tipo da chave
                         <select
                           value={pixKeyType}
-                          onChange={(e) => setPixKeyType(e.target.value as 'random' | 'email' | 'phone')}
+                          onChange={(e) => {
+                            setPixKeyType(e.target.value as 'random' | 'email' | 'phone');
+                            setPixKey('');
+                          }}
                           className="w-full mt-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 focus:outline-none focus:border-emerald-500"
                         >
                           <option value="random">Aleatória</option>
@@ -2726,9 +2767,14 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                         <input
                           required
                           value={pixKey}
+                          type={pixKeyType === 'email' ? 'email' : 'text'}
+                          inputMode={pixKeyType === 'phone' ? 'tel' : 'text'}
                           onChange={(e) => setPixKey(e.target.value)}
+                          onBlur={() => {
+                            if (pixKeyType === 'phone') setPixKey(key => formatBrazilianPixPhone(key));
+                          }}
                           className="w-full mt-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 focus:outline-none focus:border-emerald-500"
-                          placeholder={pixKeyType === 'email' ? 'nome@email.com' : pixKeyType === 'phone' ? '+5531999999999' : 'chave aleatória'}
+                          placeholder={pixKeyType === 'email' ? 'nome@email.com' : pixKeyType === 'phone' ? '+55 (31) 99999-9999' : 'xxxxxxxx-xxxx-4xxx-xxxx-xxxxxxxxxxxx'}
                         />
                       </label>
                       <div className="grid grid-cols-1 gap-2">
@@ -2782,6 +2828,8 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                     </div>
                   </div>
                 </div>
+              )}
+                </>
               )}
             </div>
           )}

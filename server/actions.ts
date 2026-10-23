@@ -3,6 +3,7 @@ import type { GameDatabaseState, User } from '../src/types/game';
 import { ActionResult, createParticipant, reserveTreeEntry, strengthenTronco, transferSeeds, validateReferral, splitTreeIfComplete, resolveTreeTokenRequirement } from '../src/services/gameEngine';
 import { createTreeByAdmin, archiveTreeByAdmin, deleteTreeByAdmin, deleteUserByAdmin, updateTreeNicknameByAdmin, assignTreePositionByAdmin, clearTreePositionByAdmin } from '../src/services/adminGameEngine';
 import { HttpError, newToken } from './security';
+import { validatePixKey } from '../src/services/pixValidation';
 const id = z.number().int().positive().max(2147483647);
 const text = z.string().trim().min(1).max(80);
 const pixKeyTypeSchema = z.enum(['random', 'email', 'phone']);
@@ -95,9 +96,11 @@ export function applyAction(state: GameDatabaseState, user: User, input: z.infer
       const next = structuredClone(state);
       const target = next.users.find(u => u.id === user.id);
       if (!target || target.status !== 'active') throw new HttpError(400, 'Participante inativo ou inexistente.');
+      const checkedPix = validatePixKey(input.params.keyType, input.params.key);
+      if (!checkedPix.valid) return { success: false, state, error: checkedPix.error };
       target.pixHolderName = input.params.holderName;
       target.pixKeyType = input.params.keyType;
-      target.pixKey = input.params.key;
+      target.pixKey = checkedPix.normalized;
       target.updatedAt = new Date().toISOString();
       next.auditLog.push({
         id: Math.max(0, ...next.auditLog.map(a => a.id)) + 1,
@@ -152,6 +155,8 @@ export function applyAction(state: GameDatabaseState, user: User, input: z.infer
       if (hasAnyPixField && (!pixHolderName || !pixKey || !pixKeyType)) {
         return { success: false, state, error: 'Para salvar Pix, informe titular, tipo e chave. Para remover Pix, deixe os campos em branco.' };
       }
+      const checkedAdminPix = pixKey && pixKeyType ? validatePixKey(pixKeyType, pixKey) : null;
+      if (checkedAdminPix && !checkedAdminPix.valid) return { success: false, state, error: checkedAdminPix.error };
 
       const previous = {
         username: target.username,
@@ -163,7 +168,7 @@ export function applyAction(state: GameDatabaseState, user: User, input: z.infer
       target.name = cleanName;
       target.pixHolderName = pixHolderName;
       target.pixKeyType = pixKeyType;
-      target.pixKey = pixKey;
+      target.pixKey = checkedAdminPix && checkedAdminPix.valid ? checkedAdminPix.normalized : null;
       target.updatedAt = now;
 
       for (const tree of next.trees) {
@@ -259,6 +264,14 @@ export function applyAction(state: GameDatabaseState, user: User, input: z.infer
       const position = tree.positions.find(p => p.index === request.positionIndex && p.userId === requester.id && p.status === 'occupied');
       if (!position) return { success: false, state, error: 'A posição reservada não foi encontrada.' };
       if ((position.activationStatus ?? 'active') === 'active') return { success: false, state, error: 'Esta posição já está ativada.' };
+      const expectedAmount = resolveTreeTokenRequirement(next, tree);
+      if (!expectedAmount || request.amount !== expectedAmount) {
+        return { success: false, state, error: 'A quantidade de sementes da ativação não corresponde à configuração da árvore.' };
+      }
+      if (next.ledger.some(entry => entry.type === 'FORTALECIMENTO_TRONCO'
+        && entry.treeId === tree.id && entry.fromUserId === requester.id && entry.toUserId === tronco.id)) {
+        return { success: false, state, error: 'Esta ativação já gerou transferência de sementes.' };
+      }
       const fromWallet = next.wallets.find(w => w.userId === requester.id);
       const toWallet = next.wallets.find(w => w.userId === tronco.id);
       if (!fromWallet || fromWallet.balance < request.amount) return { success: false, state, error: 'Saldo de sementes insuficiente para ativação.' };
@@ -376,7 +389,9 @@ export function applyAction(state: GameDatabaseState, user: User, input: z.infer
 }
 export function visibleState(state: GameDatabaseState, user: User | null): GameDatabaseState {
   if (user?.role === 'admin') return state;
-  const trees = user ? state.trees.filter(t => t.id === user.currentTreeId) : [];
+  // The former Tronco may view the completed cycle; it is not an active tree.
+  const trees = user ? state.trees.filter(t => t.id === user.currentTreeId ||
+    (user.currentTreeId == null && t.status === 'completed' && t.troncoUserId === user.id)) : [];
   const ids = new Set([user?.id, ...trees.flatMap(t => t.positions.map(p => p.userId))]);
   const plantingBag = user && state.plantingBag ? {
     balance: state.plantingBag.balance,

@@ -79,8 +79,17 @@ class DataStoreService {
     // Flatten positions and augment with user balances
     const augmentedUsers = this.state.users.map(u => {
       const wallet = this.state!.wallets.find(w => w.userId === u.id);
+      const activeTroncoTree = this.state!.trees.find(t =>
+        t.status === 'active' && t.id === u.currentTreeId && t.troncoUserId === u.id);
+      // Cycle-specific counter starts at zero without deleting historical wallet records.
+      const troncoCycleSeeds = activeTroncoTree
+        ? this.state!.ledger.filter(entry => entry.treeId === activeTroncoTree.id
+            && entry.toUserId === u.id && entry.type === 'FORTALECIMENTO_TRONCO')
+          .reduce((sum, entry) => sum + entry.amount, 0)
+        : null;
       return {
         ...u,
+        tronco_cycle_seeds: troncoCycleSeeds,
         current_tree_id: u.currentTreeId,
         current_position_index: u.currentPositionIndex,
         email: `${u.username}@arboris.local`,

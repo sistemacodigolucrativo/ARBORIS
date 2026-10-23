@@ -12,6 +12,7 @@ import {
 } from '../src/types/game';
 import {
   createParticipant,
+  reserveTreeEntry,
   strengthenTronco,
   validateReferral,
   transferSeeds,
@@ -34,7 +35,10 @@ function loadJsonState(): GameDatabaseState {
     trees: JSON.parse(fs.readFileSync(path.join(dataDir, 'trees.json'), 'utf8')),
     referrals: JSON.parse(fs.readFileSync(path.join(dataDir, 'referrals.json'), 'utf8')),
     ledger: JSON.parse(fs.readFileSync(path.join(dataDir, 'ledger.json'), 'utf8')),
-    auditLog: JSON.parse(fs.readFileSync(path.join(dataDir, 'audit-log.json'), 'utf8'))
+    auditLog: JSON.parse(fs.readFileSync(path.join(dataDir, 'audit-log.json'), 'utf8')),
+    plantingBag: fs.existsSync(path.join(dataDir, 'planting-bag.json'))
+      ? JSON.parse(fs.readFileSync(path.join(dataDir, 'planting-bag.json'), 'utf8'))
+      : undefined
   };
 }
 
@@ -89,6 +93,68 @@ const newWallet = stateAfterReg.wallets.find(w => w.userId === regRes.result?.us
 assert(newWallet?.balance === 50, 'Participante recebeu pacote de 25 sementes + 25 sementes disponíveis');
 const initialLedger = stateAfterReg.ledger.find(l => l.toUserId === regRes.result?.user.id);
 assert(initialLedger?.type === 'CONCESSAO_INICIAL_SEMENTES', 'Registro de concessão no ledger gravado');
+
+const reserveRes = reserveTreeEntry(stateAfterReg, {
+  userId: regRes.result!.user.id,
+  treeId: 1,
+  idempotencyKey: 'reserve_carlos_bag_1'
+});
+assert(reserveRes.success === true, 'Reserva de posição consumiu as sementes da bag com sucesso');
+assert(reserveRes.state.wallets.find(w => w.userId === regRes.result!.user.id)?.balance === 25, 'Participante manteve o pacote de 25 sementes após a reserva');
+assert(reserveRes.state.plantingBag?.balance === 25, 'Bag de plantio recebeu 25 sementes da reserva');
+assert(reserveRes.state.plantingBag?.entries.at(-1)?.userId === regRes.result!.user.id, 'Entrada da bag identifica o participante da reserva');
+
+const adminActorForBag = { actorUserId: 1, actorUsername: 'admin', githubActor: null };
+const bagTronco1 = createParticipant(initialState, {
+  username: 'bag_tronco_um',
+  name: 'Bag Tronco Um',
+  indicadorUsername: 'maria',
+  idempotencyKey: 'bag_tronco_um'
+});
+const bagTree1 = createTreeByAdmin(bagTronco1.state, {
+  categoryId: 1,
+  troncoUserId: bagTronco1.result!.user.id,
+  actor: adminActorForBag,
+  idempotencyKey: 'bag_tree_um'
+});
+const bagTronco2 = createParticipant(bagTree1.state, {
+  username: 'bag_tronco_dois',
+  name: 'Bag Tronco Dois',
+  indicadorUsername: 'maria',
+  idempotencyKey: 'bag_tronco_dois'
+});
+const bagTree2 = createTreeByAdmin(bagTronco2.state, {
+  categoryId: 1,
+  troncoUserId: bagTronco2.result!.user.id,
+  actor: adminActorForBag,
+  idempotencyKey: 'bag_tree_dois'
+});
+const bagEntrant = createParticipant({
+  ...bagTree2.state,
+  plantingBag: {
+    balance: 475,
+    threshold: 500,
+    selectionCount: 10,
+    entries: [],
+    draws: [],
+    assignments: [],
+    updatedAt: null
+  }
+}, {
+  username: 'bag_entrada_final',
+  name: 'Bag Entrada Final',
+  indicadorUsername: 'maria',
+  idempotencyKey: 'bag_entrada_final'
+});
+const bagDraw = reserveTreeEntry(bagEntrant.state, {
+  userId: bagEntrant.result!.user.id,
+  treeId: 1,
+  idempotencyKey: 'bag_reserva_fecha_500'
+});
+assert(bagDraw.success === true, 'Reserva que fecha 500 sementes foi processada');
+assert(bagDraw.state.plantingBag?.draws.length === 1, 'Bag criou um sorteio ao chegar em 500 sementes');
+assert(bagDraw.state.plantingBag?.assignments.length === 10, 'Sorteio gerou 10 avisos de plantio');
+assert(bagDraw.state.plantingBag?.balance === 0, 'Bag consumiu 500 sementes no sorteio');
 
 // TEST 7: Débito e transferência de sementes (sem manipulação de amount pelo cliente)
 console.log('\nTEST 7: Transferência de sementes');

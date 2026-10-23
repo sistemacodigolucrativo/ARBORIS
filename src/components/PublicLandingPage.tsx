@@ -1,17 +1,12 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   AlertTriangle,
   ArrowRight,
   CheckCircle2,
   ChevronDown,
-  Compass,
   Eye,
   HeartHandshake,
-  Layers,
-  Lock,
-  Network,
   Share2,
-  Shield,
   Sprout,
   Trees,
   Users
@@ -28,83 +23,61 @@ interface PublicLandingPageProps {
   } | null;
 }
 
-const pillars = [
+const highlights = [
+  {
+    icon: Users,
+    title: 'Cadastro por indicação',
+    text: 'O link recebido identifica a árvore. O cadastro e a reserva são etapas anteriores à ativação.'
+  },
   {
     icon: HeartHandshake,
-    title: 'Ajuda mútua entre participantes',
-    text: 'O sistema organiza a participação comunitária e o apoio entre membros. A plataforma não vende rendimento, resultado automático ou promessa de retorno.'
+    title: 'Doação para ativar',
+    text: 'A ativação exige uma doação Pix ao Tronco, no valor definido para a árvore, e a confirmação do recebimento.'
   },
   {
-    icon: Layers,
-    title: 'Matriz visual 1–2–4–8',
-    text: 'Cada árvore possui 15 posições: 1 tronco, 2 ramos, 4 galhos e 8 folhas externas de entrada.'
-  },
-  {
-    icon: Network,
-    title: 'Progressão por ciclos',
-    text: 'Quando a árvore completa seu ciclo, a estrutura se divide em novas árvores e os participantes seguem a regra de progressão configurada.'
-  },
-  {
-    icon: Shield,
-    title: 'Comunicação responsável',
-    text: 'O Arboris não deve ser apresentado como sem custo, investimento, aplicação financeira, saque garantido ou renda prometida.'
+    icon: Sprout,
+    title: 'Proposta de arborização',
+    text: 'O projeto propõe ações de plantio. A participação na árvore virtual não comprova que uma árvore foi plantada.'
   }
 ];
 
-const journeySteps = [
-  {
-    number: '01',
-    title: 'Entrada por convite',
-    text: 'O participante acessa a plataforma por um link de indicação ou por uma conexão validada dentro da comunidade.'
-  },
-  {
-    number: '02',
-    title: 'Posicionamento na árvore',
-    text: 'A participação é registrada em uma posição disponível da árvore, respeitando a estrutura 1–2–4–8 e as regras do ciclo ativo.'
-  },
-  {
-    number: '03',
-    title: 'Fortalecimento do tronco',
-    text: 'A dinâmica de ajuda mútua ocorre entre participantes, com registro e validação dentro do sistema para manter rastreabilidade.'
-  },
-  {
-    number: '04',
-    title: 'Fechamento e reinício do ciclo',
-    text: 'Ao completar as 15 posições, a árvore encerra o ciclo atual, gera novas ramificações e mantém o histórico de movimentações.'
-  }
+const illustrativeParticipants = [
+  { name: 'Helena Duarte', city: 'Vale das Nuvens', state: 'SP' },
+  { name: 'Rafael Nogueira', city: 'Jardim do Ipê', state: 'MG' },
+  { name: 'Clara Monteiro', city: 'Porto das Árvores', state: 'PR' }
 ];
 
-const topology = [
-  { label: '1 Tronco', text: 'posição central do ciclo ativo' },
-  { label: '2 Ramos', text: 'primeira divisão da árvore' },
-  { label: '4 Galhos', text: 'estrutura intermediária de sustentação' },
-  { label: '8 Folhas', text: 'posições externas de entrada' }
+const responsibilityPoints = [
+  'O Pix é enviado diretamente à conta do participante no Tronco. O sistema registra a solicitação e a aprovação da ativação.',
+  'A progressão depende do preenchimento e da ativação das posições por outros participantes.',
+  'Você pode doar e não chegar ao Tronco nem receber doações. Não há prazo ou recebimento garantido.',
+  'Antes de transferir, confira valor, destinatário e condições. A confirmação é manual; o sistema não verifica o Pix no banco.'
 ];
 
 const faqs = [
   {
-    q: 'O que é o Arboris?',
-    a: 'O Arboris é um sistema comunitário de arborização baseado em ajuda mútua, organizado em uma árvore/matriz 1–2–4–8 com ciclos de entrada, progressão, fechamento, divisão e reinício.'
+    q: 'Quanto preciso doar?',
+    a: 'O valor depende da árvore. Pela regra de participação informada pelo projeto, 1 semente corresponde a R$ 1 para definir a doação: uma árvore de 25 sementes exige R$ 25 ao Tronco. Esse exemplo não fixa o valor de todas as árvores. Confirme o valor da sua antes de transferir.'
   },
   {
-    q: 'O Arboris é sem custo?',
-    a: 'Não deve ser comunicado como sem custo livre ou promocional. A comunicação correta é: sistema comunitário de ajuda mútua entre participantes, com regras próprias de participação e registro interno.'
+    q: 'Receber 50 sementes significa receber R$ 50?',
+    a: 'Não. Em uma árvore de 25 sementes, o cadastro concede 50 unidades internas: 25 são consumidas na reserva e 25 saem do seu saldo na ativação. Na versão atual, estas últimas são creditadas ao saldo de sementes do Tronco. O Pix de R$ 25 é uma transferência separada; as sementes não são saldo bancário nem dinheiro disponível para saque.'
   },
   {
-    q: 'O Arboris é investimento ou promessa de ganho?',
-    a: 'Não. O Arboris não é investimento, aplicação financeira, renda passiva, saque garantido nem promessa de ganho. Qualquer apoio entre participantes deve ser tratado como ajuda mútua comunitária, não como rendimento financeiro.'
+    q: 'Quando alguém pode receber doações?',
+    a: 'Ao ocupar o Tronco, o participante é o destinatário das doações de novas entradas naquela árvore. Chegar a essa posição depende dos ciclos e de outras pessoas entrarem e ativarem suas posições. Plantar uma árvore não dá direito a receber, e fazer uma doação não garante recebimentos futuros.'
   },
   {
-    q: 'O que são sementes no sistema?',
-    a: 'Sementes são unidades internas usadas para organizar e registrar a dinâmica da árvore. Elas não devem ser comunicadas como dinheiro depositado pela plataforma, ganho garantido ou saldo financeiro livre para saque.'
+    q: 'O que acontece quando uma árvore fica completa?',
+    a: 'Com as 15 posições ativas, a árvore se divide em duas. O Tronco conclui sua participação naquela árvore; os outros 14 participantes são redistribuídos em dois grupos de 7. Cada nova árvore abre 8 vagas. Se não houver novas entradas e ativações, o ciclo pode não se completar.'
   },
   {
-    q: 'O que acontece quando uma árvore completa 15 posições?',
-    a: 'O ciclo é fechado conforme a regra da matriz 1–2–4–8. A árvore pode se dividir em novas árvores, preservando o histórico e permitindo a continuidade da progressão comunitária.'
+    q: 'Como funciona a proposta de plantio?',
+    a: 'A proposta informada pelo projeto prevê acumular as sementes da reserva em uma bag virtual e, a cada 500, sortear 10 participantes para plantar. Esse mecanismo ainda não está implementado nesta versão. Também não estão definidos aqui o custeio, a seleção e a comprovação do plantio. Não considere a reserva ou a doação como prova de reflorestamento realizado.'
   },
   {
-    q: 'Qual é o papel do coordenador?',
-    a: 'O coordenador acompanha a organização da rede, a posição dos participantes, os ciclos ativos, os registros e as ações administrativas necessárias para manter a árvore coerente.'
+    q: 'O que conferir antes de participar?',
+    a: 'Confira a árvore vinculada ao convite, o valor exigido, quem recebe o Pix e como solicitar a ativação. Esclareça com o responsável as condições de desistência e eventual devolução antes de doar. Não participe contando com recebimentos futuros para recuperar o valor transferido.'
   }
 ];
 
@@ -115,6 +88,17 @@ export const PublicLandingPage: React.FC<PublicLandingPageProps> = ({
   referralData
 }) => {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [activeParticipant, setActiveParticipant] = useState(0);
+
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    const intervalId = window.setInterval(() => {
+      setActiveParticipant((current) => (current + 1) % illustrativeParticipants.length);
+    }, 5000);
+
+    return () => window.clearInterval(intervalId);
+  }, []);
 
   const toggleFaq = (index: number) => {
     setOpenFaq(openFaq === index ? null : index);
@@ -130,16 +114,16 @@ export const PublicLandingPage: React.FC<PublicLandingPageProps> = ({
 
       <header className="relative z-20 border-b border-slate-800/80 bg-slate-950/85 backdrop-blur-md sticky top-0">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/20 to-emerald-950 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shadow-inner">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/20 to-emerald-950 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shadow-inner flex-none">
               <Trees className="w-5 h-5" aria-hidden="true" />
             </div>
-            <div>
+            <div className="min-w-0">
               <span className="font-extrabold text-base sm:text-lg tracking-wider bg-gradient-to-r from-emerald-400 via-teal-300 to-amber-300 bg-clip-text text-transparent">
                 ARBORIS
               </span>
               <span className="hidden sm:inline-block ml-2 text-[10px] uppercase font-mono tracking-widest text-slate-400 bg-slate-800/60 px-2 py-0.5 rounded-full border border-slate-700/60">
-                Ajuda mútua · 1–2–4–8
+                Plantio · Convite · Ajuda mútua
               </span>
             </div>
           </div>
@@ -151,7 +135,7 @@ export const PublicLandingPage: React.FC<PublicLandingPageProps> = ({
                 onClick={onOpenDirectLogin}
                 className="hidden sm:inline-flex text-xs font-semibold text-slate-300 hover:text-emerald-300 transition-colors px-3 py-2 rounded-lg hover:bg-slate-900"
               >
-                Já tenho acesso
+                Já tenho cadastro
               </button>
             )}
             <button
@@ -169,7 +153,7 @@ export const PublicLandingPage: React.FC<PublicLandingPageProps> = ({
               className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-bold text-xs sm:text-sm rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-2 active:scale-[0.98]"
             >
               <Sprout className="w-4 h-4" aria-hidden="true" />
-              <span>Entrar</span>
+              <span>Acessar</span>
             </button>
           </div>
         </div>
@@ -180,7 +164,7 @@ export const PublicLandingPage: React.FC<PublicLandingPageProps> = ({
           <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 text-xs sm:text-sm">
             <div className="flex items-center gap-2">
               <Share2 className="w-4 h-4 text-emerald-400" aria-hidden="true" />
-              <span>Convite recebido de <strong>@{referralData.username}</strong> ({referralData.full_name}) para a árvore <strong>{referralData.tree_code}</strong>.</span>
+              <span>Convite de <strong>@{referralData.username}</strong> para a árvore <strong>{referralData.tree_code}</strong>.</span>
             </div>
             <button
               type="button"
@@ -193,154 +177,121 @@ export const PublicLandingPage: React.FC<PublicLandingPageProps> = ({
         </div>
       )}
 
-      <main className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-20 space-y-20">
-        <section className="text-center space-y-6 max-w-3xl mx-auto">
+      <main className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-16 space-y-12 sm:space-y-16">
+        <section className="text-center space-y-6 max-w-4xl mx-auto">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold uppercase tracking-wider shadow-inner">
             <HeartHandshake className="w-3.5 h-3.5" aria-hidden="true" />
-            <span>Sistema comunitário de arborização por ajuda mútua</span>
+            <span>Comunidade por convite</span>
           </div>
 
-          <h1 className="text-3xl sm:text-5xl md:text-6xl font-black tracking-tight leading-tight sm:leading-none text-slate-100">
-            Uma árvore de 15 posições organizada em ciclos <br />
-            <span className="bg-gradient-to-r from-emerald-400 via-teal-300 to-amber-300 bg-clip-text text-transparent">
-              1–2–4–8
-            </span>
+          <h1 className="text-4xl sm:text-6xl md:text-7xl font-black tracking-tight leading-tight text-slate-100 max-w-4xl mx-auto">
+            Entenda a participação no ÁRBORIS
           </h1>
 
-          <p className="text-slate-300 text-sm sm:text-lg leading-relaxed max-w-2xl mx-auto">
-            O Arboris organiza participantes em uma matriz visual de árvore, com entrada por convite, progressão por posições,
-            fechamento de ciclo e divisão em novas árvores. A lógica central é comunidade, registro e ajuda mútua — não acesso sem responsabilidade comunitária.
+          <p className="text-slate-300 text-base sm:text-xl leading-relaxed max-w-3xl mx-auto">
+            O ÁRBORIS organiza participantes em árvores de ajuda mútua e propõe ações de arborização. A ativação de uma posição exige doação direta ao Tronco; a progressão depende de novas entradas.
           </p>
 
-          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
             <button
               type="button"
               onClick={onOpenEntry}
-              className="w-full sm:w-auto px-6 py-3.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-extrabold text-sm sm:text-base rounded-2xl shadow-xl shadow-emerald-500/25 transition-all flex items-center justify-center gap-2.5 active:scale-[0.98]"
+              className="w-full sm:w-auto px-7 py-4 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-extrabold text-sm sm:text-base rounded-2xl shadow-xl shadow-emerald-500/25 transition-all flex items-center justify-center gap-2.5 active:scale-[0.98]"
             >
               <Sprout className="w-5 h-5" aria-hidden="true" />
-              <span>Entrar com convite</span>
+              <span>Acessar com convite</span>
               <ArrowRight className="w-4 h-4" aria-hidden="true" />
             </button>
             <button
               type="button"
               onClick={onOpenDemoTree}
-              className="w-full sm:w-auto px-6 py-3.5 bg-slate-900/90 hover:bg-slate-800/90 border border-slate-700/80 text-slate-200 font-semibold text-sm sm:text-base rounded-2xl shadow-md transition-all flex items-center justify-center gap-2.5"
+              className="w-full sm:w-auto px-7 py-4 bg-slate-900/90 hover:bg-slate-800/90 border border-slate-700/80 text-slate-200 font-semibold text-sm sm:text-base rounded-2xl shadow-md transition-all flex items-center justify-center gap-2.5"
             >
               <Trees className="w-5 h-5 text-emerald-400" aria-hidden="true" />
-              <span>Explorar a árvore</span>
+              <span>Visualizar árvore</span>
             </button>
           </div>
 
-          <div className="mt-8 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-100 text-xs sm:text-sm text-left sm:text-center space-y-2 max-w-2xl mx-auto">
-            <div className="font-bold flex items-center justify-center gap-1.5 text-amber-300">
-              <AlertTriangle className="w-4 h-4" aria-hidden="true" />
-              <span>Comunicação correta do projeto</span>
-            </div>
-            <p className="text-[11px] sm:text-xs text-amber-100/80 leading-relaxed">
-              O Arboris não deve ser apresentado como sistema sem custo, investimento, aplicação financeira, renda garantida ou promessa de ganho.
-              A definição correta é: sistema comunitário de arborização por ajuda mútua entre participantes, com regras, ciclos e registros internos.
+          <section
+            className="mx-auto w-full max-w-sm space-y-3 pt-2"
+            aria-label="Exemplo ilustrativo com identidades e localidades fictícias"
+            aria-roledescription="carrossel"
+          >
+            <p className="text-xs font-medium uppercase tracking-wider text-slate-400">
+              Exemplo ilustrativo · identidades fictícias
             </p>
-          </div>
-        </section>
-
-        <section className="grid grid-cols-1 md:grid-cols-4 gap-4 sm:gap-6" aria-label="Pilares do Arboris">
-          {pillars.map((item) => {
-            const Icon = item.icon;
-            return (
-              <article key={item.title} className="bg-slate-900/60 border border-slate-800 rounded-3xl p-5 space-y-4 hover:border-emerald-500/40 transition-all">
-                <div className="w-11 h-11 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-                  <Icon className="w-5 h-5" aria-hidden="true" />
-                </div>
-                <h2 className="font-bold text-base text-slate-100">{item.title}</h2>
-                <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">{item.text}</p>
-              </article>
-            );
-          })}
-        </section>
-
-        <section className="space-y-10">
-          <div className="text-center space-y-2">
-            <div className="text-xs uppercase font-mono tracking-widest text-emerald-400">
-              Funcionamento do ciclo
+            <div
+              className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/70"
+              role="group"
+              aria-label={`${activeParticipant + 1} de ${illustrativeParticipants.length}`}
+              aria-live="off"
+            >
+              <img
+                src="https://images.pexels.com/photos/30716697/pexels-photo-30716697/free-photo-of-cena-urbana-homem-lendo-jornal-em-bicicleta.jpeg?cs=tinysrgb&dpr=1&w=500"
+                alt="Cena urbana com uma pessoa lendo jornal ao lado de uma bicicleta"
+                className="aspect-[4/3] w-full object-cover"
+              />
+              <div className="space-y-1 px-4 py-3 text-center">
+                <h2 className="font-bold text-slate-100">
+                  {illustrativeParticipants[activeParticipant].name}
+                </h2>
+                <p className="text-sm text-slate-400">
+                  {illustrativeParticipants[activeParticipant].city}, {illustrativeParticipants[activeParticipant].state}
+                </p>
+              </div>
             </div>
-            <h2 className="text-2xl sm:text-4xl font-extrabold text-slate-100">
-              Como a árvore evolui
-            </h2>
-            <p className="text-slate-400 text-xs sm:text-sm max-w-xl mx-auto">
-              A apresentação pública deve explicar a lógica real da matriz, sem prometer acesso irrestrito, rendimento ou resultado automático.
-            </p>
-          </div>
+          </section>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 sm:gap-6">
-            {journeySteps.map((step) => (
-              <article key={step.number} className="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 flex flex-col justify-between hover:border-teal-500/40 transition-all">
-                <div className="space-y-4">
-                  <div className="w-12 h-12 rounded-2xl bg-teal-500/10 border border-teal-500/30 flex items-center justify-center text-teal-300 font-extrabold text-sm">
-                    {step.number}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-4xl mx-auto text-left pt-4">
+            {highlights.map((item) => {
+              const Icon = item.icon;
+              return (
+                <article key={item.title} className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 space-y-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                    <Icon className="w-5 h-5" aria-hidden="true" />
                   </div>
-                  <h3 className="font-bold text-base sm:text-lg text-slate-100">{step.title}</h3>
-                  <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">{step.text}</p>
-                </div>
-                <div className="mt-6 pt-4 border-t border-slate-800/80 flex items-center gap-2 text-[11px] text-teal-400 font-medium">
-                  <CheckCircle2 className="w-3.5 h-3.5" aria-hidden="true" />
-                  <span>Etapa registrada</span>
-                </div>
-              </article>
-            ))}
+                  <h2 className="font-bold text-slate-100 text-base">{item.title}</h2>
+                  <p className="text-sm text-slate-400 leading-relaxed">{item.text}</p>
+                </article>
+              );
+            })}
           </div>
         </section>
 
-        <section className="grid grid-cols-1 lg:grid-cols-[1fr_1.2fr] gap-6 items-stretch">
-          <div className="bg-slate-900/70 border border-slate-800 rounded-3xl p-6 sm:p-8 space-y-4">
-            <div className="inline-flex items-center gap-2 text-xs uppercase tracking-widest font-mono text-emerald-400">
-              <Compass className="w-4 h-4" aria-hidden="true" />
-              Estrutura matemática
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-100">
-              Matriz 2×2×2 representada como árvore
-            </h2>
-            <p className="text-sm text-slate-400 leading-relaxed">
-              A árvore possui uma distribuição fixa de 15 posições. Essa estrutura permite leitura visual simples, controle de ciclos e reorganização dos participantes conforme regras administrativas.
-            </p>
-            <div className="grid grid-cols-2 gap-3 pt-2">
-              {topology.map((item) => (
-                <div key={item.label} className="rounded-2xl bg-slate-950/70 border border-slate-800 p-4">
-                  <div className="text-emerald-300 font-black text-lg">{item.label}</div>
-                  <div className="text-[11px] text-slate-500 mt-1 leading-relaxed">{item.text}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-br from-emerald-950/80 via-slate-900 to-amber-950/60 border border-emerald-500/20 rounded-3xl p-6 sm:p-8 space-y-5 relative overflow-hidden">
+        <section className="grid grid-cols-1 lg:grid-cols-[1fr_0.9fr] gap-5 items-stretch" aria-label="Etapas e condições de participação">
+          <div className="bg-gradient-to-br from-emerald-950/80 via-slate-900 to-slate-950 border border-emerald-500/20 rounded-3xl p-6 sm:p-8 space-y-4 relative overflow-hidden">
             <div className="absolute -right-12 -top-12 w-48 h-48 bg-emerald-400/10 rounded-full blur-3xl" />
             <div className="relative z-10 space-y-4">
-              <div className="inline-flex items-center gap-2 text-xs uppercase tracking-widest font-mono text-amber-300">
-                <Lock className="w-4 h-4" aria-hidden="true" />
-                Limites de comunicação
+              <div className="text-xs uppercase tracking-widest font-mono text-emerald-300">
+                O essencial
               </div>
               <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-100">
-                O que a apresentação não deve prometer
+                Do convite à posição ativa
               </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                {[
-                  'Cadastro sem custo como promessa comercial',
-                  'Ganho, rendimento ou renda passiva',
-                  'Saque prometido ou saldo financeiro livre',
-                  'Investimento, aplicação ou retorno automático',
-                  'Dinheiro gerado pela plataforma',
-                  'Resultado certo por convidar pessoas'
-                ].map((item) => (
-                  <div key={item} className="flex items-start gap-2 rounded-2xl bg-slate-950/50 border border-slate-800/70 p-3 text-slate-300">
-                    <Shield className="w-4 h-4 text-amber-300 mt-0.5 flex-none" aria-hidden="true" />
-                    <span>{item}</span>
-                  </div>
-                ))}
-              </div>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                A apresentação correta deve focar na organização comunitária, na matriz de posições, nos ciclos e no registro transparente das ações.
+              <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
+                Cadastre-se pelo link de indicação e reserve uma posição disponível. Depois, confira os dados do Tronco, faça a doação Pix no valor da árvore e solicite a ativação. A posição só fica ativa após a aprovação.
               </p>
+              <div className="rounded-2xl bg-slate-950/60 border border-slate-800/80 p-4 text-sm text-slate-300 leading-relaxed">
+                Exemplo: árvore de 25 sementes → 50 sementes internas no cadastro → 25 consumidas na reserva → doação Pix de R$ 25 ao Tronco → confirmação e débito das 25 sementes restantes. O cadastro, sozinho, não ativa a posição.
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-slate-900/70 border border-slate-800 rounded-3xl p-6 sm:p-8 space-y-5">
+            <div className="inline-flex items-center gap-2 text-xs uppercase tracking-widest font-mono text-amber-300">
+              <AlertTriangle className="w-4 h-4" aria-hidden="true" />
+              Transparência
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-100">
+              Condições antes de doar
+            </h2>
+            <div className="space-y-3">
+              {responsibilityPoints.map((item) => (
+                <div key={item} className="flex items-start gap-3 rounded-2xl bg-slate-950/50 border border-slate-800/70 p-3 text-sm text-slate-300">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-300 mt-0.5 flex-none" aria-hidden="true" />
+                  <span>{item}</span>
+                </div>
+              ))}
             </div>
           </div>
         </section>
@@ -349,9 +300,9 @@ export const PublicLandingPage: React.FC<PublicLandingPageProps> = ({
           <div className="text-center space-y-2">
             <div className="text-xs uppercase font-mono tracking-widest text-emerald-400 flex items-center justify-center gap-2">
               <Users className="w-4 h-4" aria-hidden="true" />
-              Perguntas essenciais
+              Antes de entrar
             </div>
-            <h2 className="text-2xl sm:text-4xl font-extrabold text-slate-100">Regras de entendimento público</h2>
+            <h2 className="text-2xl sm:text-4xl font-extrabold text-slate-100">Perguntas rápidas</h2>
           </div>
 
           <div className="space-y-3">
@@ -362,12 +313,13 @@ export const PublicLandingPage: React.FC<PublicLandingPageProps> = ({
                   onClick={() => toggleFaq(index)}
                   className="w-full px-4 py-4 text-left flex items-center justify-between gap-3 hover:bg-slate-900 transition-colors"
                   aria-expanded={openFaq === index}
+                  aria-controls={`public-faq-${index}`}
                 >
                   <span className="text-sm font-bold text-slate-100">{faq.q}</span>
                   <ChevronDown className={`w-4 h-4 text-emerald-400 transition-transform ${openFaq === index ? 'rotate-180' : ''}`} aria-hidden="true" />
                 </button>
                 {openFaq === index && (
-                  <div className="px-4 pb-4 text-xs sm:text-sm text-slate-400 leading-relaxed border-t border-slate-800/60 pt-3">
+                  <div id={`public-faq-${index}`} className="px-4 pb-4 text-xs sm:text-sm text-slate-400 leading-relaxed border-t border-slate-800/60 pt-3">
                     {faq.a}
                   </div>
                 )}
@@ -381,10 +333,10 @@ export const PublicLandingPage: React.FC<PublicLandingPageProps> = ({
             <Sprout className="w-6 h-6" aria-hidden="true" />
           </div>
           <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-100">
-            Entrar na comunidade Arboris
+            Confira as condições do seu convite
           </h2>
           <p className="text-sm text-slate-300 max-w-2xl mx-auto leading-relaxed">
-            Continue apenas se você entende que o Arboris é uma organização comunitária por árvore, baseada em ajuda mútua, sem promessa de retorno financeiro.
+            O próximo passo abre o acesso por indicação. A doação é exigida para ativar a posição, e você pode não receber doações futuras.
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-3 pt-2">
             <button
@@ -392,7 +344,7 @@ export const PublicLandingPage: React.FC<PublicLandingPageProps> = ({
               onClick={onOpenEntry}
               className="px-6 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold flex items-center justify-center gap-2"
             >
-              <span>Continuar com convite</span>
+              <span>Acessar com convite</span>
               <ArrowRight className="w-4 h-4" aria-hidden="true" />
             </button>
             {onOpenDirectLogin && (

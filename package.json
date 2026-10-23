@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:preview": "bash scripts/dev-preview.sh",
     "build": "vite build",
     "start": "node --env-file-if-exists=.env --import tsx server/index.ts",
     "preview": "vite preview --port 3000 --host 0.0.0.0",

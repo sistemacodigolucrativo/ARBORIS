@@ -1,0 +1,138 @@
+TAREFA — ÁRBORIS / PAINEL DO MEMBRO / ÁRVORE VISUAL
+
+Faça uma alteração cirúrgica no layout da árvore exibida no Painel do Membro.
+
+Antes de alterar qualquer arquivo, analise o estado atual da implementação da árvore, principalmente os componentes, estilos e dados responsáveis por renderizar as posições #0 a #14.
+
+OBJETIVO
+
+A árvore atualmente mostra as posições ocupadas, reservadas e abertas, mas não comunica visualmente a hierarquia da dinâmica.
+
+A interface precisa deixar claro que a árvore é dividida em níveis:
+
+- Tronco: posição #0
+- Ramos: posições #1 e #2
+- Galhos: posições #3, #4, #5 e #6
+- Folhas: posições #7, #8, #9, #10, #11, #12, #13 e #14
+
+Ajuste o visual para que essa divisão fique clara, bonita e intuitiva para o membro.
+
+AJUSTE NECESSÁRIO
+
+1. Adicionar identificação visual por nível da árvore.
+
+Cada posição deve continuar exibindo seu número, nome do participante e status atual, mas também deve ter um tratamento visual coerente com o nível dela.
+
+Sugestão de hierarquia visual:
+
+- Tronco #0:
+  destaque principal, com cor dourada/amarela, borda mais forte e ícone de coroa já existente, se houver.
+
+- Ramos #1 e #2:
+  cor própria, preferencialmente verde mais forte ou verde-esmeralda.
+
+- Galhos #3 a #6:
+  cor intermediária, mantendo harmonia com a árvore.
+
+- Folhas #7 a #14:
+  cor mais leve ou contorno específico, deixando claro que são as posições de entrada.
+
+Não use cores aleatórias. A paleta precisa combinar com o projeto: verde, dourado, tons naturais e contraste adequado no tema escuro.
+
+2. Adicionar uma base visual inferior na árvore.
+
+Criar uma base visual discreta e bonita na parte inferior da árvore para indicar a região das Folhas, pois elas são as posições de entrada dos novos participantes.
+
+Essa base pode ser uma faixa, placa, moldura suave, raiz, área sombreada ou elemento visual integrado ao desenho da árvore.
+
+Ela deve comunicar:
+
+“Folhas — entrada de novos participantes”
+
+ou uma variação curta e institucional equivalente.
+
+A base não pode poluir o layout, não pode cobrir posições, não pode dificultar leitura dos nomes e não pode quebrar a responsividade mobile.
+
+3. Melhorar a legenda atual.
+
+A legenda atual mostra status como Tronco, Ativado, Reservado e Vaga Aberta.
+
+Ela deve continuar existindo, mas precisa ficar clara a diferença entre:
+
+- Status da posição: ativado, reservado, aberta.
+- Nível da árvore: Tronco, Ramos, Galhos, Folhas.
+
+Se for necessário, separe em duas legendas pequenas:
+
+Legenda de status:
+- Ativado
+- Reservado
+- Vaga aberta
+
+Legenda de níveis:
+- Tronco
+- Ramos
+- Galhos
+- Folhas
+
+Não criar textos longos. A legenda deve ser compacta, responsiva e fácil de entender.
+
+4. Preservar funcionamento atual.
+
+Não alterar a lógica da árvore.
+Não alterar regra de posição.
+Não alterar drag-and-drop.
+Não alterar reserva, ativação, tronco, split, wallet, bag ou fluxo financeiro.
+Não alterar dados JSON ou backend.
+Não mudar a estrutura funcional do jogo.
+
+A tarefa é visual e de clareza de interface.
+
+5. Responsividade obrigatória.
+
+O layout deve funcionar bem no celular.
+
+Verificar especialmente:
+
+- nomes não podem ficar esmagados;
+- posições não podem cobrir a base;
+- legenda não pode sair da tela;
+- a árvore não pode ficar maior que o container;
+- a base visual não pode atrapalhar o scroll;
+- o painel do membro deve continuar rolando normalmente.
+
+6. Escopo técnico esperado.
+
+Procure primeiro por arquivos relacionados à árvore, como:
+
+- TreeBoard.tsx
+- TreeBoard.css
+- componentes que renderizam posições da árvore
+- estilos do painel do membro
+- qualquer classe CSS aplicada aos nodes #0 a #14
+
+Faça a menor alteração possível, reaproveitando a estrutura existente.
+
+Evite reescrever o componente inteiro.
+
+RESULTADO ESPERADO
+
+Ao abrir o Painel do Membro, o usuário deve entender visualmente que:
+
+- o centro é o Tronco;
+- abaixo dele estão os Ramos;
+- depois vêm os Galhos;
+- na base ficam as Folhas, que são as entradas;
+- cada posição mantém seu status de ativada, reservada ou aberta.
+
+A árvore deve ficar mais institucional, mais bonita e mais didática, sem perder o estilo atual do projeto.
+
+ENTREGA
+
+Ao finalizar, informe:
+
+1. Arquivos alterados.
+2. O que foi ajustado visualmente.
+3. O que não foi alterado na lógica.
+4. Se foi necessário mexer em responsividade.
+5. Se existe algum ponto que ainda precisa de revisão visual.

@@ -1,5 +1,6 @@
 import type { GameConfig, GameDatabaseState, User } from '../types/game';
 import { apiRequest, apiMutation } from './api';
+import { summarizeRecordedDonations } from './seedDonationSummary';
 
 class DataStoreService {
   private state: GameDatabaseState | null = null;
@@ -87,9 +88,13 @@ class DataStoreService {
             && entry.toUserId === u.id && entry.type === 'FORTALECIMENTO_TRONCO')
           .reduce((sum, entry) => sum + entry.amount, 0)
         : null;
+      const donationSummary = summarizeRecordedDonations(this.state!.ledger, u.id, activeTroncoTree?.id ?? null);
       return {
         ...u,
         tronco_cycle_seeds: troncoCycleSeeds,
+        initial_seed_package: this.state!.config.initialSeedsGrant,
+        recorded_donations: donationSummary.donations,
+        distinct_donors: donationSummary.donors,
         current_tree_id: u.currentTreeId,
         current_position_index: u.currentPositionIndex,
         email: `${u.username}@arboris.local`,

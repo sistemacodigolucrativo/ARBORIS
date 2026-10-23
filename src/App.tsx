@@ -54,6 +54,7 @@ import {
   adminUpdateMemberDirect
 } from './services/directAdminActions';
 import { TreeBoard } from './components/TreeBoard';
+import { formatIllustrativeSeedBRL } from './services/seedDonationSummary';
 import { formatBrazilianPixPhone, validatePixKey } from './services/pixValidation';
 import { PublicLandingPage } from './components/PublicLandingPage';
 
@@ -79,6 +80,9 @@ interface User {
   full_name: string;
   balance: number;
   tronco_cycle_seeds?: number | null;
+  initial_seed_package?: number;
+  recorded_donations?: number;
+  distinct_donors?: number;
   current_tree_id?: number | null;
   current_position_index?: number | null;
   pixHolderName?: string | null;
@@ -328,6 +332,7 @@ export default function App() {
   const [pixKeyType, setPixKeyType] = useState<'random' | 'email' | 'phone'>('random');
   const [pixKey, setPixKey] = useState<string>('');
   const [pixSaving, setPixSaving] = useState<boolean>(false);
+  const [showSeedBalanceDetails, setShowSeedBalanceDetails] = useState<boolean>(false);
   const [activationModalData, setActivationModalData] = useState<any | null>(null);
   const [activationRequestLoading, setActivationRequestLoading] = useState<boolean>(false);
   const [showPlantingAlertLog, setShowPlantingAlertLog] = useState<boolean>(false);
@@ -429,6 +434,10 @@ export default function App() {
     setPixKeyType(currentUser?.pixKeyType || 'random');
     setPixKey(currentUser?.pixKey || '');
   }, [currentUser?.id, currentUser?.pixHolderName, currentUser?.pixKeyType, currentUser?.pixKey, currentUser?.full_name]);
+
+  useEffect(() => {
+    setShowSeedBalanceDetails(false);
+  }, [currentUser?.id]);
 
   useEffect(() => {
     try {
@@ -2712,27 +2721,52 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                       Agora você está no tronco e precisa configurar sua chave Pix de recebimento. Você não será capaz de sair dessa tela se não fizer essa configuração.
                     </div>
                   )}
-                  <div className="member-wallet-balance bg-slate-900 border border-slate-800 rounded-2xl p-4 flex items-center justify-between">
-                    <div>
-                      <div className="text-[10px] text-slate-400 uppercase font-mono tracking-wider">Saldo de Sementes</div>
-                      <div className="text-2xl font-bold text-emerald-400 font-mono mt-0.5 flex items-center gap-1.5">
-                        <Sprout className="w-6 h-6 text-emerald-400" />
-                        <span>{currentUser.balance}</span>
-                        <span className="text-xs text-slate-400 font-normal">sementes</span>
+                  <button
+                    type="button"
+                    className="member-wallet-balance w-full bg-slate-900 border border-slate-800 rounded-2xl p-4 flex items-center justify-between gap-3 text-left cursor-pointer transition-colors hover:border-emerald-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
+                    onClick={() => setShowSeedBalanceDetails(value => !value)}
+                    aria-pressed={showSeedBalanceDetails}
+                    aria-label={showSeedBalanceDetails ? 'Mostrar saldo de sementes original' : 'Mostrar resumo de sementes e doações'}
+                    title={showSeedBalanceDetails ? 'Toque para voltar ao saldo de sementes' : 'Toque para ver o resumo de doações'}
+                  >
+                    {showSeedBalanceDetails ? (
+                      <div className="min-w-0 flex-1 space-y-2 text-xs leading-relaxed text-slate-200">
+                        <p>
+                          Você iniciou com: <strong className="text-emerald-300">{currentUser.initial_seed_package ?? 0} Sementes = {formatIllustrativeSeedBRL(currentUser.initial_seed_package ?? 0)}</strong>
+                        </p>
+                        <p>
+                          Você recebeu <strong className="text-emerald-300">{currentUser.recorded_donations ?? 0}</strong> {(currentUser.recorded_donations ?? 0) === 1 ? 'doação' : 'doações'} de <strong className="text-emerald-300">{currentUser.distinct_donors ?? 0}</strong> {(currentUser.distinct_donors ?? 0) === 1 ? 'Doador' : 'Doadores'}
+                        </p>
+                        <p>
+                          Saldo total: <strong className="text-emerald-300">{currentUser.balance} sementes = {formatIllustrativeSeedBRL(currentUser.balance)}</strong>
+                        </p>
+                        <p className="text-[10px] leading-relaxed text-slate-400">
+                          Doações contabilizadas por transferências internas registradas após ativações.
+                          A equivalência em R$ é ilustrativa: sementes não representam saldo bancário ou dinheiro disponível para saque.
+                        </p>
                       </div>
-                      <div className="text-[10px] text-slate-500 mt-1 leading-relaxed text-balance">
-                        Saldo total da carteira · Sementes internas · Sem saque bancário
-                        {currentUserIsTronco && (
-                          <span className="block mt-1 text-emerald-300">
-                            Recebidas no ciclo atual: {currentUser.tronco_cycle_seeds ?? 0} sementes
-                          </span>
-                        )}
+                    ) : (
+                      <div className="min-w-0">
+                        <div className="text-[10px] text-slate-400 uppercase font-mono tracking-wider">Saldo de Sementes</div>
+                        <div className="text-2xl font-bold text-emerald-400 font-mono mt-0.5 flex items-center gap-1.5">
+                          <Sprout className="w-6 h-6 text-emerald-400" />
+                          <span>{currentUser.balance}</span>
+                          <span className="text-xs text-slate-400 font-normal">sementes</span>
+                        </div>
+                        <div className="text-[10px] text-slate-500 mt-1 leading-relaxed text-balance">
+                          Saldo total da carteira · Sementes internas · Sem saque bancário
+                          {currentUserIsTronco && (
+                            <span className="block mt-1 text-emerald-300">
+                              Recebidas no ciclo atual: {currentUser.tronco_cycle_seeds ?? 0} sementes
+                            </span>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                    <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold text-xl">
+                    )}
+                    <span aria-hidden="true" className="w-12 h-12 shrink-0 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold text-xl">
                       🌱
-                    </div>
-                  </div>
+                    </span>
+                  </button>
 
                   <div className="member-wallet-pix bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
                     <div className="flex items-center justify-between text-xs">

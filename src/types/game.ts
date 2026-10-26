@@ -4,7 +4,7 @@ export type TreeStatus = 'active' | 'completed' | 'archived';
 export type PositionSide = 'root' | 'left' | 'right';
 export type PositionActivationStatus = 'reserved' | 'active';
 export type ActivationRequestStatus = 'pending' | 'approved' | 'rejected';
-export type LedgerEntryType = 'CONCESSAO_INICIAL_SEMENTES' | 'FORTALECIMENTO_TRONCO' | 'RESERVA_VAGA' | 'AJUSTE_ADMINISTRATIVO';
+export type LedgerEntryType = 'CONCESSAO_INICIAL_SEMENTES' | 'BAG_PLANTIO' | 'FORTALECIMENTO_TRONCO' | 'RESERVA_VAGA' | 'AJUSTE_ADMINISTRATIVO';
 
 export interface GameConfig {
   systemMode: 'active' | 'maintenance';
@@ -12,6 +12,7 @@ export interface GameConfig {
   transferAmount: number; // 25
   treeSplitPolicy: 'tree_split_1_2_4_8';
   maxTreesPerUser: number;
+  memberPanelLayout: 'classic' | 'aurora';
   categories: Array<{
     id: number;
     code: string;
@@ -124,6 +125,46 @@ export interface ActivationRequest {
   decisionNote?: string | null;
 }
 
+export interface PlantingBagEntry {
+  id: number;
+  userId: number;
+  treeId: number;
+  amount: number;
+  source: 'reservation';
+  createdAt: string;
+  username?: string;
+}
+
+export interface PlantingDraw {
+  id: number;
+  threshold: number;
+  amountConsumed: number;
+  selectedUserIds: number[];
+  selectedTreeIds: number[];
+  status: 'pending';
+  createdAt: string;
+}
+
+export interface PlantingAssignment {
+  id: number;
+  drawId: number;
+  userId: number;
+  username: string;
+  treeId: number;
+  status: 'pending';
+  createdAt: string;
+}
+
+export interface PlantingBag {
+  balance: number;
+  threshold: number;
+  selectionCount: number;
+  entries: PlantingBagEntry[];
+  draws: PlantingDraw[];
+  assignments: PlantingAssignment[];
+  updatedAt: string | null;
+}
+
 export interface GameDatabaseState {
   config: GameConfig;
   users: User[];
@@ -133,4 +174,5 @@ export interface GameDatabaseState {
   ledger: LedgerEntry[];
   auditLog: AuditLogEntry[];
   activationRequests?: ActivationRequest[];
+  plantingBag?: PlantingBag;
 }

@@ -1,85 +1,78 @@
-# ARBORIS — API + MySQL
+# ARBORIS
 
-A branch main usa backend Node.js/TypeScript e MySQL.
-Leia [instalação, migração, segurança e testes](docs/BACKEND_MYSQL.md).
-A publicação anterior no GitHub Pages não é atualizada até configurar a API.
+O **ARBORIS** é uma iniciativa comunitária de arborização e reflorestamento baseada em ajuda mútua entre participantes.
 
----
-
-## Documentação histórica anterior à migração
-
-# 🌳 Arboris — Jogo Comunitário de Reflorestamento Estático
-
-> ⚠️ **AVISO FUNDAMENTAL — SISTEMA EXCLUSIVAMENTE LÚDICO / RECREATIVO:**  
-> Este projeto é estritamente um jogo comunitário virtual inspirado na dinâmica de reflorestamento comunitário e árvores fractais (topologia 1-2-4-8).  
-> **NÃO EXISTE DINHEIRO REAL, SAQUE, DEPÓSITO, INVESTIMENTO, PROMESSA DE GANHO OU TRANSFERÊNCIA FINANCEIRA.**  
-> O sistema funciona exclusivamente com "sementes" virtuais fictícias que servem como pontuação interna recreativa do jogo.
+A comunicação pública do projeto deve ser simples, transparente e responsável: o ARBORIS organiza informações, convites, registros e acompanhamento da participação comunitária, mas não deve ser apresentado como investimento financeiro, promessa de ganho, renda passiva, aplicação, retorno automático ou sistema de lucro garantido.
 
 ---
 
-## 📌 Sobre o Projeto
+## Enquadramento público
 
-O **Arboris** é uma aplicação web **100% estática em React, TypeScript e Vite**, projetada para ser hospedada gratuitamente no **GitHub Pages**, utilizando **arquivos JSON versionados no próprio repositório** como base de dados transparente e auditável.
+O ARBORIS deve ser apresentado como:
 
-### Principais Características
-- **100% Estático:** Não requer servidores PHP, Node.js rodando em segundo plano ou bancos SQL em produção.
-- **Topologia Fractal 1-2-4-8:**
-  - 1 Tronco (Centro)
-  - 2 Ramos (Nível 1)
-  - 4 Galhos (Nível 2)
-  - 8 Folhas (Base / Entrada)
-- **Mecânica Recreativa:**
-  - Entrada exclusivamente por convite/indicação.
-  - Concessão inicial gratuita de 25 sementes virtuais ao entrar.
-  - Ocupação de vagas externas na base da árvore.
-  - Ao preencher 15/15 posições, a árvore mãe é concluída e bifurca harmonicamente em duas novas árvores filhas ativas.
-- **Auditoria e Ledger Imutável:** Histórico de todas as transferências com proteção contra duplicidade (`idempotencyKey`).
-- **Gravação administrativa direta:** ações administrativas podem gravar `data/*.json` e `public/data/*.json` pela GitHub API usando fine-grained Personal Access Token informado localmente pelo administrador. O token não deve ser commitado.
-- **Fluxos públicos:** podem continuar usando o fluxo automatizado por GitHub Actions quando aplicável.
+- uma iniciativa comunitária ligada à arborização e ao reflorestamento;
+- um sistema filantrópico de ajuda mútua entre participantes;
+- uma comunidade com regras próprias de participação;
+- uma ferramenta de organização, registro e acompanhamento da comunidade.
+
+O ARBORIS **não** deve ser apresentado como:
+
+- investimento;
+- aplicação financeira;
+- renda passiva;
+- lucro garantido;
+- retorno financeiro automático;
+- marketing multinível;
+- intermediação de pagamentos;
+- custódia ou administração de valores dos participantes.
 
 ---
 
-## 🚀 Como Executar Localmente
+## Ajuda mútua e movimentações financeiras
 
-### Pré-requisitos
-- Node.js 18+
-- npm
+Eventuais doações ou transferências são realizadas diretamente entre os próprios participantes, sem atravessadores.
 
-### Comandos
+Qualquer movimentação financeira feita entre membros é de responsabilidade exclusiva das partes envolvidas.
+
+O ARBORIS não recebe, coleta, intermedeia, custodia, administra ou executa valores financeiros dos participantes. O projeto também não deve ser apresentado como responsável pela conclusão, confirmação ou garantia de transações realizadas entre membros.
+
+---
+
+## Papel do sistema
+
+O sistema pode apoiar a comunidade com:
+
+- apresentação institucional do projeto;
+- registro de participantes;
+- organização de convites;
+- visualização de árvores;
+- acompanhamento de posições, ciclos e histórico;
+- apoio operacional para coordenadores e administradores.
+
+Essas funções são organizacionais. Elas não representam promessa de resultado financeiro nem garantia de benefício automático.
+
+---
+
+## Desenvolvimento
+
+Este repositório contém a aplicação web do ARBORIS, seus arquivos de dados, documentação técnica e scripts auxiliares de operação.
+
+Para detalhes técnicos, consulte os documentos em [`docs/`](docs/), especialmente os guias de arquitetura, dados, publicação e operação.
+
+Comandos usuais de desenvolvimento:
+
 ```bash
-# Instalar dependências
 npm install
-
-# Executar a suíte de 39 testes automatizados do jogo
-npm run test:game
-
-# Iniciar o servidor de desenvolvimento
 npm run dev
-
-# Compilar para produção (pasta dist/)
 npm run build
-
-# Visualizar a versão de produção localmente
-npm run preview
 ```
 
 ---
 
-## 📂 Estrutura de Dados (/data)
+## Regra de comunicação
 
-Os dados do jogo são armazenados como arquivos JSON simples:
-- `data/config.json`: Configurações de regras e categorias.
-- `data/users.json`: Lista de participantes e seus papéis.
-- `data/wallets.json`: Saldos de sementes virtuais recreativas.
-- `data/trees.json`: Árvores ativas e concluídas com posições mapeadas.
-- `data/referrals.json`: Links de indicação e contadores de convites.
-- `data/ledger.json`: Livro-razão contábil de sementes virtuais.
-- `data/audit-log.json`: Registros cronológicos de auditoria.
+Toda comunicação pública do ARBORIS deve preservar três pontos:
 
----
-
-## 📚 Documentação Completa
-
-Para detalhes aprofundados sobre arquitetura, migração técnica e publicação:
-- 📖 [Relatório Técnico de Migração e Arquitetura](docs/RELATORIO_TECNICO_E_MIGRACAO.md)
-- 🛠️ [Guia Operacional: GitHub Pages e GitHub Actions](docs/GUIA_GITHUB_PAGES_E_ACTIONS.md)
+1. O propósito central é comunitário e ambiental.
+2. A ajuda mútua ocorre diretamente entre participantes.
+3. O ARBORIS não promete ganho financeiro nem intermedeia valores.

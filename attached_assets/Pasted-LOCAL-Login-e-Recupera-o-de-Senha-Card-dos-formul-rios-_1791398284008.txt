@@ -1,0 +1,65 @@
+LOCAL: Login e Recuperação de Senha / Card dos formulários
+
+ANOTAÇÃO:
+As telas de login e recuperação de senha estão visualmente simples demais e com baixa presença institucional.
+
+AJUSTE NECESSÁRIO:
+Adicionar a logo do ÁRBORIS no topo do card que contém os formulários. Substituir o emoji usado no campo de senha por um ícone real de visibilidade, preferencialmente de uma biblioteca consistente como FontAwesome, Lucide ou equivalente já disponível no projeto.
+
+OBJETIVO:
+Dar mais identidade visual às telas de acesso e substituir elementos improvisados por componentes visuais mais profissionais.
+
+LOCAL: Painel do Membro / Barra superior da árvore
+
+ANOTAÇÃO:
+Na barra posicionada no topo da árvore, o nome do membro não está visualmente centralizado entre os elementos laterais.
+
+AJUSTE NECESSÁRIO:
+Centralizar o nome do membro entre a cápsula “Membro” e o ícone de folha exibido na mesma barra.
+
+OBJETIVO:
+Melhorar o alinhamento visual da barra e deixar a identificação do participante mais equilibrada dentro do layout.
+
+LOCAL: Painel do Membro / Área da árvore / Rolagem
+
+ANOTAÇÃO:
+Ao deslizar o dedo para cima ou para baixo sobre a árvore no Painel do Membro, o scroll da página não funciona corretamente.
+
+AJUSTE NECESSÁRIO:
+Analisar e remover o bloqueio de rolagem aplicado sobre a área da árvore no Painel do Membro. Esse comportamento não deve afetar a navegação do membro.
+
+OBJETIVO:
+Garantir rolagem normal no Painel do Membro, mantendo qualquer trava de interação apenas onde ela for realmente necessária.
+
+LOCAL: Painel do Membro / Topo da página / Barra preta com botão “Sair”
+
+ANOTAÇÃO:
+Existe uma barra preta no topo do Painel do Membro contendo o botão “Sair”.
+
+AJUSTE NECESSÁRIO:
+Remover essa barra preta do Painel do Membro e reposicionar o botão “Sair” para aparecer ao lado da logo ÁRBORIS no topo.
+
+OBJETIVO:
+Limpar o topo da interface, reduzir elementos redundantes e manter a função de saída em local visível e mais integrado à identidade do painel.
+
+LOCAL: Painel do Membro / Topo / Ícone do manual
+
+ANOTAÇÃO:
+Existe um ícone de livrinho no topo do Painel do Membro que leva para a página de manual.
+
+AJUSTE NECESSÁRIO:
+Remover o ícone do livrinho do topo do Painel do Membro.
+
+OBJETIVO:
+Simplificar o cabeçalho do painel e remover um atalho visual que não deve permanecer nessa posição.
+
+LOCAL: Página Manual Oficial da Comunidade
+
+ANOTAÇÃO:
+A página Manual Oficial da Comunidade apresenta múltiplos botões “Voltar” renderizados e o conteúdo pode não estar alinhado ao estado atual do projeto.
+
+AJUSTE NECESSÁRIO:
+Revisar a página inteira, corrigir a duplicidade dos botões “Voltar” e reescrever total ou parcialmente o conteúdo para refletir corretamente o funcionamento atual do ÁRBORIS.
+
+OBJETIVO:
+Transformar o manual em uma página clara, atualizada, institucionalmente coerente e sem elementos repetidos ou confusos.

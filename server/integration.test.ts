@@ -43,6 +43,15 @@ test('MySQL: authentication, atomic writes, rollback, idempotency and persistenc
   assert.equal(login.status, 200);
   assert.match(login.headers.get('set-cookie')!, /HttpOnly/);
   const admin = login.cookie;
+  // Global donations are never public and only return safe, paginated fields.
+  assert.equal((await call('/global-donations')).status, 401);
+  const globalFeed = await call('/global-donations?page=1', undefined, admin);
+  assert.equal(globalFeed.status, 200);
+  assert.equal(globalFeed.data.success, true);
+  assert.equal(Array.isArray(globalFeed.data.items), true);
+  assert.equal(typeof globalFeed.data.total, 'number');
+  assert.equal(globalFeed.data.pageSize, 20);
+  assert.equal((await call('/global-donations?page=invalid', undefined, admin)).status, 400);
   assert.equal((await call('/auth/logout', {}, admin, randomUUID(), { Origin: 'https://attacker.invalid' })).status, 403);
   assert.equal((await call('/auth/logout', {}, admin, randomUUID(), { 'X-Arboris-Client': '' })).status, 403);
   const registration = { firstName: 'Integration', lastName: 'Member', indicadorUsername: 'maria', password };

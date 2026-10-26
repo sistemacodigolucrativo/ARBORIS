@@ -16,6 +16,8 @@ const errors: string[] = [];
 page.on('pageerror', error => errors.push(error.message));
 try {
   await page.goto('http://127.0.0.1:3001/ARBORIS/');
+  await expect(page.getByRole('heading', { name: 'Entrar na comunidade' })).toBeVisible();
+  await page.getByRole('button', { name: 'Conhecer o projeto', exact: true }).click();
   await page.getByRole('button', { name: /Já sou membro/ }).click();
   await page.getByLabel('Usuário', { exact: true }).fill('admin');
   await page.getByLabel('Senha', { exact: true }).fill('test-only-long-password-123');
@@ -34,15 +36,28 @@ try {
   await page.reload();
   await expect(page.getByRole('button', { name: 'Organização', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Sair', exact: true }).click();
-  await page.getByRole('button', { name: /Já sou membro/ }).click();
+  await expect(page.getByRole('heading', { name: 'Entrar na comunidade' })).toBeVisible();
   await page.getByLabel('Usuário', { exact: true }).fill('browser_member');
   await page.getByLabel('Senha', { exact: true }).fill('browser-only-long-password-123');
   await page.getByRole('button', { name: 'Entrar', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Sair', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Organização', exact: true })).toHaveCount(0);
+  const bottomNav = page.getByRole('navigation', { name: 'Navegação principal' });
+  await expect(bottomNav.getByRole('button', { name: 'Minha Árvore', exact: true })).toBeVisible();
+  await expect(bottomNav.getByRole('button', { name: 'Divulgação', exact: true })).toBeVisible();
+  await expect(bottomNav.getByRole('button', { name: 'Doação', exact: true })).toBeVisible();
+  await expect(bottomNav.getByRole('button', { name: 'Manual', exact: true })).toBeVisible();
+  await expect(page.locator('.member-subnav')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Doações Globais', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Doações Globais' })).toBeVisible();
+  await page.getByRole('button', { name: 'Voltar', exact: true }).click();
+  await bottomNav.getByRole('button', { name: 'Divulgação', exact: true }).click();
+  await expect(page.locator('.member-marketing-tab')).toBeVisible();
+  await bottomNav.getByRole('button', { name: 'Minha Árvore', exact: true }).click();
+  await expect(page.locator('.member-tree-tab')).toBeVisible();
   await page.getByRole('button', { name: 'Transferir 25 Sementes para fortalecer o tronco', exact: true }).click();
   await expect(page.getByText('Fortalecimento concluído.', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Sementes', exact: true }).click();
+  await bottomNav.getByRole('button', { name: 'Doação', exact: true }).click();
   await expect(page.getByText('-25', { exact: true })).toBeVisible();
   await expect(page.getByText('Saldo: 0', { exact: true })).toBeVisible();
   const [wallets] = await pool.execute<RowDataPacket[]>('SELECT balance FROM wallets WHERE userId=?', [users[0].id]);
@@ -50,7 +65,7 @@ try {
   await page.reload();
   await expect(page.getByRole('button', { name: 'Sair', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Sair', exact: true }).click();
-  await expect(page.getByRole('button', { name: /Já sou membro/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Entrar na comunidade' })).toBeVisible();
   if (errors.length) throw new Error(errors.join('\n'));
   console.log('Browser smoke passed: login, admin creation persisted in MySQL, member access, strengthening and signed ledger, session reload, logout.');
 } finally {

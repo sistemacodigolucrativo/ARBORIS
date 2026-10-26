@@ -1,11 +1,20 @@
 const base = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '');
+function visualPreviewHeaders(): Record<string, string> {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return {};
+  const requested = new URLSearchParams(window.location.search).get('preview');
+  return requested === null || ['admin', 'member', 'public'].includes(requested)
+    ? { 'X-Arboris-Visual-Preview': 'true' }
+    : {};
+}
 export class ApiError extends Error {
   constructor(public status: number, message: string) { super(message); }
 }
 export async function apiRequest<T = any>(path: string, body?: unknown, idempotencyKey?: string): Promise<T> {
   const response = await fetch(`${base}${path}`, {
     method: body === undefined ? 'GET' : 'POST', credentials: 'include', cache: 'no-store',
-    headers: body === undefined ? {} : { 'Content-Type': 'application/json', 'X-Arboris-Client': 'web', ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}) },
+    headers: body === undefined
+      ? visualPreviewHeaders()
+      : { 'Content-Type': 'application/json', 'X-Arboris-Client': 'web', ...visualPreviewHeaders(), ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}) },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
   const data = await response.json().catch(() => { throw new Error('API indisponível ou endereço incorreto.'); });

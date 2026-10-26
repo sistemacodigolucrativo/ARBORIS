@@ -1,12 +1,22 @@
-import type { GameDatabaseState, User } from '../types/game';
+import type { GameConfig, GameDatabaseState, User } from '../types/game';
 import { apiRequest, apiMutation } from './api';
+import { summarizeRecordedDonations } from './seedDonationSummary';
 
 class DataStoreService {
   private state: GameDatabaseState | null = null;
   private user: User | null = null;
   private listeners: Array<() => void> = [];
   async loadState(_force = false): Promise<GameDatabaseState> {
-    const data = await apiRequest('/state');
+    const requestedPreview = import.meta.env.DEV ? new URLSearchParams(window.location.search).get('preview') : null;
+    const previewRole = import.meta.env.DEV
+      ? requestedPreview === 'member'
+        ? 'member'
+        : requestedPreview === 'admin' || requestedPreview === null
+          ? 'admin'
+          : null
+      : null;
+    const previewQuery = previewRole ? `?preview=${previewRole}` : '';
+    const data = await apiRequest(`/state${previewQuery}`);
     this.user = data.user;
     return this.replaceState(data.state);
   }
@@ -61,14 +71,30 @@ class DataStoreService {
     const res = await apiMutation('/actions', { action: 'toggle_user_status', params: { userId } });
     return { ...res, newStatus: res.result.newStatus };
   }
+  async setMemberPanelLayoutAction(layout: GameConfig['memberPanelLayout']) {
+    return apiMutation('/actions', { action: 'set_member_panel_layout', params: { layout } });
+  }
   getSystemStateView() {
     if (!this.state) return null;
 
     // Flatten positions and augment with user balances
     const augmentedUsers = this.state.users.map(u => {
       const wallet = this.state!.wallets.find(w => w.userId === u.id);
+      const activeTroncoTree = this.state!.trees.find(t =>
+        t.status === 'active' && t.id === u.currentTreeId && t.troncoUserId === u.id);
+      // Cycle-specific counter starts at zero without deleting historical wallet records.
+      const troncoCycleSeeds = activeTroncoTree
+        ? this.state!.ledger.filter(entry => entry.treeId === activeTroncoTree.id
+            && entry.toUserId === u.id && entry.type === 'FORTALECIMENTO_TRONCO')
+          .reduce((sum, entry) => sum + entry.amount, 0)
+        : null;
+      const donationSummary = summarizeRecordedDonations(this.state!.ledger, u.id, activeTroncoTree?.id ?? null);
       return {
         ...u,
+        tronco_cycle_seeds: troncoCycleSeeds,
+        initial_seed_package: this.state!.config.initialSeedsGrant,
+        recorded_donations: donationSummary.donations,
+        distinct_donors: donationSummary.donors,
         current_tree_id: u.currentTreeId,
         current_position_index: u.currentPositionIndex,
         email: `${u.username}@arboris.local`,
@@ -196,6 +222,15 @@ class DataStoreService {
         decided_at: r.decidedAt,
         decision_note: r.decisionNote
       })),
+      planting_bag: this.state.plantingBag ? {
+        balance: this.state.plantingBag.balance,
+        threshold: this.state.plantingBag.threshold,
+        selection_count: this.state.plantingBag.selectionCount,
+        entries: this.state.plantingBag.entries,
+        draws: this.state.plantingBag.draws,
+        assignments: this.state.plantingBag.assignments,
+        updated_at: this.state.plantingBag.updatedAt
+      } : null,
       categories: this.state.config.categories.map(c => ({
         id: c.id,
         code: c.code,
@@ -207,7 +242,8 @@ class DataStoreService {
       })),
       settings: [
         { id: 1, setting_key: 'system_mode', setting_value: this.state.config.systemMode, description: 'Modo operacional', is_editable: 1, updated_at: '2026-10-02' },
-        { id: 2, setting_key: 'transfer_amount_default', setting_value: String(this.state.config.transferAmount), description: 'Sementes por fortalecimento', is_editable: 1, updated_at: '2026-10-02' }
+        { id: 2, setting_key: 'transfer_amount_default', setting_value: String(this.state.config.transferAmount), description: 'Sementes por fortalecimento', is_editable: 1, updated_at: '2026-10-02' },
+        { id: 3, setting_key: 'member_panel_layout', setting_value: this.state.config.memberPanelLayout === 'aurora' ? 'aurora' : 'classic', description: 'Layout global do painel do membro', is_editable: 1, updated_at: '2026-10-02' }
       ]
     };
   }

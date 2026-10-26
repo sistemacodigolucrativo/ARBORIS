@@ -1,0 +1,48 @@
+Deixe o projeto existente neste workspace em um estado limpo e consistente com o repositório remoto, preservando a estrutura e a arquitetura atuais.
+
+O objetivo é manter este workspace como ambiente local de desenvolvimento do projeto.
+
+FLUXO DE TRABALHO
+
+1. O projeto existente no workspace será a base de desenvolvimento.
+2. Você será responsável por analisar, editar e implementar as alterações solicitadas diretamente nesse projeto.
+3. Eu utilizarei o Git para revisar e enviar as alterações realizadas para o repositório remoto no GitHub.
+4. Posteriormente, solicitarei ao Manus AI que utilize o conteúdo atualizado do repositório remoto para atualizar a aplicação na VPS.
+
+Portanto, o fluxo será:
+
+Workspace local → alterações e implementação → Git → repositório remoto no GitHub → atualização da VPS pelo Manus AI.
+
+DIRETRIZES OBRIGATÓRIAS
+
+Não altere o projeto integralmente.
+
+Antes de implementar qualquer modificação, analise o estado atual do código, a arquitetura, a estrutura de diretórios, as dependências e o fluxo relacionado à funcionalidade que será modificada.
+
+As implementações devem ser cirúrgicas e compatíveis com o projeto existente.
+
+Não recrie o projeto, não substitua componentes funcionais sem necessidade, não altere a arquitetura global e não introduza novas tecnologias, dependências, serviços ou padrões arquiteturais sem necessidade técnica comprovada.
+
+Preserve tudo que já funciona e modifique somente os arquivos e trechos necessários para atender ao requisito solicitado.
+
+Não realize refatorações paralelas ou melhorias fora do escopo apenas por considerar outra implementação tecnicamente mais elegante.
+
+Antes de cada alteração:
+
+- identifique o comportamento atual;
+- localize os arquivos realmente envolvidos;
+- verifique dependências e impactos;
+- determine a menor alteração necessária;
+- implemente mantendo compatibilidade com o restante do sistema.
+
+Após cada implementação, valide se:
+
+- o requisito solicitado foi atendido;
+- o comportamento existente relacionado continua funcionando;
+- não foram introduzidas regressões evidentes;
+- não houve alteração desnecessária de arquitetura ou estrutura;
+- somente arquivos necessários foram modificados.
+
+Não faça push, deploy ou alterações diretamente na VPS.
+
+Sua responsabilidade termina nas alterações realizadas neste workspace. O envio para o GitHub será feito por mim, e a atualização da VPS será executada posteriormente pelo Manus AI a partir do repositório remoto.

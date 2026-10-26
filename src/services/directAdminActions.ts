@@ -1,4 +1,7 @@
-import { apiMutation } from './api';
+import { apiMutation, apiRequest } from './api';
+export function adminChangeMemberPassword(userId: number, newPassword: string) {
+  return apiRequest('/admin/member-password', { userId, newPassword });
+}
 type ActorParams = { actorUserId?: number; actorUsername?: string };
 export function createTreeDirect({ categoryId, tokenRequirement, troncoUserId }: { categoryId: number; tokenRequirement?: number; troncoUserId: number } & ActorParams) {
   return apiMutation('/actions', { action: 'create_tree', params: { categoryId, tokenRequirement, troncoUserId } });

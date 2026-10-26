@@ -57,6 +57,7 @@ import { TreeBoard } from './components/TreeBoard';
 import { formatIllustrativeSeedBRL } from './services/seedDonationSummary';
 import { formatBrazilianPixPhone, validatePixKey } from './services/pixValidation';
 import { PublicLandingPage } from './components/PublicLandingPage';
+import { GlobalDonationsPanel } from './components/GlobalDonationsPanel';
 
 interface Position {
   id: number;
@@ -281,6 +282,7 @@ export default function App() {
   
   // Identity comes exclusively from the authenticated server session.
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [showGlobalDonations, setShowGlobalDonations] = useState(false);
 
   // System state from API
   const [systemState, setSystemState] = useState<any>(null);
@@ -372,14 +374,14 @@ export default function App() {
       const user = view?.users.find(u => u.id === dataStore.getSessionUser()?.id);
       if (!user) throw new Error('Não foi possível confirmar sua sessão.');
       setCurrentUser(user); setSystemState(view); setLoginPassword('');
-      setShowDirectLoginModal(false); setShowLandingPage(false); setIsLocked(false);
+      setShowDirectLoginModal(false); setShowLandingPage(false); setIsLocked(false); setShowGlobalDonations(false);
       setCurrentView(user.role === 'admin' ? 'admin' : 'member'); setLoadError('');
     } catch (error: any) { setLoginError(error.message); }
     finally { setLoginLoading(false); }
   };
   const handleLogout = async () => {
     try {
-      await dataStore.logout(); setCurrentUser(null); setSystemState(null);
+      await dataStore.logout(); setCurrentUser(null); setSystemState(null); setShowGlobalDonations(false);
       setShowLandingPage(false); setShowDirectLoginModal(true); setIsLocked(false); setCurrentView('member');
     } catch (error: any) { showToast(error.message); }
   };
@@ -443,7 +445,7 @@ export default function App() {
     try {
       for (const key of ['arboris_game_state_v1', 'arboris_current_user_v1', 'arboris_admin_execution_key_v1', 'arboris_github_fine_grained_token_v1']) localStorage.removeItem(key);
     } catch { /* Storage can be disabled; authentication does not depend on it. */ }
-    const expired = () => { setCurrentUser(null); setSystemState(null); setShowDirectLoginModal(true); setCurrentView('member'); };
+    const expired = () => { setCurrentUser(null); setSystemState(null); setShowGlobalDonations(false); setShowDirectLoginModal(true); setCurrentView('member'); };
     window.addEventListener('arboris-session-expired', expired);
     return () => window.removeEventListener('arboris-session-expired', expired);
   }, []);
@@ -2134,9 +2136,26 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                 <span className="font-bold text-slate-100 text-sm tracking-wide block leading-none">ÁRBORIS</span>
               </div>
               {currentView === 'member' && currentUser && (
-                <button type="button" onClick={handleLogout} className="ml-1 rounded-lg border border-slate-700 bg-slate-800 px-2.5 py-1.5 text-[11px] font-semibold text-slate-300 transition hover:bg-slate-700">
-                  Sair
-                </button>
+                <>
+                  <button type="button" onClick={handleLogout}
+                    className="ml-1 rounded-lg border border-slate-700 bg-slate-800 px-2.5 py-1.5 text-[11px] font-semibold text-slate-300 transition hover:bg-slate-700">
+                    Sair
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (currentUserPixLock) {
+                        enforceTroncoPixLock();
+                        return;
+                      }
+                      setShowGlobalDonations(true);
+                    }}
+                    aria-pressed={showGlobalDonations}
+                    className={`rounded-lg border px-2 py-1.5 text-[10px] sm:text-[11px] font-bold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400 ${showGlobalDonations ? 'border-emerald-500 bg-emerald-700 text-white' : 'border-emerald-700/60 bg-emerald-950/70 text-emerald-200 hover:bg-emerald-900'}`}
+                  >
+                    Doações Globais
+                  </button>
+                </>
               )}
             </div>
 
@@ -2344,6 +2363,9 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
           {/* VIEW: PAINEL DO MEMBRO */}
           {/* ======================================================== */}
           {currentView === 'member' && currentUser && (
+            showGlobalDonations ? (
+              <GlobalDonationsPanel onBack={() => setShowGlobalDonations(false)} />
+            ) : (
             <div className="member-panel-root space-y-4 animate-in fade-in duration-150">
               {completedTroncoTree ? (
                 <section className="rounded-2xl border-2 border-emerald-500/60 bg-emerald-950/40 p-5 space-y-4 text-sm" role="status">
@@ -2363,51 +2385,6 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
               ) : (
                 <>
               {/* The mandatory Pix notice is shown once, next to the form in the wallet. */}
-              {/* Member Sub-Navigation */}
-              <div className="member-subnav flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800 text-xs">
-                <button
-                  onClick={() => {
-                    if (currentUserPixLock) {
-                      enforceTroncoPixLock();
-                      return;
-                    }
-                    setMemberTab('my_tree');
-                  }}
-                  className={`flex-1 py-1.5 rounded-lg font-medium transition text-center flex items-center justify-center gap-1.5 ${
-                    memberTab === 'my_tree' ? 'bg-slate-800 text-emerald-400 shadow-sm' : currentUserPixLock ? 'text-slate-600 cursor-not-allowed opacity-60' : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  <Trees className="w-3.5 h-3.5" />
-                  <span>Minha Árvore</span>
-                </button>
-
-                <button
-                  onClick={() => {
-                    if (currentUserPixLock) {
-                      enforceTroncoPixLock();
-                      return;
-                    }
-                    setMemberTab('marketing');
-                  }}
-                  className={`flex-1 py-1.5 rounded-lg font-medium transition text-center flex items-center justify-center gap-1.5 ${
-                    memberTab === 'marketing' ? 'bg-slate-800 text-emerald-400 shadow-sm' : currentUserPixLock ? 'text-slate-600 cursor-not-allowed opacity-60' : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  <Share2 className="w-3.5 h-3.5" />
-                  <span>Divulgação</span>
-                </button>
-
-                <button
-                  onClick={() => setMemberTab('wallet')}
-                  className={`flex-1 py-1.5 rounded-lg font-medium transition text-center flex items-center justify-center gap-1.5 ${
-                    memberTab === 'wallet' ? 'bg-slate-800 text-emerald-400 shadow-sm' : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  <DollarSign className="w-3.5 h-3.5" />
-                  <span>Doação</span>
-                </button>
-              </div>
-
               {/* SUB-TAB A: MINHA ÁRVORE */}
               {memberTab === 'my_tree' && (
                   <div className="member-active-tab member-tree-tab space-y-4">
@@ -2866,6 +2843,7 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
                 </>
               )}
             </div>
+            )
           )}
 
           {/* ======================================================== */}
@@ -3550,27 +3528,87 @@ const openAdminOnlineAction = async (res: any, successMessage: string) => {
           </div>
         )}
 
-        {/* Persistent Bottom Bar */}
-        <nav className={`member-bottom-nav fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-slate-900/95 backdrop-blur border-t border-slate-800 flex items-center justify-around py-2 px-1 z-40${isAuroraMemberPanel ? ' member-bottom-nav--aurora' : ''}`}>
+        {/* Persistent Bottom Bar — primary navigation for participants */ }
+        <nav aria-label="Navegação principal" className={`member-bottom-nav fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-slate-900/95 backdrop-blur border-t border-slate-800 flex items-stretch justify-around gap-0.5 py-2 px-1 z-40${isAuroraMemberPanel ? ' member-bottom-nav--aurora' : ''}`}>
+          {currentUser && currentUser.role !== 'admin' && (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  if (currentUserPixLock) { enforceTroncoPixLock(); return; }
+                  setCurrentView('member');
+                  setShowGlobalDonations(false);
+                  setMemberTab('my_tree');
+                }}
+                aria-current={currentView === 'member' && !showGlobalDonations && memberTab === 'my_tree' ? 'page' : undefined}
+                className={`member-bottom-nav-item flex flex-1 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1.5 py-1.5 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400 ${
+                  currentView === 'member' && !showGlobalDonations && memberTab === 'my_tree'
+                    ? 'bg-emerald-500/15 text-emerald-300 font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'
+                }`}
+              >
+                <Trees className="h-5 w-5 shrink-0" aria-hidden="true" />
+                <span className="text-[9px] sm:text-[10px] whitespace-nowrap leading-tight">Minha Árvore</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (currentUserPixLock) { enforceTroncoPixLock(); return; }
+                  setCurrentView('member');
+                  setShowGlobalDonations(false);
+                  setMemberTab('marketing');
+                }}
+                aria-current={currentView === 'member' && !showGlobalDonations && memberTab === 'marketing' ? 'page' : undefined}
+                className={`member-bottom-nav-item flex flex-1 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1.5 py-1.5 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400 ${
+                  currentView === 'member' && !showGlobalDonations && memberTab === 'marketing'
+                    ? 'bg-emerald-500/15 text-emerald-300 font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'
+                }`}
+              >
+                <Share2 className="h-5 w-5 shrink-0" aria-hidden="true" />
+                <span className="text-[9px] sm:text-[10px] whitespace-nowrap leading-tight">Divulgação</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setCurrentView('member');
+                  setShowGlobalDonations(false);
+                  setMemberTab('wallet');
+                }}
+                aria-current={currentView === 'member' && !showGlobalDonations && memberTab === 'wallet' ? 'page' : undefined}
+                className={`member-bottom-nav-item flex flex-1 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1.5 py-1.5 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400 ${
+                  currentView === 'member' && !showGlobalDonations && memberTab === 'wallet'
+                    ? 'bg-emerald-500/15 text-emerald-300 font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'
+                }`}
+              >
+                <DollarSign className="h-5 w-5 shrink-0" aria-hidden="true" />
+                <span className="text-[9px] sm:text-[10px] whitespace-nowrap leading-tight">Doação</span>
+              </button>
+            </>
+          )}
           <button
-            onClick={() => setCurrentView('public')}
-            className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition ${
-              currentView === 'public' ? 'text-emerald-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+            type="button"
+            onClick={() => {
+              setShowGlobalDonations(false);
+              setCurrentView('public');
+            }}
+            aria-current={currentView === 'public' ? 'page' : undefined}
+            className={`member-bottom-nav-item flex flex-1 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1.5 py-1.5 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400 ${
+              currentView === 'public' ? 'bg-emerald-500/15 text-emerald-300 font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'
             }`}
           >
-            <BookOpen className="w-5 h-5" />
-            <span className="text-[10px]">Manual</span>
+            <BookOpen className="h-5 w-5 shrink-0" aria-hidden="true" />
+            <span className="text-[9px] sm:text-[10px] whitespace-nowrap leading-tight">Manual</span>
           </button>
-
           {currentUser?.role === 'admin' && (
             <button
+              type="button"
               onClick={() => setCurrentView('admin')}
-              className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition ${
-                currentView === 'admin' ? 'text-amber-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+              aria-current={currentView === 'admin' ? 'page' : undefined}
+              className={`member-bottom-nav-item flex flex-1 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1.5 py-1.5 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400 ${
+                currentView === 'admin' ? 'bg-amber-500/15 text-amber-300 font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'
               }`}
             >
-              <Shield className="w-5 h-5" />
-              <span className="text-[10px]">Organização</span>
+              <Shield className="h-5 w-5 shrink-0" aria-hidden="true" />
+              <span className="text-[9px] sm:text-[10px] whitespace-nowrap leading-tight">Organização</span>
             </button>
           )}
         </nav>

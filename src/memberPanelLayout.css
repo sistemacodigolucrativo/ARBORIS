@@ -598,3 +598,34 @@
     transition-duration: .01ms !important;
   }
 }
+
+/* Member navigation now lives in the shared footer (both Classic and Aurora layouts). */
+.member-bottom-nav {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+}
+
+.member-layout-aurora .member-panel-root {
+  display: block;
+}
+
+.member-layout-aurora .member-active-tab {
+  grid-column: auto;
+  grid-row: auto;
+  width: 100%;
+}
+
+.member-layout-aurora .member-bottom-nav .member-bottom-nav-item[aria-current="page"] {
+  color: #b8f1da;
+  border: 1px solid rgb(140 227 194 / 23%);
+  background: linear-gradient(110deg, rgb(89 176 144 / 21%), rgb(90 163 169 / 9%));
+}
+
+@media (max-width: 360px) {
+  .member-bottom-nav .member-bottom-nav-item {
+    padding-inline: 2px;
+  }
+  .member-bottom-nav .member-bottom-nav-item span {
+    font-size: 9px;
+    letter-spacing: -0.015em;
+  }
+}

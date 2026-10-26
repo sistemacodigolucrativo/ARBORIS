@@ -9,6 +9,7 @@ import { validateReferral, resolveTreeTokenRequirement } from '../src/services/g
 import { DatabasePool, transaction, loadState, saveState } from './db';
 import { digest, newToken, hashPassword, verifyPassword, HttpError } from './security';
 import { registrationSchema, actionSchema, passwordSchema, register, applyAction, visibleState } from './actions';
+import { getConfirmedGlobalDonations } from './globalDonations';
 
 const cookieName = 'arboris_session';
 const recoveryPinSchema = z.string().trim().regex(/^\d{4,12}$/, 'O PIN de recuperação deve ter de 4 a 12 números.');
@@ -88,6 +89,17 @@ export function createApp(pool: DatabasePool) {
       const user = previewUser || await authenticated(db, req, false);
       return { success: true, state: visibleState(state, user), user };
     }));
+  });
+  // The global feed is authenticated and exposes masked names only.
+  // A recorded transfer is shown only after the corresponding Pix activation was approved.
+  app.get('/api/global-donations', async (req, res) => {
+    const page = z.coerce.number().int().min(1).max(100000).default(1).parse(req.query.page);
+    const response = await transaction(pool, async db => {
+      await authenticated(db, req);
+      const state = await loadState(db);
+      return { success: true, ...getConfirmedGlobalDonations(state, page) };
+    });
+    res.json(response);
   });
   app.post('/api/auth/login', authLimit, async (req, res) => {
     const params = z.object({ username: z.string().trim().min(3).max(100), password: z.string().min(1).max(128) }).strict().parse(req.body);
